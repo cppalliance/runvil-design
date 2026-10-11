@@ -41,7 +41,7 @@ Constructs described below are labeled active (changed by this plan), existing (
 - C: `call(heading, input?)`, `call_async(heading, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
 - D: `description`
 - E: events, deferred `execute(path, input?)`, deferred `execute_async(path, input?)`
-- F: deferred `fanout(section, inputs)`, frontmatter
+- F: `tasks.fanout(worker, collection)`, frontmatter
 - H: heading references
 - I: `include`, incarnation, inherited Lua, `input`
 - J: `jump(heading)`
@@ -52,7 +52,7 @@ Constructs described below are labeled active (changed by this plan), existing (
 - P: deferred `pfanout`, `prompt.list(heading)`, `prompt.section(heading)`, `promptforge: 0`, `prose`, provider projection
 - R: `require(path)`, `return`
 - S: sections, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
-- T: task handles, `tasks.await_all`, thematic break, `tools.add`, `tools["add_local"]`, `tools.always`, `tools.bind`, `tools.call`, `tools.calls`
+- T: task handles, `tasks`, `tasks.await_all`, `tasks.fanout`, thematic break, `tools.add`, `tools["add_local"]`, `tools.always`, `tools.bind`, `tools.call`, `tools.calls`
 - U: `ui()`, `untrusted(text)`, `user_input()`
 - V: `var`
 
@@ -383,6 +383,12 @@ Fall-through visits siblings in source order and carries `var`, but no implicit 
 
 **Effect:** Eagerly creates and enqueues one visible section task, then returns without awaiting it. The executor controls when queued work becomes running. It optionally replaces `args`, clones `var`, creates a fresh section entry initialized from lexical `lua inherit` ancestry and frozen assets, and isolates child clipboard writes. Every child inherits parent cancellation, deadline, confinement, and run services. **Return:** An opaque durable Task handle. **Failure:** Invalid or ambiguous heading, depth over eight, invalid input, or exhausted live-task quota raises before a handle exists. Failures after creation settle the returned task. **Example:** `local research = call_async("## Research", { topic = "allocators" })`
 
+### `tasks`
+
+**Implementation status:** Active.
+
+The `tasks` namespace is in every prompt, with no declaration. Author tasks end with their chain: a chain that ends while a task it spawned is still live fails as `tasks_live`, naming those tasks, and they are abandoned.
+
 ### Task handles
 
 **Implementation status:** Deferred and inert in the current plan, including `tasks.await_all`, task outcomes, structured cancellation, scheduling, persistence, and model-visible subagent adapters.
@@ -405,7 +411,9 @@ Tasks move through `queued`, `running`, `waiting`, and `closing` before exactly 
 
 Model-visible subagent tools use this same runtime through a fixed section target in the current implementation scope; fixed document targets remain deferred with `execute`. One tool invocation calls asynchronously, awaits, unwraps, and returns a serializable correlated result; a model never receives a Task handle.
 
-### Deferred `fanout(section, inputs)`
+### `tasks.fanout(worker, collection)`
+
+**Implementation status:** Active as a shipped Lua helper over the `tasks` namespace, ahead of the target contract below, which stays deferred with `call_async` and `tasks.await_all`. Today each member reaches its task as `item`, with its position as `sys.index`; the hash part runs as `{ key, value }` pairs sorted by key; an empty collection raises; and the call returns read-only results with `text`, `ok`, `item`, and `exhausted` fields.
 
 **Target contract:** Thin shipped Lua creates one `call_async` task per ordered input with explicit `{ index = i, value = inputs[i] }` in `args`, then uses Rust-backed `tasks.await_all` in fail-fast mode. The first child failure atomically cancels and drains unfinished tasks and raises its TaskError; success returns ordered child values. The executor controls scheduling and run-wide capacity. Invalid arguments or partial creation failure raise after cancelling and draining tasks already created. Maps are rejected unless the caller first supplies a deterministic key order.
 
@@ -467,7 +475,7 @@ Each recipe is complete, explicit, and short. Only recipes labeled active belong
 
 ### Deferred fanout review
 
-Use `var.draft` for shared read-only context and explicit task input for each critic. `fanout` here is the thin shipped Lua helper over `call_async` and Rust-backed `tasks.await_all`.
+Use `var.draft` for shared read-only context and explicit task input for each critic. `tasks.fanout` here is the thin shipped Lua helper over `call_async` and Rust-backed `tasks.await_all`.
 
 ````markdown
 ---
@@ -487,7 +495,7 @@ var.draft = models.infer(prose)
 ```
 ## Review
 ```lua
-local reviews = fanout("### Critic", { "accuracy", "clarity" })
+local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })
 return reviews[1] .. "\n" .. reviews[2]
 ```
 ### Critic
