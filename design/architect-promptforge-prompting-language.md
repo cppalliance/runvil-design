@@ -413,9 +413,9 @@ Model-visible subagent tools use this same runtime through a fixed section targe
 
 ### `tasks.fanout(worker, collection)`
 
-**Implementation status:** Active as a shipped Lua helper over the `tasks` namespace, ahead of the target contract below, which stays deferred with `call_async` and `tasks.await_all`. Today each member reaches its task as `item`, with its position as `sys.index`; the hash part runs as `{ key, value }` pairs sorted by key; an empty collection raises; and the call returns read-only results with `text`, `ok`, `item`, and `exhausted` fields.
+**Implementation status:** Active.
 
-**Target contract:** Thin shipped Lua creates one `call_async` task per ordered input with explicit `{ index = i, value = inputs[i] }` in `args`, then uses Rust-backed `tasks.await_all` in fail-fast mode. The first child failure atomically cancels and drains unfinished tasks and raises its TaskError; success returns ordered child values. The executor controls scheduling and run-wide capacity. Invalid arguments or partial creation failure raise after cancelling and draining tasks already created. Maps are rejected unless the caller first supplies a deterministic key order.
+**Effect:** Runs the section `worker`, a heading string such as `"### Worker"`, once per member of `collection`, each run as its own task. Each arm sees its member as `item` and its 1-based position as `sys.index`. The collection is any Lua table: its array members first, then its hash pairs sorted by key as `{ key, value }`. **Return:** The arms' results in member order, as read-only tables with `text`, `ok`, `item`, and `exhausted` fields; `tostring` of a result is its `text`. An arm that exhausts its tool loop leaves a stub result and the rest continue. **Failure:** A non-table collection raises an error that points at `prompt.list(heading)`, and an empty collection raises. Any other arm failure cancels the live arms and re-raises. Recursion is capped at 8. **Example:** `local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })`
 
 ### Deferred `pfanout(section, inputs)`
 
@@ -473,9 +473,11 @@ Failure families are parse, version, binding, completion, tool, store, Lua, quot
 
 Each recipe is complete, explicit, and short. Only recipes labeled active belong to the current implementation scope.
 
-### Deferred fanout review
+### Fanout review
 
-Use `var.draft` for shared read-only context and explicit task input for each critic. `tasks.fanout` here is the thin shipped Lua helper over `call_async` and Rust-backed `tasks.await_all`.
+**Implementation status:** Active.
+
+Use `var.draft` for shared read-only context, and let each critic read its focus as `item`. `tasks.fanout` runs one critic per focus and returns their results in order.
 
 ````markdown
 ---
@@ -496,10 +498,10 @@ var.draft = models.infer(prose)
 ## Review
 ```lua
 local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })
-return reviews[1] .. "\n" .. reviews[2]
+return reviews[1].text .. "\n" .. reviews[2].text
 ```
 ### Critic
-Review {{ var.draft }} for {{ args.value }}.
+Review {{ var.draft }} for {{ item }}.
 ```lua
 return models.infer(prose)
 ```
