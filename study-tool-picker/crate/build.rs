@@ -76,7 +76,7 @@ fn main() {
     if let Err(cause) = run() {
         // Debug formatting prints the whole context chain; each Hub failure
         // still carries its own multi-line remediation text.
-        eprintln!("\npromptforge-tool-picker build script failed.\n\n{cause:?}\n");
+        eprintln!("\nrunvil-tool-picker build script failed.\n\n{cause:?}\n");
         std::process::exit(1);
     }
 }

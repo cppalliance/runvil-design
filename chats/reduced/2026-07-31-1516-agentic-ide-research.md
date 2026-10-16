@@ -18,13 +18,13 @@
 
 **[p11]** shell plus global search and is this going to be able to open and edit files? and add folders to the workspace?
 
-**[p12]** I am building this in a separate repo from @promptforge but eventually I want to put all the crates together will that be a problem?
+**[p12]** I am building this in a separate repo from @runvil but eventually I want to put all the crates together will that be a problem?
 
-**[p17]** since we are merging later should we use promptforge- as the prefix here?
+**[p17]** since we are merging later should we use runvil- as the prefix here?
 
 **[p18]** I dont understand Browser panel. Is this for the editor? or is this for a full-blown browser experience connecting to the internet and surfing?
 
-**[p20]** promptforge-core already exists in the other repo
+**[p20]** runvil-core already exists in the other repo
 
 **[p21]** I need the full browser and eventually the LLM will need to be able to drive it
 
@@ -140,7 +140,7 @@ Defaults chosen (decision rationale):
 - Scope now is conversational streaming chat; agentic tool-use (the model calling vibbi's fs/terminal/browser commands) is the next milestone, not this one.
 - The chat panel runs in the trusted `main` webview with full IPC access - it is app UI, unlike the isolated `browser:*` webviews.
 
-Rejected alternative: merging the chat onto the `promptforge` agent engine (not chosen now).
+Rejected alternative: merging the chat onto the `runvil` agent engine (not chosen now).
 
 ### Vibbi Chat Best-Practices Upgrade
 

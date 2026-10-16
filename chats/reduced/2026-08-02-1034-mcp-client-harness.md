@@ -90,11 +90,11 @@ tools.add( "choose_mcp_tool" ) <-- the only choice
 
 **[p71]** the nice thing about the main context is that the author already has all the mechanisms to control it. they can select the model. they can opt-out of the context rewrite. if we did the subcontext then we'd have to answer the question "which model".
 
-**[p72]** It would be nice to have something where, a step uses a reasoning model to select the tool and then it does the context-clearing goto (a promptforge feature) and passes the tool descriptor into the next context, and that context can use a lesser model
+**[p72]** It would be nice to have something where, a step uses a reasoning model to select the tool and then it does the context-clearing goto (a runvil feature) and passes the tool descriptor into the next context, and that context can use a lesser model
 
 **[p73]** [directive: fresh sibling directory holding the clean final dataset (distractors, proper need strings, 2-3 per descriptor) plus the final design doc, produced with the architect tool]
 
-**[p76]** I think you are confused. The design doc is the design of the promptforge-mcp-toolpicker crate. That means, the tools.add, the tools.add_need, the choose_mcp_tool
+**[p76]** I think you are confused. The design doc is the design of the runvil-mcp-toolpicker crate. That means, the tools.add, the tools.add_need, the choose_mcp_tool
 
 **[p77]** I also want the plan to build out the final spike in the sibling dir (so we can run it later if things change), and to have the nice dataset with the need strings. it can copy over the dataset and put it in a very efficient representation (I dont want 16,000 files)
 
@@ -176,7 +176,7 @@ Key design choices:
 7. tools.add_need (static, launch-time, LLM-free) and choose_mcp_tool (dynamic, runtime) are complementary and share the engine.
 8. choose_mcp_tool is a deterministic embedding retriever, not an LLM; the main model does the choosing - the crate stays LLM-free and selection sits where full task context and author model configuration already are.
 9. On dynamic resolution the harness rewrites the context (descriptor before the prose, discovery episode excised); dynamic converges onto the static execution state - one execution model regardless of surface.
-10. The crate depends on a thin promptforge-mcp-client for protocol and owns only the semantics; protocol consumers (the CLI) must not pull the embedding model; each crate stays small enough for a coding LLM to hold whole.
+10. The crate depends on a thin runvil-mcp-client for protocol and owns only the semantics; protocol consumers (the CLI) must not pull the embedding model; each crate stays small enough for a coding LLM to hold whole.
 11. An optional model-tiered configuration (strong-model select -> context-clearing goto -> cheap-model execute) exists for genuinely hard selection, gated on expected ambiguity.
 12. MCP sampling and roots are not implemented (sampling is deprecated upstream); the crate does not advertise those capabilities.
 

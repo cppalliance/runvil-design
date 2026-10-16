@@ -1,4 +1,4 @@
-# Design Principles and Teachable Items from the 2026-09-11 PromptForge Huddle
+# Design Principles and Teachable Items from the 2026-09-11 Runvil Huddle
 
 Report type: Informational, organized by topic. Every item below is sourced to a timestamp in the auto-generated huddle transcript (Kaleka, Parsons, Falco, 6:20 AM to 8:03 AM Pacific). Auto-generated transcripts contain transcription errors; quotes and attributions should be re-verified against the recording before external use.
 
@@ -24,13 +24,13 @@ The huddle's design content clusters into five positions. First, the harness is 
 
 ### Tool discipline
 
-**Offer few tools, and make every tool opt-in.** Frontier models handle roughly 30 to 50 tools, tiny models 5 to 9; no model handles 1,000. The fewer offered, the better the chance the right one is picked. PromptForge's principle is tight author control: opt in to every tool rather than offering everything [25:32-26:29].
+**Offer few tools, and make every tool opt-in.** Frontier models handle roughly 30 to 50 tools, tiny models 5 to 9; no model handles 1,000. The fewer offered, the better the chance the right one is picked. Runvil's principle is tight author control: opt in to every tool rather than offering everything [25:32-26:29].
 
 **Prefer many small accumulating tool calls over one large structured output.** Asking the model to build one big JSON object raises the chance of a syntax slip as the object grows, and structured-output support can tax the model up to 30% performance. Small per-item calls that accumulate into a table avoid both [26:29-27:43].
 
 **Tool sets are added early and never removed within a context.** Models build priors from their own history; a tool that worked five times and then vanishes produces confusion and errors [28:17-29:16].
 
-**Reset context at section boundaries.** In PromptForge, transferring control to a new section starts a fresh VM with all messages cleared; tools and system prompts must be re-declared per section [30:41-31:33].
+**Reset context at section boundaries.** In Runvil, transferring control to a new section starts a fresh VM with all messages cleared; tools and system prompts must be re-declared per section [30:41-31:33].
 
 **The system prompt is secret and supreme.** Models are trained never to reveal it, its instructions take priority over everything else, and it survives compaction, which is why plan mode cannot be jailbroken [31:59-32:39].
 
@@ -52,9 +52,9 @@ The huddle's design content clusters into five positions. First, the harness is 
 
 **Use XML contract tags for subagent dispatch.** The orchestrator's context stays clean: the subagent is told to grep for a tag pattern and execute the contents between the tags verbatim. This solves two failure modes at once: the orchestrator paraphrasing a detailed subagent prompt down to "do a code review" under context pressure, and the orchestrator reading the embedded instructions so often it absorbs the subagent role and does the work itself [1:34:07-1:38:14].
 
-**Do not trust the model to orchestrate when mistakes are disqualifying.** WG21 critique work cannot afford a single error, because one mistake becomes the excuse to dismiss the whole body of AI-assisted work. Determinism, not model judgment, is the answer, and this is stated as the core reason PromptForge exists [1:38:14-1:39:14].
+**Do not trust the model to orchestrate when mistakes are disqualifying.** WG21 critique work cannot afford a single error, because one mistake becomes the excuse to dismiss the whole body of AI-assisted work. Determinism, not model judgment, is the answer, and this is stated as the core reason Runvil exists [1:38:14-1:39:14].
 
-**Distribute harnesses as markdown, not compiled executables.** A competing project's custom harnesses require writing and compiling Rust and shipping an executable; PromptForge ships a markdown file [1:28:56-1:29:19].
+**Distribute harnesses as markdown, not compiled executables.** A competing project's custom harnesses require writing and compiling Rust and shipping an executable; Runvil ships a markdown file [1:28:56-1:29:19].
 
 **Own your harness.** A vendor's harness serves the vendor's owner; the stated risk is Cursor under new ownership optimizing for someone else's priorities, which motivates a programmable harness that works the way the team works [8:04-8:35].
 
@@ -74,9 +74,9 @@ The huddle's design content clusters into five positions. First, the harness is 
 
 **Keep plans to a few consolidated work streams.** Target roughly 5 to 7 steps with a light verification cadence rather than 30 to 40 steps with full verification at each [1:32:46-1:33:19].
 
-**Hand-authored context files beat rediscovery.** Load a human-written rulebook explaining how PromptForge works so the model does not have to discover it from scratch every session [34:09-34:31, 43:09-43:30].
+**Hand-authored context files beat rediscovery.** Load a human-written rulebook explaining how Runvil works so the model does not have to discover it from scratch every session [34:09-34:31, 43:09-43:30].
 
-**Capture everything into the repo.** Every huddle transcript goes into the design repo under a fixed naming format, and PromptForge-related Slack conversations (public and private) get scooped into a parallel directory, building institutional memory [3:13-4:29].
+**Capture everything into the repo.** Every huddle transcript goes into the design repo under a fixed naming format, and Runvil-related Slack conversations (public and private) get scooped into a parallel directory, building institutional memory [3:13-4:29].
 
 **Separate execution from presentation with an observer.** The observer sees every event during a run: it drives token streaming in the UI, records the full run log, and will underpin the future debugger as a custom observer over the event stream [1:00:12-1:01:55].
 
@@ -95,7 +95,7 @@ These are the concepts taught or explained during the huddle, in the order a new
 7. **PowerShell is a recurring error source on Windows.** Different syntax causes tool-call failures; models recover well when the error message is clear [16:25-17:10].
 8. **A model turn is one submission.** The message list grows with every turn [28:17-28:36].
 9. **System prompt versus user and assistant messages.** The system prompt is secret, takes priority over all other instructions, and persists through compaction [31:33-32:49].
-10. **Message lists are built explicitly in PromptForge.** `messages.new()` plus role-tagged appends (system, user, assistant, tool) mirror the OpenAI wire format's `role` field [34:48-37:32].
+10. **Message lists are built explicitly in Runvil.** `messages.new()` plus role-tagged appends (system, user, assistant, tool) mirror the OpenAI wire format's `role` field [34:48-37:32].
 
 ### How Cursor specifically works (reverse-engineered)
 
@@ -104,14 +104,14 @@ These are the concepts taught or explained during the huddle, in the order a new
 13. **Cursor mirrors terminals as files on disk.** Each terminal is an appended text file; the harness tells the model these exist, which is how it can answer "why did my terminal get an error" [1:04:33-1:06:41].
 14. **Harness engineering is the optimization loop.** Add logging, read the logs, ask why the model called grep 200 times, form a hypothesis, improve the harness, repeat [40:25-41:27].
 
-### PromptForge architecture
+### Runvil architecture
 
 15. **The UI is HTML served by an HTTP server inside a Tauri app**, shown in a browser panel [42:01-42:34].
 16. **The `execute()` entry point takes five things:** the prompt, the single string argument, the resolution context (tools and models), the store (virtual file system), and the run config [58:52-59:41].
 17. **The observer sees everything the model cannot.** The model's response arrives as one complete message; the observer sees tokens stream, sees tool calls as they happen, records the run log, and will power the debugger [1:00:12-1:01:55].
 18. **`user_input` suspends the prompt.** The executor cannot depend on the workshop, so the workshop installs a handler; the async prompt suspends, the UI unfreezes the edit box and swaps the stop button, then resumes on submission [1:02:14-1:03:35].
 19. **The injected `ui` object synchronizes state into the prompt.** Today it carries only the selected model; it could expose open windows, sidebar folders, and terminal counts, the same way Cursor injects environment state [1:03:35-1:04:33].
-20. **Lua essentials for PromptForge sections.** Everything is a scalar or a table; each section VM imports selected modules (os, math, table); `table.insert` is the canonical example of a module function [22:57-24:10].
+20. **Lua essentials for Runvil sections.** Everything is a scalar or a table; each section VM imports selected modules (os, math, table); `table.insert` is the canonical example of a module function [22:57-24:10].
 
 ### Virtual file systems and sandboxes
 

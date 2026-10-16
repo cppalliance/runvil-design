@@ -46,7 +46,7 @@ Citations used: 2026-07-30-1046-compaction-algorithm-large-part3.md [p190]-[p192
 
 The tests were launching the gateway themselves and it was going wrong (stuck, failing), and he called it "all wrong": a test should require that the gateway already exists and already has its configuration. Earlier he had also regretted wiring the 9B model directly into core-tests when the gateway was needed anyway for web search - bespoke direct wiring in the harness was duplicated effort. At the same time he wanted a small 0.6B model kept runnable without the gateway, because that is a simple setup that lets integration tests exercise real inference and expands the testing surface without the bulk of spawning the gateway.
 
-Citations used: 2026-08-14-1613-promptforge-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part3.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part2.md [p140]
+Citations used: 2026-08-14-1613-runvil-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part3.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part2.md [p140]
 
 ## Merge suggestions
 

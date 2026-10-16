@@ -39,7 +39,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [4:38]: Carly. Oh.
 
-@Greg [4:48]: To run its code, and the way that prompt forge works is that you don't have like one long running Lou VM each section. Is its own Lua VM, so it's, it's born anew, and you have to pass it exactly what it needs, from, if you wanna like use stuff from other sections. I think there are ways to do that, but for the most part, like your, your Lea VM, the life cycle is like from the start to the end of the section.
+@Greg [4:48]: To run its code, and the way that runvil works is that you don't have like one long running Lou VM each section. Is its own Lua VM, so it's, it's born anew, and you have to pass it exactly what it needs, from, if you wanna like use stuff from other sections. I think there are ways to do that, but for the most part, like your, your Lea VM, the life cycle is like from the start to the end of the section.
 
 @Sean Parsons [5:14]: Oh, OK. Got it. and what would that look like?
 
@@ -441,13 +441,13 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [55:19]: Not every, not anything else.
 
-@Greg [55:26]: Value propositions, yeah, so Vinnie's saying exactly what I'm about to say, which is that the core principle of PromptForge is that you are giving it explicit control over which tools the model can use, whereas in, you know, if you're using clawed code or or the whatever Google's Gemini harnesses, the model can decide at any time to use any of the tools that it has access to, so it might have, you know, it can call arbitrary bash things, it can do.
+@Greg [55:26]: Value propositions, yeah, so Vinnie's saying exactly what I'm about to say, which is that the core principle of Runvil is that you are giving it explicit control over which tools the model can use, whereas in, you know, if you're using clawed code or or the whatever Google's Gemini harnesses, the model can decide at any time to use any of the tools that it has access to, so it might have, you know, it can call arbitrary bash things, it can do.
 
 @Sean Parsons [55:45]: The other yeah.
 
 @Greg [55:56]: Web research it can, you know, explore, call an explorer tool, all these different things, and so there's, there's overhead there that forces you to, to, that's part of why you need a more advanced model, cause it's gotta, yeah, it's got to be able to make decisions about which models to, which tools to use, etc. so.
 
-@Greg [56:23]: Yeah, one of the, one of the kind of value props of prompt forge that you can do the same level of work with a smaller model in part because of things like this where you're explicitly giving it which tools it has access to, and you're able to kind of keep that as small as possible.
+@Greg [56:23]: Yeah, one of the, one of the kind of value props of runvil that you can do the same level of work with a smaller model in part because of things like this where you're explicitly giving it which tools it has access to, and you're able to kind of keep that as small as possible.
 
 @Greg [57:01]: I'm, I think I'm Good for the moment.
 
@@ -597,7 +597,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [1:08:31]: Yeah.
 
-@Vinnie [1:08:39]: There's something very bad that's gonna happen in our near future. And that is this. The tools that we use, the proprietary tools like, you know, cloud code and cursor, they're going to get worse, they're gonna become shitified. It's already happening, and the frontier models that we are coming to depend on, they're gonna also get shittened. They're gonna become more expensive, and they're gonna start not wanting to work the way that we want them to work. So then we have a very limited window of time to build our own tools. The prompt forge is designed to be the escape, and so we can have our own IDE that works the way that we want, that works with openweight models. We'll go and we'll we'll
+@Vinnie [1:08:39]: There's something very bad that's gonna happen in our near future. And that is this. The tools that we use, the proprietary tools like, you know, cloud code and cursor, they're going to get worse, they're gonna become shitified. It's already happening, and the frontier models that we are coming to depend on, they're gonna also get shittened. They're gonna become more expensive, and they're gonna start not wanting to work the way that we want them to work. So then we have a very limited window of time to build our own tools. The runvil is designed to be the escape, and so we can have our own IDE that works the way that we want, that works with openweight models. We'll go and we'll we'll
 
 @Vinnie [1:09:14]: Deploy Kimmy K3 or we'll put another deep seek instance in there, and we'll run whatever the whatever the frontier openweight models is, we'll run them ourselves and we'll control it on our hardware, so we can continue enjoying the AI revolution without other Silicon Valley tech companies or legislators deciding how we're gonna consume it.
 
@@ -643,7 +643,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [1:12:49]: OK.
 
-@Greg [1:13:07]: OK. and I'm sorry, remind me again what the host is in this context. That's the Like The prompt forge. Harness itself. The host calls from on the front.
+@Greg [1:13:07]: OK. and I'm sorry, remind me again what the host is in this context. That's the Like The runvil. Harness itself. The host calls from on the front.
 
 @Greg [1:13:26]: OK.
 
@@ -659,9 +659,9 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [1:15:12]: Some of these other things are happening later, and so we don't just stuff those into cysts. OK. Well, I, I, this is a little fuzzy for me, but it's a deferred open question, so I think that's probably OK for now.
 
-@Greg [1:15:31]: Shall we move on to functional specification? All right, actors and workflows. PromptForge accumulates markdown in a pending prose buffer after each section, heading, or ordinary loo offense. OK, very good, we've talked about that a few times. Yup. Yeah, this, I mentioned earlier, like at the top, I didn't understand any of the sentences now that we've kind of like fleshed some of this out. these are easier to parse, so,
+@Greg [1:15:31]: Shall we move on to functional specification? All right, actors and workflows. Runvil accumulates markdown in a pending prose buffer after each section, heading, or ordinary loo offense. OK, very good, we've talked about that a few times. Yup. Yeah, this, I mentioned earlier, like at the top, I didn't understand any of the sentences now that we've kind of like fleshed some of this out. these are easier to parse, so,
 
-@Greg [1:16:08]: Yeah, definitely understand that sentence. A marked down thematic break recognized by the parser clears that buffer. OK, so yeah, we kind of, came to this bullet on our own, as we were reading the kind of summarized thing, on each ordinary loo offense, PromptForge installs the current buffer as a fresh unresolved read-only prose value. Very good. Clears the pending buffer.
+@Greg [1:16:08]: Yeah, definitely understand that sentence. A marked down thematic break recognized by the parser clears that buffer. OK, so yeah, we kind of, came to this bullet on our own, as we were reading the kind of summarized thing, on each ordinary loo offense, Runvil installs the current buffer as a fresh unresolved read-only prose value. Very good. Clears the pending buffer.
 
 @Greg [1:16:34]: And runs a Lua co routine. OK. so once you get to a lua fence, I see, so you, you clear the pending buffer because you have put it into this prose, Variable, so you can, you can clear the buffer so that it's ready to to intake the following set of pros, that makes sense.
 
@@ -731,7 +731,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [1:26:00]: I don't quite. I don't quite have an understanding of how this like, Yeah. Right. Yeah, so that was kind of what I, I think what I was trying to say,
 
-@Greg [1:26:19]: I guess the user input box in PromptForge is that just the like Agent window. Yeah, OK.
+@Greg [1:26:19]: I guess the user input box in Runvil is that just the like Agent window. Yeah, OK.
 
 @Greg [1:26:36]: OK. persistence around that interactive message array remains deferred. OK, so, Yeah, OK, very good. We're not actually implementing persistence for that,
 

@@ -1,19 +1,19 @@
 ---
 produced: 2026-09-30
-title: how agent harnesses, frameworks, protocols, workflow engines and runtimes let a parent agent introspect spawned subagents - cursor reads, event streams, final-result-only, file channels - compared with PromptForge tasks.events
+title: how agent harnesses, frameworks, protocols, workflow engines and runtimes let a parent agent introspect spawned subagents - cursor reads, event streams, final-result-only, file channels - compared with Runvil tasks.events
 ---
 
 # Introspecting spawned subagents: hosts read the child's history, models get its final answer
 
 - Type: research survey, first pass 2026-09-30, verified against primary sources 2026-10-01
 - Question: how do other systems let a parent agent, or the code driving it, inspect the subagents it spawned, while they run and after they finish?
-- Compared against: PromptForge `tasks.events` and the model's `task_events` built-in
+- Compared against: Runvil `tasks.events` and the model's `task_events` built-in
 - Coverage: eight research passes, 99 system sections and two pattern studies (a section sometimes groups a product family)
 - Verification: six independent checkers re-checked 120 claim items, and I fetched five hosted pages the first pass could not reach
 
 ## Abstract
 
-The survey found no system that gives a parent model an incremental, access-checked read of a child agent's event history. That combination is what `task_events` gives a PromptForge model. For code, the picture differs. When Lua or host code reads a child's history, `tasks.events` matches a well-established design: a cursor read on an append-only log that the host stores.
+The survey found no system that gives a parent model an incremental, access-checked read of a child agent's event history. That combination is what `task_events` gives a Runvil model. For code, the picture differs. When Lua or host code reads a child's history, `tasks.events` matches a well-established design: a cursor read on an append-only log that the host stores.
 
 Prior art splits by audience. Host code and human viewers get the full child history, by cursor, page token, or push stream. The parent model gets the child's final message or a status. The few exceptions return summaries, not events.
 
@@ -27,9 +27,9 @@ A second pass re-checked 120 claim items against primary sources. Ninety held as
 
 ## Question
 
-`tasks.events(task, {last})` returns a task's reported events as plain Lua tables, in sequence order. The value `last` is the highest sequence number the reader already saw, so a repeat call returns only newer events. The engine keeps no history. The host answers each read from its own log (`promptforge/crates/promptforge-internal/engine/src/execute/scheduler/task_events.rs`).
+`tasks.events(task, {last})` returns a task's reported events as plain Lua tables, in sequence order. The value `last` is the highest sequence number the reader already saw, so a repeat call returns only newer events. The engine keeps no history. The host answers each read from its own log (`runvil/crates/runvil-internal/engine/src/execute/scheduler/task_events.rs`).
 
-Lua code may read tasks it started, and a task may read itself. The model's `task_events` built-in may read only tasks the model started. The model receives one JSON event per line, wrapped as untrusted text under the run's nonce (same file). The engine records the host's answer, which copies every event returned (`promptforge/crates/promptforge/src/effect.md`).
+Lua code may read tasks it started, and a task may read itself. The model's `task_events` built-in may read only tasks the model started. The model receives one JSON event per line, wrapped as untrusted text under the run's nonce (same file). The engine records the host's answer, which copies every event returned (`runvil/crates/runvil/src/effect.md`).
 
 This report uses four terms. The parent spawns a child, meaning a subagent or task. A reader is whoever inspects the child: the model, Lua or host code, or a person. Host code is the code of the application that embeds a runtime. A cursor is any value that names a position in a child's history, including a sequence number, an item id, or a page token.
 
@@ -192,7 +192,7 @@ Lua is a code reader, and code readers have strong precedent. Dagster, DBOS, Cre
 
 ### The model read needs a size cap and a steer toward waiting
 
-The reports behind the withdrawn and reworked tools concern size and polling cost (Table 4). It is likely that an uncapped or often-polled `task_events` would reproduce those reports. PromptForge differs in two ways that help: the read is incremental by `last`, and `await_tasks` already gives a blocking wait. Four additions are worth weighing, in this order. First, a per-read `limit`. Second, a size cap with a `truncated` flag, as PydanticAI's harness does on the events it emits, with a 4,096-character cap; its delegate tool still returns the full output to the model. Third, a liveness summary cheaper than events, such as Goose's idle time and Cline's `lastProgressAt`, so the model does not read events only to learn whether a task is stuck. Fourth, tool text that steers the model to `await_tasks`, as opencode's text does with "DO NOT sleep, poll for progress, ask the task for status". Confidence: medium, because the reports describe tools unlike `task_events`, and PromptForge's cursor may already remove most of the cost.
+The reports behind the withdrawn and reworked tools concern size and polling cost (Table 4). It is likely that an uncapped or often-polled `task_events` would reproduce those reports. Runvil differs in two ways that help: the read is incremental by `last`, and `await_tasks` already gives a blocking wait. Four additions are worth weighing, in this order. First, a per-read `limit`. Second, a size cap with a `truncated` flag, as PydanticAI's harness does on the events it emits, with a 4,096-character cap; its delegate tool still returns the full output to the model. Third, a liveness summary cheaper than events, such as Goose's idle time and Cline's `lastProgressAt`, so the model does not read events only to learn whether a task is stuck. Fourth, tool text that steers the model to `await_tasks`, as opencode's text does with "DO NOT sleep, poll for progress, ask the task for status". Confidence: medium, because the reports describe tools unlike `task_events`, and Runvil's cursor may already remove most of the cost.
 
 ### The cursor contract should state its edge cases
 
@@ -204,7 +204,7 @@ The docs for `last` should say plainly that it is exclusive and that sequence nu
 
 The `SessionStore` shows what a minimal host contract has to say: an `append` that tolerates redelivery through an idempotency key, a rule for failed writes, and a flush cadence. Observers differ on failure. PydanticAI says a listener that raises aborts the parent run, while AG2's `TaskMirror` swallows hub errors so it "must never crash the agent's turn". Pick one rule and document it.
 
-If a task can be retried, give each event an attempt marker. Temporal's documentation says a stream subscriber "sees output from all attempts" of a retried Activity. PromptForge already records the host's answer to each read, which is the DBOS rule, so replay sees the same events. That record copies every event returned, so history reads grow the log (`effect.md`). A per-read `limit` also bounds that growth. Confidence: medium, because the growth matters only for long runs with frequent reads.
+If a task can be retried, give each event an attempt marker. Temporal's documentation says a stream subscriber "sees output from all attempts" of a retried Activity. Runvil already records the host's answer to each read, which is the DBOS rule, so replay sees the same events. That record copies every event returned, so history reads grow the log (`effect.md`). A per-read `limit` also bounds that growth. Confidence: medium, because the growth matters only for long runs with frequent reads.
 
 ### The access rule exceeds prior art, and the engine already hides unowned ids
 
@@ -212,7 +212,7 @@ No AI system surveyed limits child reads to the spawner, and the closest precede
 
 ### The trust wrapper matches the field, and three refinements are worth weighing
 
-Claude Code, Mastra, and the MCP specification all mark someone else's text as such, and PromptForge does too, under the reader's run nonce (`task_events.rs`). Three refinements come from the reports. A fresh delimiter for each read, as Mastra uses, would shrink the window if a child ever sees an earlier wrapped read; this is my reasoning, not a reported bug. Engine-written entries, such as "task ended" or "cancelled by parent", could get a different tag from child-written text, as PydanticAI [issue 8995](https://github.com/pydantic/pydantic-ai/issues/8995) proposes; it is an idea issue that says "no commitment implied". Truncation must not strand the reader: Claude [issue 90544](https://github.com/anthropics/claude-code/issues/90544) reports a flagged report clipped to about 2,500 characters, with a repair path that re-ran the child, and later commenters measured about 4,000 characters on the teammate idle-notification path. A truncated read should therefore say how to continue from the cursor. Confidence: low to medium, because two of the three rest on single reports or my own inference.
+Claude Code, Mastra, and the MCP specification all mark someone else's text as such, and Runvil does too, under the reader's run nonce (`task_events.rs`). Three refinements come from the reports. A fresh delimiter for each read, as Mastra uses, would shrink the window if a child ever sees an earlier wrapped read; this is my reasoning, not a reported bug. Engine-written entries, such as "task ended" or "cancelled by parent", could get a different tag from child-written text, as PydanticAI [issue 8995](https://github.com/pydantic/pydantic-ai/issues/8995) proposes; it is an idea issue that says "no commitment implied". Truncation must not strand the reader: Claude [issue 90544](https://github.com/anthropics/claude-code/issues/90544) reports a flagged report clipped to about 2,500 characters, with a repair path that re-ran the child, and later commenters measured about 4,000 characters on the teammate idle-notification path. A truncated read should therefore say how to continue from the cursor. Confidence: low to medium, because two of the three rest on single reports or my own inference.
 
 ### Each alternative to a model-facing event read gives up the "what happened" view
 
@@ -306,7 +306,7 @@ Protocols and observability:
 - A2A [epic 1986](https://github.com/a2aproject/A2A/issues/1986) and [epic 1991](https://github.com/a2aproject/A2A/issues/1991); MCP [issue 3237](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/3237) and the [ext-tasks specification at 5246bc3](https://github.com/modelcontextprotocol/ext-tasks/blob/5246bc3d0253c1c4b09e682f690b7e8b97362500/specification/2026-07-28/tasks.md)
 - AG-UI [subagents documentation](https://github.com/ag-ui-protocol/ag-ui/blob/release/2026-09-30/docs/concepts/subagents.mdx), AgentOps [`routes.py`](https://github.com/AgentOps-AI/agentops/blob/main/app/api/agentops/public/routes.py), Mastra [issue 24160](https://github.com/mastra-ai/mastra/issues/24160), Vercel AI SDK [`tool.ts` at ai@7.0.126](https://github.com/vercel/ai/blob/ai@7.0.126/packages/provider-utils/src/types/tool.ts), and VoltAgent [subagent source](https://github.com/VoltAgent/voltagent/blob/main/packages/core/src/agent/subagent/index.ts)
 
-PromptForge: `promptforge/crates/promptforge-internal/engine/src/execute/scheduler/task_events.rs`, `promptforge/crates/promptforge/src/effect.md`, and `promptforge/guide/src/language/16-task-events.md`.
+Runvil: `runvil/crates/runvil-internal/engine/src/execute/scheduler/task_events.rs`, `runvil/crates/runvil/src/effect.md`, and `runvil/guide/src/language/16-task-events.md`.
 
 ---
 

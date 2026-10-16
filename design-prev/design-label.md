@@ -1,6 +1,6 @@
-<!-- STATUS: crate doc - promptforge-ext-label - behind Cargo feature `label` - 4 open decisions - see design.md for the system -->
+<!-- STATUS: crate doc - runvil-ext-label - behind Cargo feature `label` - 4 open decisions - see design.md for the system -->
 
-# `promptforge-ext-label`: computed progress labels from a local reduction pipeline
+# `runvil-ext-label`: computed progress labels from a local reduction pipeline
 
 ## Recommendation
 
@@ -14,13 +14,13 @@ The do-nothing option is real and it is what `design-mcp-server-residue.md` spec
 
 ## Scope
 
-This crate computes the text a progress notification carries. It owns three ONNX models, a reduction algorithm over them, and a cache. It contributes one Lua function, one Rust API that `promptforge-mcp` calls from its observer, and one startup self-check.
+This crate computes the text a progress notification carries. It owns three ONNX models, a reduction algorithm over them, and a cache. It contributes one Lua function, one Rust API that `runvil-mcp` calls from its observer, and one startup self-check.
 
-It is the second `Extension` after `promptforge-ext-classify` and it deliberately copies that crate's session management, its export gate, and its self-check posture rather than inventing parallel mechanisms. Where the two agree, `design-classify.md` is authoritative and this document cites it.
+It is the second `Extension` after `runvil-ext-classify` and it deliberately copies that crate's session management, its export gate, and its self-check posture rather than inventing parallel mechanisms. Where the two agree, `design-classify.md` is authoritative and this document cites it.
 
 What this crate does not do, and cannot be made to do without a change to this document:
 
-- Decide when a notification is sent. The observer in `promptforge-mcp` owns the event-to-frame mapping and this crate only supplies text for a frame that was already going to exist.
+- Decide when a notification is sent. The observer in `runvil-mcp` owns the event-to-frame mapping and this crate only supplies text for a frame that was already going to exist.
 - Appear on the model's tool surface. The one Lua function declares `Surfaces::LuaOnly`, for the reason `design-classify.md` gives at length: a label is not a capability a model should reach for.
 - Override an author. A frontmatter `progress` label always wins over a computed one.
 - Block the executor. Every call is off the observer thread, and a label that is not ready in time is dropped rather than awaited.
@@ -135,13 +135,13 @@ The pipeline does not run on the critical path. It runs in three places, and whi
 
 **Boot, for section bodies.** A prompt is a file. Its section bodies are fixed at the moment the catalog is loaded, so every label derivable from a section body alone is derivable at boot. Compute them during the catalog build, key them by the sha256 of the stripped section text, and persist the map beside the artifact tree. A restart with an unchanged catalog reloads the map and computes nothing. A prompt edit invalidates exactly the sections whose text changed.
 
-**Author time, optionally.** The same computation with the same cache key runs from `promptforge-cli validate`, so an author can see and overrule a computed label before it ever reaches a client. A label the author then writes into frontmatter wins permanently, which turns this crate into a drafting aid for the static path rather than a replacement for it.
+**Author time, optionally.** The same computation with the same cache key runs from `runvil-cli validate`, so an author can see and overrule a computed label before it ever reaches a client. A label the author then writes into frontmatter wins permanently, which turns this crate into a drafting aid for the static path rather than a replacement for it.
 
 **Live, for per-run text only.** Fan-out item text and bound parameters are not known at boot. These are small: a fan-out item is one or two chunks, so the tree is one or two levels rather than five or six. This is the path the fan-out case needs and it is the only path with a latency requirement.
 
-The live path lands as a second frame rather than a delayed first one. `crates/promptforge-mcp-server/design-mcp-server.md` requires `Observer::on_event` to be synchronous and non-blocking, with frames leaving through a bounded channel under `try_send`, so a label that takes 400 milliseconds cannot be awaited there. Instead the observer emits the frontmatter or fallback label immediately at its `progress` value, spawns the label computation, and emits a second frame at the same `progress` value with the computed text when it arrives. Re-sending an unchanged `progress` with new message text is already the specified behaviour for `SectionRetrying` and `SectionSkipped`, and Cursor is measured to render in place, so the caller sees one line whose text sharpens rather than two lines. A computation that loses its race is dropped and the static label stands.
+The live path lands as a second frame rather than a delayed first one. `crates/runvil-mcp-server/design-mcp-server.md` requires `Observer::on_event` to be synchronous and non-blocking, with frames leaving through a bounded channel under `try_send`, so a label that takes 400 milliseconds cannot be awaited there. Instead the observer emits the frontmatter or fallback label immediately at its `progress` value, spawns the label computation, and emits a second frame at the same `progress` value with the computed text when it arrives. Re-sending an unchanged `progress` with new message text is already the specified behaviour for `SectionRetrying` and `SectionSkipped`, and Cursor is measured to render in place, so the caller sees one line whose text sharpens rather than two lines. A computation that loses its race is dropped and the static label stands.
 
-Tension: this deviates from strict monotonic `progress` in the same way and for the same reason `crates/promptforge-mcp-server/design-mcp-server.md` already documents, so it inherits that deviation's risk. A client enforcing strict monotonicity drops the refinement and shows the static label, which is a clean degradation but is untested outside Cursor.
+Tension: this deviates from strict monotonic `progress` in the same way and for the same reason `crates/runvil-mcp-server/design-mcp-server.md` already documents, so it inherits that deviation's risk. A client enforcing strict monotonicity drops the refinement and shows the static label, which is a clean degradation but is untested outside Cursor.
 
 ## Latency
 
@@ -188,7 +188,7 @@ Tension: FP32 costs four times the memory of INT8, and on the generator that is 
 
 The reducer is first, it has no checkpoint, and its training data does not exist. Everything else in this section is downstream of that.
 
-The task is: given two text chunks, return one shorter chunk preserving the intent of both. Training pairs come from a frontier model over real PromptForge prompt text, which is available in quantity because every prompt in the catalog is a document and every section is a source of chunks. Target behaviour is specific and testable: keep proper nouns, identifiers, and numbers; drop hedging, politeness, and restated context; merge overlapping intent rather than concatenating it; and land at roughly a quarter to a half of the input length.
+The task is: given two text chunks, return one shorter chunk preserving the intent of both. Training pairs come from a frontier model over real Runvil prompt text, which is available in quantity because every prompt in the catalog is a document and every section is a source of chunks. Target behaviour is specific and testable: keep proper nouns, identifiers, and numbers; drop hedging, politeness, and restated context; merge overlapping intent rather than concatenating it; and land at roughly a quarter to a half of the input length.
 
 Generate on the order of 10,000 to 20,000 pairs, fine-tune T5-small, and gate on a held-out set before any of the other two models is touched. The gate is not ROUGE against the frontier model's output, which measures agreement with one arbitrary phrasing. It is a round-trip check: reduce a pair, then ask whether the identifiers and numbers present in the input survive, and whether a frontier model shown only the reduction can recover what the original asked for. That is checkable automatically and it measures the property the tree actually depends on.
 
@@ -207,10 +207,10 @@ One extension block and three model entries, in `prompts.toml`, keyed by what `E
 label_of = "onnx-label"
 
 [extensions.onnx-label]
-model_root = "/srv/promptforge/models"
+model_root = "/srv/runvil/models"
 verify = "hash"
 self_check_max_ms = 20
-cache_path = "/var/lib/promptforge/labels.db"
+cache_path = "/var/lib/runvil/labels.db"
 
 # Reduction control.
 chunk_tokens = 256

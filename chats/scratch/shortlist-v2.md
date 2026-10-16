@@ -1,6 +1,6 @@
 # Shortlist v2 - in-scope candidates for the purpose pass
 
-Scope: the PromptForge language, plus the high-level rules for how the core crate is structured. Out: process/workflow principles, the gateway/MCP/CLI service layer, UI posture.
+Scope: the Runvil language, plus the high-level rules for how the core crate is structured. Out: process/workflow principles, the gateway/MCP/CLI service layer, UI posture.
 
 Records are identified by their location in `grouped-draft.md` (same directory): layer, theme heading, and the opening words of the statement. The purpose subagent reads the full record there, then reads the cited reduced units (in `chats/reduced/`, one level up from this file's directory) around the cited `[pN]` markers to find the motivation.
 

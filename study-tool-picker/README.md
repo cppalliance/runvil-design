@@ -1,6 +1,6 @@
 # study-tool-picker
 
-The design and reproducible evidence for the `promptforge-tool-picker` crate: mapping a
+The design and reproducible evidence for the `runvil-tool-picker` crate: mapping a
 prompt's English capability need to the right MCP tool, locally and deterministically.
 
 ## Documents
@@ -11,7 +11,7 @@ prompt's English capability need to the right MCP tool, locally and deterministi
 
 ## Archived crate source
 
-`crate/` is the frozen source of `promptforge-tool-picker` as it stood in the PromptForge repository at commit `bf8cb465` (2026-09-18), immediately before the crate and every feature that consumed it (fuzzy tool slots, near-duplicate tool conflicts, the capability description lint) were removed. It is an artifact, not a buildable crate: its manifest inherits `version`, `edition`, `license`, and `[lints]` from a workspace that does not exist here, and depends on `promptforge-api-types` and `shared-progress` by workspace reference. Read it beside `design-tool-picker.md`; do not add it to any workspace.
+`crate/` is the frozen source of `runvil-tool-picker` as it stood in the Runvil repository at commit `bf8cb465` (2026-09-18), immediately before the crate and every feature that consumed it (fuzzy tool slots, near-duplicate tool conflicts, the capability description lint) were removed. It is an artifact, not a buildable crate: its manifest inherits `version`, `edition`, `license`, and `[lints]` from a workspace that does not exist here, and depends on `runvil-api-types` and `shared-progress` by workspace reference. Read it beside `design-tool-picker.md`; do not add it to any workspace.
 
 ## Dataset (compact, id-referenced - no per-case files)
 - `data/catalog.jsonl` - 9,922 real MCP tools (automatelab), one line each with a stable `id`.

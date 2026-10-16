@@ -54,7 +54,7 @@ Search for {{ input }} on the web.
 
 **[p374]** Okay, spawn a few sub-agents and search again, and I wanna understand, how do other people do it? When you fan out, what do you give them for the prompt? Do they all get the same prompt? How does it work?
 
-**[p376]** no I mean if we embed the xml blocks, the numbered bullets in a Promptforge program, what is the syntax for extracting that material into a fanout?
+**[p376]** no I mean if we embed the xml blocks, the numbered bullets in a Runvil program, what is the syntax for extracting that material into a fanout?
 
 **[p378]** does the fence have to say lua? 
 ```lua
@@ -117,11 +117,11 @@ This is not quite right. I'm saying this, if there is no lua anywhere:
 
 **[p406]** Then the ENTIRE markdown file is passed as-is to the model, which is exactly what happens when you run a prompt or skill in a harness like Claude Code ore Cursor
 
-**[p407]** I changed my mind. promptforge should require YAML at the top and it should require a promptforge version number. major versions are incompatable changes. absence of the promptforge version means run it the traditional way, full-file.
+**[p407]** I changed my mind. runvil should require YAML at the top and it should require a runvil version number. major versions are incompatable changes. absence of the runvil version means run it the traditional way, full-file.
 
 **[p409]** Now I am wondering, we have hijacked the section headers for structure, how does the prompt author regain structure? what if they want to section their prompt but still have the whole block load and run?
 
-**[p410]** Now I am thinking we dont need the perfect recursive structure. That's what separate files are for. a promptforge prompt is best thought of as a function: parameters in, string out, side-effects possible. a promptforge prompt has a natural size limit in terms of the kind of program it can represent. its a linear pipeline. a very nice one, which can have forks and fanouts and all of that but still a pipeline.
+**[p410]** Now I am thinking we dont need the perfect recursive structure. That's what separate files are for. a runvil prompt is best thought of as a function: parameters in, string out, side-effects possible. a runvil prompt has a natural size limit in terms of the kind of program it can represent. its a linear pipeline. a very nice one, which can have forks and fanouts and all of that but still a pipeline.
 
 **[p411]** we still want H3 to be useful for organizing prompt material for its enclosing H2, such as for fanouts.
 
@@ -143,21 +143,21 @@ This is not quite right. I'm saying this, if there is no lua anywhere:
 
 **[p421]** how does an H2 inject to the next H2 without having to name the section
 
-**[p427]** promptforge doesn't need to run plain-prompts (files without yaml). it just needs to offer a function that can tell the caller whether or not its a promptforge prompt (presence of promptforge version in a YAML block)
+**[p427]** runvil doesn't need to run plain-prompts (files without yaml). it just needs to offer a function that can tell the caller whether or not its a runvil prompt (presence of runvil version in a YAML block)
 
 **[p430]** are these model-facing file tools virtual files or real files?
 
-**[p432]** Gishkin. Question: How do we run a PromptForge prompt from? From Cursor.
+**[p432]** Gishkin. Question: How do we run a Runvil prompt from? From Cursor.
 
 **[p433]** LOL no that's retarded. What I mean is.. should we work on the MCP piece next and inject that into Cursor's system context so the user can ask for scripts to be invoked?
 
 **[p434]** This is my idea:
 
-**[p435]** .cursor/rules/promptforge.mdc "When a script contains YAML matter with a promptforge key, use the promptforge MCP service to run it" and the service offers one tool which runs a script
+**[p435]** .cursor/rules/runvil.mdc "When a script contains YAML matter with a runvil key, use the runvil MCP service to run it" and the service offers one tool which runs a script
 
 **[p437]** I would rather you not duplicate any vfs in the mcp service
 
-**[p438]** this will be a new crate right? a library not a separate app. this gives the promptforge-cli an mcp service option.
+**[p438]** this will be a new crate right? a library not a separate app. this gives the runvil-cli an mcp service option.
 
 **[p439]** I also want the option for the cli to install the mcp service as a windows service,  macos or linux thing.
 
@@ -165,9 +165,9 @@ This is not quite right. I'm saying this, if there is no lua anywhere:
 
 **[p441]** So just to be clear. There's a The service that we're exporting. The MCP service that we're offering has two, has two tools. It's got, there's, they enumerate, they'll tell us what tools are available, tell us what prompts you can run, and then you have run the prompt, because we don't want to overwhelm Cursor with a whole bunch of different tools. We know that the context degrades when you put too many tools in it. Internally, when The executor, when one prompt calls another prompt, it doesn't go through the mcp, it will just call that prompt directly. It'll import it as a tool. 'Cause prompts are also tools, I think. I don't know, this gets very confusing, like what's what. But I do know this, here's what we do know. We should structure this in terms of the minimum viable necessary to get the thing working in Cursor, and we should make sure that all the later complex steps come much later. So the first, the first steps should be the shortest line to making Cursor work. So what do we need for Cursor to work? Well, we need a We need an mcp port, we can add it to the mcp services dot json in cursor, and then we need a way for cursor to be able to. Register a prompt or not? Maybe not. Maybe that 'cause we need this for development, like a developer needs to be able to develop a prompt. And I guess it's reasonable for them to require that they edit the configuration for the MCP server because every prompt has to be listed, right? Like, the executor needs to know about every prompt that's available. And that, and it has to know how to map the tools, and it has to know What the settings are, like, right? The prompt by, the, the prompt file by itself isn't enough. The operator has to configure metadata, and so if someone's developing a prompt, they need to do that as well. And the reason that we have it as a service is because we don't wanna have to shut it down and restart it every time. So that means that the developer has to be able to edit the config file to list their tool, and then the service has to pick up the directory change, like it has to know that the directory's changed, and then has to pick it up so you won't, we don't have to exit and relaunch. And then when cursor Tries to invoke the tool, it's gonna do it blindly. It's just gonna, it's gonna see the mcp endpoint and it's just gonna bl-call it blindly, and it's up to the person, it's up to the user to know that that tool isn't installed. So if they try to run a prompt that's not installed. Then they get an error. It's gonna say, "Oh, that's, well, that's not installed."
 
-**[p442]** what is this promptforge-host ?
+**[p442]** what is this runvil-host ?
 
-**[p443]** why wouldn't we just put that in promptforge-core
+**[p443]** why wouldn't we just put that in runvil-core
 
 ## Plans
 
@@ -189,13 +189,13 @@ Principle statements in the planned structure:
 - Unit of testing = unit of composition; each section testable in isolation with known inputs.
 - Migration: not a rewrite of assay, but a proof-of-concept alongside it, starting with PaperGate; graduate only if PaperGate validates the model.
 
-### PromptForge Executor Tranche 1
+### Runvil Executor Tranche 1
 
-*Scaffold the promptforge Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
+*Scaffold the runvil Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
 
 Decisions settled (recorded in the plan's STATUS.md seed):
 - Rust + mlua (not Python + lupa)
-- Multi-crate workspace: promptforge-core (lib), promptforge-cli (bin)
+- Multi-crate workspace: runvil-core (lib), runvil-cli (bin)
 - Fall-through default, context clears on every section transition
 - args global and read-only for the run
 - State tiering: files primary, counters for audit, store for battery+coupling
@@ -206,12 +206,12 @@ Open questions: call syntax positional vs table-form; whether to support a conte
 
 ### gateway v0
 
-*Stand up promptforge-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire promptforge-core to talk through it with a shared token (moving the vendor key out of the executor).*
+*Stand up runvil-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire runvil-core to talk through it with a shared token (moving the vendor key out of the executor).*
 
 Principles and decisions:
 - Move the LLM credential out of the executor into the gateway; the executor no longer knows any vendor.
 - Same workspace, not a separate repo: the end-to-end test drives the gateway with core's real client in one cargo test.
-- Rewire now rather than later: `promptforge run` requires the gateway running (accepted consequence).
+- Rewire now rather than later: `runvil run` requires the gateway running (accepted consequence).
 - JSON is the contract: gateway-owned wire structs, NOT shared with core; deliberate duplication.
 - Secrets redacted: Secret type with no Serialize, Debug/Display print "redacted", one expose() accessor.
 - Exact model lookup with 404 on miss; bearer auth on /v1/*; response model rewritten to the caller's name.
@@ -219,7 +219,7 @@ Principles and decisions:
 
 ### Lua args substitution
 
-*Embed Lua (mlua) in promptforge-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else.*
+*Embed Lua (mlua) in runvil-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else.*
 
 Principles:
 - Sandboxed VM: empty globals; load only string/table/math plus tostring/tonumber/ipairs/pairs/type; no io/os/require/load/loadfile/dofile/package/debug; instruction-count hook aborts a runaway block.
@@ -229,7 +229,7 @@ Principles:
 
 ### webfetch crate extraction
 
-*Extract web_fetch from promptforge-core into a new promptforge-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
+*Extract web_fetch from runvil-core into a new runvil-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
 
 Principles:
 - web_fetch becomes an extension crate depending on core's Tool trait; web_search stays in core because it proxies through the gateway with no model-chosen URL and no SSRF surface.
@@ -237,7 +237,7 @@ Principles:
 
 ### multi-turn research prompt
 
-*Author a PromptForge prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
+*Author a Runvil prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
 
 Decisions:
 - Configurable cap via frontmatter (max_tool_iterations) plus a raised default (24), rather than an env var: the budget belongs with the prompt that needs it. Confidence: high.
@@ -264,22 +264,22 @@ Decisions:
 - Random tag is unguessable-not-cryptographic; marker strings inside the content are escaped so a page cannot forge the closing delimiter.
 - Honest limits: a probabilistic mitigation, not a boundary; does not replace per-section scoping or context-clearing isolation, which are the hard controls; does not remove the exfiltration channel via web_fetch's own URL.
 
-### PromptForge MCP Service
+### Runvil MCP Service
 
-*A promptforge-mcp stdio server (rmcp) exposing one run_promptforge tool that executes any markdown file bearing a promptforge: frontmatter version, plus a Cursor rule that routes such files to it - making prompts invocable from the editor. Sandbox-by-default; reuses the core run path via a shared host crate.*
+*A runvil-mcp stdio server (rmcp) exposing one run_runvil tool that executes any markdown file bearing a runvil: frontmatter version, plus a Cursor rule that routes such files to it - making prompts invocable from the editor. Sandbox-by-default; reuses the core run path via a shared host crate.*
 
 Decisions:
-- Discovery/routing lives in the Cursor rule (agent side); execution lives in the one tool (service side); the promptforge_version detector is the hinge.
+- Discovery/routing lives in the Cursor rule (agent side); execution lives in the one tool (service side); the runvil_version detector is the hinge.
 - One generic tool taking a path plus optional input, not a per-prompt catalog: routing is the rule's job; the user points at a file.
 - Sandbox-only now: hardcoded Store::memory(), granting only the tools a prompt's frontmatter declares. Real-FS access is never implicit; it arrives only via later capability injection with operator opt-in. "Run my script" must not become "run whatever markdown has a magic key."
-- Shared host crate (promptforge-host): tool selection needs both core and webfetch, and core cannot depend on webfetch (a cycle), so the run path is lifted into a leaf lib both binaries use - keeping CLI and MCP behavior identical and avoiding duplicated, security-relevant tool wiring.
+- Shared host crate (runvil-host): tool selection needs both core and webfetch, and core cannot depend on webfetch (a cycle), so the run path is lifted into a leaf lib both binaries use - keeping CLI and MCP behavior identical and avoiding duplicated, security-relevant tool wiring.
 - Identical run semantics to the CLI: same detection, tool selection, sandbox store, executor.
 
 ## Design Documents Written
 
-### promptforge.md (wg21-paperflow)
+### runvil.md (wg21-paperflow)
 
-Design document "PromptForge: A Markdown-Driven Pipeline Runtime". Principle-bearing content:
+Design document "Runvil: A Markdown-Driven Pipeline Runtime". Principle-bearing content:
 - The markdown is the program, the model is the CPU, embedded Lua is the microcode, and the harness is the instruction decoder.
 - Sections as procedures; a context-clearing goto; all state built through flat tool calls into a persistent store; subagents spawned by section reference so the prompt author's exact words execute without drift.
 - Model sovereignty: every design decision (context clearing, flat tool calls, per-section scoping, fan-out to small models) is chosen to make mid-size open-weight models reliable.
@@ -287,7 +287,7 @@ Design document "PromptForge: A Markdown-Driven Pipeline Runtime". Principle-bea
 - Four primitives: parse (section map, H2 addressable, H3 children, ## Main entry), configure (per-section Lua with host objects), execute (tool-call loop until done() or budget), dispatch (registry, flat arguments).
 - Lesson from Playbooks prior art: do not put a compilation step between the prompt author and the model; the raw markdown is the program.
 
-### promptforge-transcript.md (wg21-paperflow)
+### runvil-transcript.md (wg21-paperflow)
 
 [pasted: design transcript from the July 23-24 session, pasted twice in two formats, ~250 lines each - compaction algorithm, tool-call state accumulation, section goto with fresh context, Task("## Research") verbatim dispatch, arbitrary nesting with safety valve, Mentograph model tiering and scaling economics]
 
@@ -299,8 +299,8 @@ Design document "PromptForge: A Markdown-Driven Pipeline Runtime". Principle-bea
 
 [pasted: plan index - 7 plan file links with status notes]
 
-### promptforge repo files
+### runvil repo files
 
 [pasted: AGENTS.md rules (update STATUS.md on every commit, doc comments on all public items, the plan is the spec), README.md, STATUS.md snapshot, and example prompts hello.md, echo.md, greet.md, chain.md (twice), research-person.md]
 
-StrReplace-edited design docs (path only): design-gateway.md, design-paperstore.md, design-promptforge.md, design.md, example-diligence.md, promptforge README.md, promptforge STATUS.md, promptforge-transcript.md, promptforge.md
+StrReplace-edited design docs (path only): design-gateway.md, design-paperstore.md, design-runvil.md, design.md, example-diligence.md, runvil README.md, runvil STATUS.md, runvil-transcript.md, runvil.md

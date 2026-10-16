@@ -75,7 +75,7 @@ pool=44453 tools  queries=7960  model=BAAI/bge-small-en-v1.5
     "ultratool": 0.038
   }
 }
-wrote C:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\results\toolret_large_bge-small-en-v1.5.json
+wrote C:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\results\toolret_large_bge-small-en-v1.5.json
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
 pool=44453 tools  queries=7960  model=sentence-transformers/all-MiniLM-L6-v2
 Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|##########| 103/103 [00:00<00:00, 15986.28it/s]
@@ -124,5 +124,5 @@ pool=44453 tools  queries=7960  model=sentence-transformers/all-MiniLM-L6-v2
     "ultratool": 0.024
   }
 }
-wrote C:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\results\toolret_large_all-MiniLM-L6-v2.json
+wrote C:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\results\toolret_large_all-MiniLM-L6-v2.json
 EXIT=0

@@ -1,6 +1,6 @@
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from architect-vibe-planning part 4 (semantic blur, sharpen instrument, dataset gates)
+title: Runvil design principles mined from architect-vibe-planning part 4 (semantic blur, sharpen instrument, dataset gates)
 ---
 
 # 2026-07-28-0207-architect-vibe-planning-part4.md
@@ -161,7 +161,7 @@ title: PromptForge design principles mined from architect-vibe-planning part 4 (
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from dokuman each-crate session (execution model, Lua sandbox, fanout, SSRF boundary)
+title: Runvil design-principle candidates mined from dokuman each-crate session (execution model, Lua sandbox, fanout, SSRF boundary)
 ---
 
 # 2026-08-12-1534-dokuman-each-crate
@@ -228,13 +228,13 @@ title: PromptForge design-principle candidates mined from dokuman each-crate ses
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from gateway local-inference session (gateway centrality, profiles, devices, queuing, no-defaults, sys.model)
+title: Runvil design-principle candidates mined from gateway local-inference session (gateway centrality, profiles, devices, queuing, no-defaults, sys.model)
 ---
 
 # 2026-08-08-1223-gateway-local-inference
 
 ```yaml
-- statement: All PromptForge inference goes through the gateway, no matter what; the gateway is the single, central point of configuration for models, keys, and endpoints.
+- statement: All Runvil inference goes through the gateway, no matter what; the gateway is the single, central point of configuration for models, keys, and endpoints.
   scope: gateway
   source: user-stated
   citation: 2026-08-08-1223-gateway-local-inference.md [p16], 2026-08-02-1134-mcp-client-large-part3.md [p211]
@@ -321,8 +321,8 @@ title: PromptForge design-principle candidates mined from gateway local-inferenc
 - statement: No defaults, everything explicit: every prompt declares the model it needs, or explicitly says it accepts anything, and at minimum states its required context and whether it needs thinking; implicit configuration is the enemy of precision.
   scope: global
   source: user-corrective
-  citation: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62], 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p66]
-  rejected-alternative: DEFAULT_MODEL and PROMPTFORGE_MODEL environment-variable fallbacks
+  citation: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62], 2026-08-16-1431-runvil-md-aug16-afternoon.md [p66]
+  rejected-alternative: DEFAULT_MODEL and RUNVIL_MODEL environment-variable fallbacks
   endorsement: n/a
 
 - statement: The effective model name is exposed to the prompt as sys.model, usable in prose substitution and in Lua, so a report can footer itself with the model that produced it without hardcoding.
@@ -382,7 +382,7 @@ title: PromptForge design-principle candidates mined from gateway local-inferenc
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from MCP client large session part 3 (prompt file format, call syntax, per-section tool restriction, gateway proxy, logical model routing)
+title: Runvil design-principle candidates mined from MCP client large session part 3 (prompt file format, call syntax, per-section tool restriction, gateway proxy, logical model routing)
 ---
 
 # 2026-08-02-1134-mcp-client-large-part3
@@ -500,27 +500,27 @@ title: PromptForge design-principle candidates mined from MCP client large sessi
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from MCP server planning session (explicit invocation, fixed tool list, live reload, minimal core, plain-prose design docs, hypothesis collapse)
+title: Runvil design-principle candidates mined from MCP server planning session (explicit invocation, fixed tool list, live reload, minimal core, plain-prose design docs, hypothesis collapse)
 ---
 
 # 2026-08-03-2040-plan-the-mcp-server
 
 ```yaml
-- statement: The MCP server has exactly one job, serving PromptForge prompts to a calling harness; anything beyond that is out of scope.
+- statement: The MCP server has exactly one job, serving Runvil prompts to a calling harness; anything beyond that is out of scope.
   scope: mcp
   source: user-stated
   citation: 2026-08-03-2040-plan-the-mcp-server.md [p2]
   rejected-alternative: a broader server surface beyond prompt-serving
   endorsement: n/a
 
-- statement: A PromptForge prompt is a command; it runs only because a caller named it, never because a model noticed a tool that looked relevant.
+- statement: A Runvil prompt is a command; it runs only because a caller named it, never because a model noticed a tool that looked relevant.
   scope: mcp
   source: user-corrective
   citation: 2026-08-03-2040-plan-the-mcp-server.md [p58], [p59]
   rejected-alternative: publishing each prompt as its own tool so a model can select it ambiently
   endorsement: n/a
 
-- statement: PromptForge is a deterministic pipeline whose product is a finished report, designed for unattended server deployment running reports at scale; interactive invocation exists for development, testing, and explicit local runs.
+- statement: Runvil is a deterministic pipeline whose product is a finished report, designed for unattended server deployment running reports at scale; interactive invocation exists for development, testing, and explicit local runs.
   scope: global
   source: user-stated
   citation: 2026-08-03-2040-plan-the-mcp-server.md [p58], [p59]
@@ -593,7 +593,7 @@ title: PromptForge design-principle candidates mined from MCP server planning se
 - statement: A prompt declares what it needs (a need string bound to an internal ID in its Lua block), never which tool to call; binding needs to concrete tools is the engine's indirection, not the prompt's.
   scope: core
   source: user-stated
-  citation: 2026-08-03-2040-plan-the-mcp-server.md [p60], 2026-08-09-1058-promptforge-core-large-part5.md [p383]
+  citation: 2026-08-03-2040-plan-the-mcp-server.md [p60], 2026-08-09-1058-runvil-core-large-part5.md [p383]
   rejected-alternative: prompts naming specific tools
   endorsement: n/a
 
@@ -659,142 +659,142 @@ title: PromptForge design-principle candidates mined from MCP server planning se
 
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from promptforge-core-large part 5 (first-class tools/models, section lifecycle, store, dialects, fanout)
+title: Runvil design principles mined from runvil-core-large part 5 (first-class tools/models, section lifecycle, store, dialects, fanout)
 ---
 
-# 2026-08-09-1058-promptforge-core-large-part5.md
+# 2026-08-09-1058-runvil-core-large-part5.md
 
 ```yaml
 - statement: A pipeline must be re-runnable from any step, with every intermediate output persisted as a file that can be read back in, because development and debugging of an analytical pipeline depend on it.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p377]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p377]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The tool.need call establishes a tool's name and the prompt owns that name from then on; rebinding happens in the preamble.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p386]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p386]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Because the engine's pipeline is rigid and the orchestrating model cannot reshape the Lua at runtime, behavioral variation (such as which sources a prompt may consult) must be supplied through ahead-of-time configuration.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p392]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p392]
   rejected-alternative: relying on an orchestrator to reinterpret and reshape the prompt's instructions at runtime
   endorsement: n/a
 
 - statement: The language has exactly three named Lua phases - the preamble (the H1 code) and the per-section prologue and epilogue - and this terminology is enforced consistently across the entire repo.
   scope: global
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p393]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p393]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The preamble can run model inference with tool calls, so the model can parse the argument string and take control before any section runs.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p397]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p397]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Tools and models are first-class Lua objects: a tool is an inspectable, invocable table, a model exposes infer()/turn(), and the preamble can declare globals such as tool lists that any section can use - encapsulation that also makes both mockable and unit-testable.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p398-p401]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p398-p401]
   rejected-alternative: treating tools and models as opaque registrations rather than encapsulated objects
   endorsement: n/a
 
 - statement: Tool registration stays open between inference calls within a phase, so the add-search, infer, add-fetch pattern keeps working; the toolset must not be sealed at the first infer().
   scope: core
   source: user-corrective
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p409]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p409]
   rejected-alternative: sealing the toolset on the first inference call
   endorsement: n/a
 
 - statement: Prose lives in markdown sections, never inside Lua code; prose in code is rejected because markdown is where bold, italics, bullets, paragraphs, block quotes, and URLs can be properly formatted.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p427]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p427]
   rejected-alternative: passing prose as string arguments to model.infer()
   endorsement: n/a
 
 - statement: Non-final prose sections are single-shot and always fall through; the last prose section is the tool loop and proceeds to the epilogue only when the reply contains no tool call.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p429]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p429]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Lua can invoke another H2 section as a subroutine through execute(), reusing the engine's existing section-execution machinery.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p430, p432, p433]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p430, p432, p433]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Any Lua can call goto to transfer control to another section, and goto is context-clearing.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p431, p432, p433]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p431, p432, p433]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The shared preamble program is never re-executed for each section; its objects are serialized out of the preamble VM and into each section VM, because replaying would re-run any inference the preamble performed.
   scope: core
   source: user-corrective
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [p448-p450]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [p448-p450]
   rejected-alternative: replaying the shared H1 program inside every section VM
   endorsement: n/a
 
 - statement: The store is the only intentional cross-section mutable channel; Lua functions, closures, globals, var, tools, and reply are branch-local by construction.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: section-lua-lifecycle]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: section-lua-lifecycle]
   rejected-alternative: mutable run-global Lua state
   endorsement: affirmed
 
 - statement: A scalar top-level return from either preamble or epilog ends the run; a preamble return skips prose, model, and epilog; nil continues sequential fall-through.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: section-lua-lifecycle], 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p25]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: section-lua-lifecycle], 2026-08-16-1431-runvil-md-aug16-afternoon.md [p25]
   rejected-alternative: none
   endorsement: affirmed
 
 - statement: The shared library is compiled once and its bytecode executed independently in every section VM, so each section receives isolated functions, closures, and mutable globals.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: section-lua-lifecycle]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: section-lua-lifecycle]
   rejected-alternative: none
   endorsement: corrected
 
 - statement: All wire quirks - field synonyms, empty content, tool-call-with-null-content - are normalized in one module, and execute, clients, and hosts stay dumb; a final turn with no tool calls and empty content is a hard error even when reasoning is present, reasoning is never promoted into the answer, and breaking prompts that silently succeeded with empty replies is the intended effect.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: completion normalize layer]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: completion normalize layer]
   rejected-alternative: scattering wire-quirk handling across execute, client, and hosts
   endorsement: unaddressed
 
 - statement: Recoverable tool target failures (HTTP errors, unsupported content type, timeout, too large, undecodable charset, DNS) return Ok with model-readable text naming status, final URL, and a next move, so the tool loop continues; admission and policy failures (invalid URL, blocked scheme/port/userinfo/IP literal, redirect refused) remain hard errors, and the untrusted HTTP error body is never placed in the tool result.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: webfetch soft errors]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: webfetch soft errors]
   rejected-alternative: aborting the tool call on recoverable target failures
   endorsement: unaddressed
 
 - statement: Prompts stay dialect-agnostic: the operator declares each model's tool dialect on the gateway, the gateway advertises it, core freezes it onto the bound model, and the tool loop selects the normalization plugin without ever asking the prompt what format to use; an unknown dialect id is a hard error with no silent fallback.
   scope: boundary: gateway<->core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: Tool dialect plugins]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: Tool dialect plugins]
   rejected-alternative: sniffing completion text in the prompt surface or hardcoding model names inside prompts
   endorsement: unaddressed
 
 - statement: Fanout fires all arms at once while the gateway admits up to its lane concurrency and queues the rest fairly; replies stay ordered by arm index, the first arm error aborts its siblings with the same visible behavior as sequential fail-fast, and authors must not assume one arm sees another arm's store writes.
   scope: core
   source: ai-proposed
-  citation: 2026-08-09-1058-promptforge-core-large-part5.md [plans section: Fanout and gateway concurrency]
+  citation: 2026-08-09-1058-runvil-core-large-part5.md [plans section: Fanout and gateway concurrency]
   rejected-alternative: none
   endorsement: unaddressed
 ```
@@ -814,121 +814,121 @@ title: PromptForge design principles mined from promptforge-core-large part 5 (f
 
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from promptforge.md session, Aug 16 afternoon (H1-only prompts, reply variable, tool call limits)
+title: Runvil design principles mined from runvil.md session, Aug 16 afternoon (H1-only prompts, reply variable, tool call limits)
 ---
 
-# 2026-08-16-1431-promptforge-md-aug16-afternoon.md
+# 2026-08-16-1431-runvil-md-aug16-afternoon.md
 
 ```yaml
 - statement: Never create a feature that does something the user can already implement using more general existing features.
   scope: global
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p15]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p15]
   rejected-alternative: a default_return key in the YAML frontmatter (use a goto to a section that returns a constant string instead)
   endorsement: n/a
 
 - statement: Everything in the language behaves as consistently as possible, unless there is a really good reason for an exception.
   scope: global
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: When execution enters a section, the model's previous reply is always available in the reply variable; a jump carries the reply into the destination section.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20], [p21]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20], [p21]
   rejected-alternative: jump() dropping the reply so Lua cannot transfer it into the next block
   endorsement: n/a
 
 - statement: There is a single reply variable; incoming_reply, reply, and last_reply are folded into one name, reply.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p22]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p22]
   rejected-alternative: three separate variables incoming_reply, reply, and last_reply
   endorsement: n/a
 
 - statement: A prompt with no H2 sections is valid: the H1 runs its Lua and prose blocks, and when the model does not end in a tool call, execution ends and the model's reply becomes the prompt output.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p13]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p13]
   rejected-alternative: requiring at least one H2 section per prompt
   endorsement: n/a
 
 - statement: For an H1-only prompt, the output priority is: the H1 Lua return value, then the H1 model reply, then a "done" fallback.
   scope: core
   source: ai-proposed
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [plans section]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [plans section]
   rejected-alternative: none
   endorsement: affirmed
 
-- statement: Prompts are executed as MCP tool calls, and promptforge.md itself runs the MCP server.
+- statement: Prompts are executed as MCP tool calls, and runvil.md itself runs the MCP server.
   scope: mcp
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p9]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p9]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The root toml is not used at all.
   scope: global
   source: user-corrective
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p10]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p10]
   rejected-alternative: configuration through a root toml file
   endorsement: n/a
 
 - statement: The model discovers the MCP API by querying it once, keeping the API in context, rather than having the API documentation embedded up front.
   scope: mcp
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p44]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p44]
   rejected-alternative: embedding the MCP API documentation in the context
   endorsement: n/a
 
 - statement: Tool configuration belongs in the H1 as Lua, not in the YAML frontmatter.
   scope: core
   source: user-corrective
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p45]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p45]
   rejected-alternative: tool configuration keys in the YAML frontmatter
   endorsement: n/a
 
 - statement: Tool call limits are per-section; a global limit makes no sense other than being set to a very large number, because a global limit forces the author to re-check it every time sections are added.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p49]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p49]
   rejected-alternative: a meaningful global tool call limit
   endorsement: n/a
 
 - statement: The language can express the universal search/fetch pattern with per-turn tool availability, where search is available only on the first turn and fetch only on the second and later turns.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p63]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p63]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Constraining a section's toolset must not otherwise change its behavior; the section behaves the same as the traditional unconstrained form, only with a restricted toolset.
   scope: core
   source: user-corrective
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p64]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p64]
   rejected-alternative: a constrained-toolset formulation that alters section behavior
   endorsement: n/a
 
 - statement: The conversation history is not rewritten to scrub tool offerings or tool calls, because the model would see information appearing out of nowhere.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p61]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p61]
   rejected-alternative: scrubbing the tool offering and tool call from history
   endorsement: n/a
 
 - statement: Migrating the whole conversation is a design non-goal.
   scope: core
   source: user-stated
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p65]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p65]
   rejected-alternative: whole-conversation migration
   endorsement: n/a
 
 - statement: A fenced block whose contents contain backticks is written with a 4-tick outer fence.
   scope: global
   source: user-corrective
-  citation: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p4]
+  citation: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p4]
   rejected-alternative: triple-backtick fences around blocks with interior backticks
   endorsement: n/a
 ```
@@ -957,7 +957,7 @@ title: PromptForge design principles mined from promptforge.md session, Aug 16 a
 
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from the two-repo commit review step (2026-08-03 18:27)
+title: Runvil design principles mined from the two-repo commit review step (2026-08-03 18:27)
 ---
 
 # 2026-08-03-1827-two-repo-commit-review.md

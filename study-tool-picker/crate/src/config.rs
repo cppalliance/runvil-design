@@ -29,13 +29,13 @@ const DEFAULT_TOP_K: NonZeroUsize = match NonZeroUsize::new(3) {
 /// # Examples
 ///
 /// ```
-/// use promptforge_tool_picker::Config;
+/// use runvil_tool_picker::Config;
 ///
 /// let config = Config::default()
 ///     .with_similarity_floor(0.85)?
 ///     .with_top_k(5)?;
 /// assert_eq!(config.top_k().get(), 5);
-/// # Ok::<(), promptforge_tool_picker::ConfigError>(())
+/// # Ok::<(), runvil_tool_picker::ConfigError>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]

@@ -1,7 +1,7 @@
 """Build a facade's inventory from its rustdoc HTML.
 
 usage: python tools/cicerone/scripts/inventory.py CRATE <doc-dir> <out-file> [<summaries-file>]
-<doc-dir> is the rustdoc output for the crate, for example target/doc/promptforge.
+<doc-dir> is the rustdoc output for the crate, for example target/doc/runvil.
 Each item line records its kind, facade path, and, for functions and type
 aliases, its declaration. Member lines follow their item. Trait, auto-trait,
 and blanket implementation sections are excluded. The summaries file holds

@@ -1,6 +1,6 @@
 # Chat Corpus and Design-Principle Pipeline
 
-This directory holds the corpus and intermediates for mining PromptForge design principles from chat transcripts. A fresh context that reads only this file can rerun the extraction from any point. Everything here is regenerable; the final document is `promptforge-design/design-principles.md`.
+This directory holds the corpus and intermediates for mining Runvil design principles from chat transcripts. A fresh context that reads only this file can rerun the extraction from any point. Everything here is regenerable; the final document is `runvil-design/design-principles.md`.
 
 ## Directory map
 

@@ -8,7 +8,7 @@
 
 
 
-**[p1]** we are going to do a top to bottom review of this entire repository @promptforge .
+**[p1]** we are going to do a top to bottom review of this entire repository @runvil .
 the review will proceed crate by crate. the next crate will start only when the current crate is completely done.
 for each crate,. every single rust source file will be inspected in a fresh subagent. first the subagent will extract the public API and put it in a new file {{source}}.findings.md. then the subagent will analyze the source accoding to @tools-public/rulebooks/rust-rulebook.md looking for problems. the subagent will also look for opportuntiies to do general code hygiene improvements. I dont have to tell you what those are I hope, you are a frontier model. when all the files are done (none of the files are modified yet) then a fresh subagent will ingest ALL the .findings.md files together. it will look at the public APIs and look for opportunties to reduce the API surface, move responsibilties to where they belong if they should be moved, do more with less. the subagent will consider the other findings when thinking about the new API: given the findings, what API modification would both reduce the chance of the finding occurring again and also make the API surface cleaner and more robust. The new API will be written to a fresh file. Then a fresh subagent will sweep through all the source code and apply the new API changes, fix all the findings. It will have the new api and all findings files *.finding.md injected.
 
@@ -47,7 +47,7 @@ D. I thought I was clear: ONE review, and ONE round of fixes.
 
 **[p17]** lol no one is fucking using this I'm the only one with access. anyway, I approve this plan but before we start, should I switch models? Opus 4.6 on High? Opus 4.8 on High? How much thinking? Talk to me
 
-**[p18]** update the plan @c:\Users\Vinnie\.cursor\plans\promptforge_crate_review_a3b9f964.plan.md to reflect all of this, so we can keep you honest. I switched to Opus 4.8 High. I want the reset, and the rest of your plan. I have already force-pushed HEAD~3 to the remote repo so when you push, you can do it without --force and you should have no problem.
+**[p18]** update the plan @c:\Users\Vinnie\.cursor\plans\runvil_crate_review_a3b9f964.plan.md to reflect all of this, so we can keep you honest. I switched to Opus 4.8 High. I want the reset, and the rest of your plan. I have already force-pushed HEAD~3 to the remote repo so when you push, you can do it without --force and you should have no problem.
 
 **[p19]** I want to preserve whatever is good, so dont fucking ask me how much to roll back. YOU are the one who knows that! Keep whatever is good, reset --hard the test! for fucks sake. I purposefully rolled the remote back more than necessary to give you some headroom
 
@@ -130,26 +130,26 @@ D. I thought I was clear: ONE review, and ONE round of fixes.
 
 ## Plans
 
-### PromptForge Crate Review
+### Runvil Crate Review
 
 *Review every repository-owned Rust file in fresh per-file contexts, redesign each crate's public API from the combined findings, then implement and verify that crate before starting the next. Work proceeds in dependency order, with only necessary downstream call-site edits allowed ahead of a downstream crate's own review.*
 
-# PromptForge Top-to-Bottom Crate Review
+# Runvil Top-to-Bottom Crate Review
 
 ## Fixed scope and order
 
-Review all Rust source, test, fixture, integration-test, and build-script files under [promptforge](C:\Users\Vinnie\src\cursor\promptforge), excluding generated build output and dependencies. Process crates strictly in this topological order:
+Review all Rust source, test, fixture, integration-test, and build-script files under [runvil](C:\Users\Vinnie\src\cursor\runvil), excluding generated build output and dependencies. Process crates strictly in this topological order:
 
-1. `promptforge-tool-picker`
-2. `promptforge-core`
-3. `promptforge-core-tests`
-4. `promptforge-gateway`
-5. `promptforge-webfetch`
-6. `promptforge-cli`
-7. `promptforge-dev`
-8. `promptforge-mcp-server`
+1. `runvil-tool-picker`
+2. `runvil-core`
+3. `runvil-core-tests`
+4. `runvil-gateway`
+5. `runvil-webfetch`
+6. `runvil-cli`
+7. `runvil-dev`
+8. `runvil-mcp-server`
 
-The root [Cargo.toml](C:\Users\Vinnie\src\cursor\promptforge\Cargo.toml), each crate manifest, existing crate design documents, and [rust-rulebook.md](C:\Users\Vinnie\src\cursor\tools-public\rulebooks\rust-rulebook.md) provide review context.
+The root [Cargo.toml](C:\Users\Vinnie\src\cursor\runvil\Cargo.toml), each crate manifest, existing crate design documents, and [rust-rulebook.md](C:\Users\Vinnie\src\cursor\tools-public\rulebooks\rust-rulebook.md) provide review context.
 
 ## Establish the baseline
 
@@ -176,7 +176,7 @@ The main context receives only completion status, a short summary, and the artif
 
 After every expected findings artifact exists and passes a completeness check, launch a new synthesis subagent with all of the current crate's `*.findings.md` files, manifests, current API roots, existing design documents, and relevant downstream usage.
 
-The agent writes a new **output** document named `design-promptforge-{crate}-api.md` that:
+The agent writes a new **output** document named `design-runvil-{crate}-api.md` that:
 
 - Reconstructs the effective current public API.
 - Proposes the smallest coherent replacement API, reducing exports and types where justified.
@@ -231,19 +231,19 @@ The data dependencies are complete: synthesis cannot start before all file artif
 Todos:
 
 - Inventory all repository-owned Rust files and capture the workspace verification baseline
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-tool-picker
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-core
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-core-tests
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-gateway
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-webfetch
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-cli
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-dev
-- Complete the full findings, API synthesis, implementation, and verification loop for promptforge-mcp-server
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-tool-picker
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-core
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-core-tests
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-gateway
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-webfetch
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-cli
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-dev
+- Complete the full findings, API synthesis, implementation, and verification loop for runvil-mcp-server
 - Run final full-workspace gates and reconcile the completed cross-crate API
 
 ### rewrite refactor-rust
 
-*Rewrite tools-public/tools/refactor-rust.md: cut it from ~2172 to ~600 lines by referencing rust-rulebook.md instead of inlining it, tighten every instruction to prompts-rulebook.md, and replace its discard-and-restart retry with the fix-forward-off-concrete-punch-list model proven in the promptforge review. Preserve the pipeline, tags, artifacts, schemas, model tiers, cargo public-api ground truth, and diff-scoped ratchet.*
+*Rewrite tools-public/tools/refactor-rust.md: cut it from ~2172 to ~600 lines by referencing rust-rulebook.md instead of inlining it, tighten every instruction to prompts-rulebook.md, and replace its discard-and-restart retry with the fix-forward-off-concrete-punch-list model proven in the runvil review. Preserve the pipeline, tags, artifacts, schemas, model tiers, cargo public-api ground truth, and diff-scoped ratchet.*
 
 # Rewrite refactor-rust.md: compress, de-inline, and adopt fix-forward retry
 
@@ -265,7 +265,7 @@ So the only genuine design change is the retry model below.
 
 ## The one semantic change: fix-forward retry (replaces discard-and-restart)
 
-Current model (`refactor-rust.md:37`, `108`, `473`): RED attempt-1 -> discard candidate -> restart once from `original_head` -> RED attempt-2 -> stop. This throws away a mostly-correct candidate and reruns blind. The promptforge review proved that feeding the challenger's concrete file:line NOT-FIXED list back into a fixer on the same candidate converges far better.
+Current model (`refactor-rust.md:37`, `108`, `473`): RED attempt-1 -> discard candidate -> restart once from `original_head` -> RED attempt-2 -> stop. This throws away a mostly-correct candidate and reruns blind. The runvil review proved that feeding the challenger's concrete file:line NOT-FIXED list back into a fixer on the same candidate converges far better.
 
 New model:
 
@@ -320,11 +320,11 @@ Todos:
 
 ## Design Documents Written
 
-### C:\Users\Vinnie\src\cursor\cabinet\_output\crate-review-promptforge-completion.md
+### C:\Users\Vinnie\src\cursor\cabinet\_output\crate-review-runvil-completion.md
 
-# PromptForge crate-by-crate review - completion report
+# Runvil crate-by-crate review - completion report
 
-The full top-to-bottom review of the `promptforge` workspace is complete. All 8 crates were reviewed file-by-file, redesigned to a bounded public API, fixed to green, independently audited against the source, and squash-merged to `master`. The workspace itself was then closed out. `master` is green end to end and pushed.
+The full top-to-bottom review of the `runvil` workspace is complete. All 8 crates were reviewed file-by-file, redesigned to a bounded public API, fixed to green, independently audited against the source, and squash-merged to `master`. The workspace itself was then closed out. `master` is green end to end and pushed.
 
 ## Final state
 
@@ -343,14 +343,14 @@ The independent source audit was the decisive gate: gates-passing alone repeated
 
 ## Per-crate result (all green on master)
 
-- `promptforge-tool-picker` - `503f3fd` - validated resolution API.
-- `promptforge-core` - `5352241` (design consolidation `2d00ded`) - validated, bounded public API; unified run engine.
-- `promptforge-core-tests` - `97068f0` - restructured harness.
-- `promptforge-gateway` - `4fa5c9c` - bounded facade; hardened server.
-- `promptforge-webfetch` - `82cf965` - SSRF boundary hardened; API reduced to a facade.
-- `promptforge-cli` - `aec03b5` - clap parsing, validated gateway, exit codes.
-- `promptforge-dev` - `fc669f8` - hardened tooling; cohesive modules (owner-only files, reparse rejection, off-runtime I/O).
-- `promptforge-mcp-server` - `e9be281` - the largest crate; public surface cut 40 -> ~20 items, opaque source-preserving errors, one atomic catalog+retrieval generation behind a single `ArcSwap` with a shared generation-guarded reload coordinator, bounded stdio transport with graceful shutdown, per-run cancellation owned by a leak-free registry, admission-bounded ranking, root-confined resolution, validated config newtypes, and compile-time drift-proof built-in tools.
+- `runvil-tool-picker` - `503f3fd` - validated resolution API.
+- `runvil-core` - `5352241` (design consolidation `2d00ded`) - validated, bounded public API; unified run engine.
+- `runvil-core-tests` - `97068f0` - restructured harness.
+- `runvil-gateway` - `4fa5c9c` - bounded facade; hardened server.
+- `runvil-webfetch` - `82cf965` - SSRF boundary hardened; API reduced to a facade.
+- `runvil-cli` - `aec03b5` - clap parsing, validated gateway, exit codes.
+- `runvil-dev` - `fc669f8` - hardened tooling; cohesive modules (owner-only files, reparse rejection, off-runtime I/O).
+- `runvil-mcp-server` - `e9be281` - the largest crate; public surface cut 40 -> ~20 items, opaque source-preserving errors, one atomic catalog+retrieval generation behind a single `ArcSwap` with a shared generation-guarded reload coordinator, bounded stdio transport with graceful shutdown, per-run cancellation owned by a leak-free registry, admission-bounded ranking, root-confined resolution, validated config newtypes, and compile-time drift-proof built-in tools.
 
 `mcp-server` alone carried ~145 findings and took four independent audit rounds to reach zero: **77 -> 16 -> 5 -> 0** NOT-FIXED.
 
@@ -365,7 +365,7 @@ The 8 root-workspace findings were applied and independently verified (`fed031d`
 - CI brought to the rulebook local loop: locked all-feature tests, a dedicated doctest step, a warning-denied doc build, a pinned Rust 1.89 MSRV job, and `cargo deny` + `cargo audit` (with `cargo machete` documented), backed by a new `deny.toml`.
 - `time` bumped to clear RUSTSEC-2026-0009.
 
-The 5 reviewed API designs were promoted from scratch into their crates as `design-promptforge-<crate>.md` (`becd8bf`).
+The 5 reviewed API designs were promoted from scratch into their crates as `design-runvil-<crate>.md` (`becd8bf`).
 
 ## Notes
 

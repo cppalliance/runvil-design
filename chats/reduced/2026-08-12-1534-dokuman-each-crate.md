@@ -8,7 +8,7 @@
 
 
 
-**[p1]** run @tools-public/tools/dokuman.md on each of these crates @promptforge/crates one at a time, put the output in the crate itself as user-guide-{crate}.md
+**[p1]** run @tools-public/tools/dokuman.md on each of these crates @runvil/crates one at a time, put the output in the crate itself as user-guide-{crate}.md
 
 **[p2]** use normal cabinet routing for everything *except* the final guide. That goes in the crate as I said.
 
@@ -16,7 +16,7 @@
 
 **[p4]** I have fixed the @tools-public/tools/dokuman.md tool for this
 
-**[p5]** now assemble a suer-guide: promptforge-user-guide.md at the root of the promptforge repo which combines each user guide in each crate into one. I want a program that assembles it, not a prompt. add a crate called make-user-guide and it is completely private with no dependencies. it builds one program that does one thing. It assembles the user-guide.md from the parts.
+**[p5]** now assemble a suer-guide: runvil-user-guide.md at the root of the runvil repo which combines each user guide in each crate into one. I want a program that assembles it, not a prompt. add a crate called make-user-guide and it is completely private with no dependencies. it builds one program that does one thing. It assembles the user-guide.md from the parts.
 
 **[p6]** we also should decide on the order of guides. what would be the most sensible?
 
@@ -47,7 +47,7 @@
 **[p19]** done
 
 **[p20]** how do I get this published
-https://cppalliance.org/promptforge/
+https://cppalliance.org/runvil/
 
 **[p21]** its using github pages
 
@@ -69,7 +69,7 @@ https://cppalliance.org/promptforge/
 
 **[p30]** rewrite history. remove the revert commit and the commit it reverts. staeg the Cargo.lock file change and commit it
 
-**[p31]** errors: https://github.com/cppalliance/promptforge/actions/runs/31624772615/job/94208514302
+**[p31]** errors: https://github.com/cppalliance/runvil/actions/runs/31624772615/job/94208514302
 
 
 
@@ -77,31 +77,31 @@ https://cppalliance.org/promptforge/
 
 ### Dokuman All Crates
 
-*Run the Dokuman documentation pipeline on each of the 8 promptforge crates sequentially, placing the final user guide in each crate's directory.*
+*Run the Dokuman documentation pipeline on each of the 8 runvil crates sequentially, placing the final user guide in each crate's directory.*
 
-# Dokuman on All PromptForge Crates
+# Dokuman on All Runvil Crates
 
-Run [dokuman.md](tools-public/tools/dokuman.md) on each crate under [promptforge/crates/](promptforge/crates/), one at a time. Output goes into the crate directory itself as `user-guide-{crate-name}.md` (overriding the default cabinet output routing).
+Run [dokuman.md](tools-public/tools/dokuman.md) on each crate under [runvil/crates/](runvil/crates/), one at a time. Output goes into the crate directory itself as `user-guide-{crate-name}.md` (overriding the default cabinet output routing).
 
 ## Crates (processing order)
 
-1. `promptforge-core` - parser, error handling, core types
-2. `promptforge-core-tests` - test-only crate (may be thin; skip if no user-facing capability)
-3. `promptforge-cli` - CLI binary
-4. `promptforge-gateway` - gateway/artifact resolution
-5. `promptforge-mcp-server` - MCP server (largest crate, ~70+ files)
-6. `promptforge-tool-picker` - tool selection logic
-7. `promptforge-webfetch` - web fetching
-8. `promptforge-dev` - dev utilities
+1. `runvil-core` - parser, error handling, core types
+2. `runvil-core-tests` - test-only crate (may be thin; skip if no user-facing capability)
+3. `runvil-cli` - CLI binary
+4. `runvil-gateway` - gateway/artifact resolution
+5. `runvil-mcp-server` - MCP server (largest crate, ~70+ files)
+6. `runvil-tool-picker` - tool selection logic
+7. `runvil-webfetch` - web fetching
+8. `runvil-dev` - dev utilities
 
 ## Per-crate execution
 
 Each crate follows the full Dokuman 9-step pipeline:
 
-- **Step 0 (Intake):** Target = `promptforge/crates/{crate}/`
+- **Step 0 (Intake):** Target = `runvil/crates/{crate}/`
 - **Steps 1-6:** Subagents for recon, extract, consolidate, tier, verify, evidence prep. All intermediates go to `cabinet/_scratch/dokuman-{crate-name}/`
 - **Step 7 (Write):** Single writer subagent produces draft
-- **Step 8 (Audit):** Main audits and writes final file to `promptforge/crates/{crate-name}/user-guide-{crate-name}.md`
+- **Step 8 (Audit):** Main audits and writes final file to `runvil/crates/{crate-name}/user-guide-{crate-name}.md`
 
 ## Output routing override
 
@@ -111,29 +111,29 @@ The tool's default routes final output to `cabinet/_output/`. For this run, fina
 
 Strictly one crate at a time. Complete all 8 steps for crate N before starting crate N+1. Within a single crate's Step 2 (Extract), extraction subagents can run in parallel as the tool allows.
 
-## Edge case: promptforge-core-tests
+## Edge case: runvil-core-tests
 
 If recon reveals this crate contains only test infrastructure with no standalone user-facing capabilities, skip it and note that in the response.
 
 
 Todos:
 
-- Run Dokuman on promptforge-core -> user-guide-promptforge-core.md
-- Run Dokuman on promptforge-core-tests (or skip if test-only)
-- Run Dokuman on promptforge-cli -> user-guide-promptforge-cli.md
-- Run Dokuman on promptforge-gateway -> user-guide-promptforge-gateway.md
-- Run Dokuman on promptforge-mcp-server -> user-guide-promptforge-mcp-server.md
-- Run Dokuman on promptforge-tool-picker -> user-guide-promptforge-tool-picker.md
-- Run Dokuman on promptforge-webfetch -> user-guide-promptforge-webfetch.md
-- Run Dokuman on promptforge-dev -> user-guide-promptforge-dev.md
+- Run Dokuman on runvil-core -> user-guide-runvil-core.md
+- Run Dokuman on runvil-core-tests (or skip if test-only)
+- Run Dokuman on runvil-cli -> user-guide-runvil-cli.md
+- Run Dokuman on runvil-gateway -> user-guide-runvil-gateway.md
+- Run Dokuman on runvil-mcp-server -> user-guide-runvil-mcp-server.md
+- Run Dokuman on runvil-tool-picker -> user-guide-runvil-tool-picker.md
+- Run Dokuman on runvil-webfetch -> user-guide-runvil-webfetch.md
+- Run Dokuman on runvil-dev -> user-guide-runvil-dev.md
 
 ### make-user-guide crate
 
-*Create a new `make-user-guide` binary crate that reads the per-crate user guides and assembles them into a single `promptforge-user-guide.md` at the repo root.*
+*Create a new `make-user-guide` binary crate that reads the per-crate user guides and assembles them into a single `runvil-user-guide.md` at the repo root.*
 
 # make-user-guide Crate
 
-Create `crates/make-user-guide/` - a private, zero-dependency binary crate that reads the 7 per-crate user guides and assembles `promptforge-user-guide.md` at the workspace root.
+Create `crates/make-user-guide/` - a private, zero-dependency binary crate that reads the 7 per-crate user guides and assembles `runvil-user-guide.md` at the workspace root.
 
 ## Crate structure
 
@@ -166,16 +166,16 @@ The program:
 
 1. Locates the workspace root by walking up from `env!("CARGO_MANIFEST_DIR")` to find the directory containing `Cargo.toml` with `[workspace]`
 2. Defines an ordered list of `(crate_name, guide_filename)` pairs, in reading order:
-   - `promptforge-core` / `user-guide-promptforge-core.md`
-   - `promptforge-cli` / `user-guide-promptforge-cli.md`
-   - `promptforge-gateway` / `user-guide-promptforge-gateway.md`
-   - `promptforge-mcp-server` / `user-guide-promptforge-mcp-server.md`
-   - `promptforge-tool-picker` / `user-guide-promptforge-tool-picker.md`
-   - `promptforge-webfetch` / `user-guide-promptforge-webfetch.md`
-   - `promptforge-dev` / `user-guide-promptforge-dev.md`
+   - `runvil-core` / `user-guide-runvil-core.md`
+   - `runvil-cli` / `user-guide-runvil-cli.md`
+   - `runvil-gateway` / `user-guide-runvil-gateway.md`
+   - `runvil-mcp-server` / `user-guide-runvil-mcp-server.md`
+   - `runvil-tool-picker` / `user-guide-runvil-tool-picker.md`
+   - `runvil-webfetch` / `user-guide-runvil-webfetch.md`
+   - `runvil-dev` / `user-guide-runvil-dev.md`
 3. For each guide file, reads the content and **demotes all markdown headings by one level** (H1 becomes H2, H2 becomes H3, etc.) so the combined document has one top-level H1
-4. Writes the assembled output to `{workspace_root}/promptforge-user-guide.md` with:
-   - A single H1: `# PromptForge User Guide`
+4. Writes the assembled output to `{workspace_root}/runvil-user-guide.md` with:
+   - A single H1: `# Runvil User Guide`
    - A brief intro paragraph
    - Each crate's guide separated by `---`
 5. Prints the output path and exits 0. On any missing file, prints the path and exits 1.
@@ -186,7 +186,7 @@ Simple line-by-line processing: any line starting with `#` gets one `#` prepende
 
 ## Workspace integration
 
-The workspace [Cargo.toml](promptforge/Cargo.toml) already uses `members = ["crates/*"]`, so the new crate is auto-discovered. No edit to the workspace file needed.
+The workspace [Cargo.toml](runvil/Cargo.toml) already uses `members = ["crates/*"]`, so the new crate is auto-discovered. No edit to the workspace file needed.
 
 
 Todos:
@@ -194,13 +194,13 @@ Todos:
 - Create crates/make-user-guide/ with Cargo.toml and src/main.rs
 - Build and run the program, verify output
 
-### PromptForge mdbook Guide
+### Runvil mdbook Guide
 
-*Create a `guide/` mdbook at the promptforge workspace root, restructuring the 7 per-crate user guides into a proper book with chapters, following the Rust rulebook's mdbook conventions.*
+*Create a `guide/` mdbook at the runvil workspace root, restructuring the 7 per-crate user guides into a proper book with chapters, following the Rust rulebook's mdbook conventions.*
 
-# PromptForge mdbook User Guide
+# Runvil mdbook User Guide
 
-Create `guide/` at the promptforge workspace root per the [Rust rulebook](tools-public/rulebooks/rust-rulebook.md) mdbook section. The existing per-crate user guides supply all content. The work is restructuring, not research.
+Create `guide/` at the runvil workspace root per the [Rust rulebook](tools-public/rulebooks/rust-rulebook.md) mdbook section. The existing per-crate user guides supply all content. The work is restructuring, not research.
 
 ## Reference
 
@@ -209,7 +209,7 @@ The [fiona-rs guide](fiona-rs/guide/) is the local reference for conventions: fl
 ## Structure
 
 ```
-promptforge/guide/
+runvil/guide/
   book.toml
   src/
     SUMMARY.md
@@ -234,33 +234,33 @@ promptforge/guide/
 
 ```toml
 [book]
-title = "PromptForge User Guide"
+title = "Runvil User Guide"
 authors = ["Vinnie Falco"]
 language = "en"
 src = "src"
 
 [output.html]
-git-repository-url = "https://github.com/cppalliance/promptforge"
+git-repository-url = "https://github.com/cppalliance/runvil"
 ```
 
 ## Chapter breakdown and sources
 
 Each chapter is carved from existing user guide material. No new research needed.
 
-- **introduction.md** - What PromptForge is, component overview, how the pieces fit together. Synthesized from opening paragraphs of all 7 guides.
-- **getting-started.md** - Install, first prompt file, first `promptforge run` invocation. From [CLI guide](promptforge/crates/promptforge-cli/user-guide-promptforge-cli.md) "Running Your First Prompt" + "Input and Output".
-- **prompt-files.md** - Format, YAML frontmatter, structural rules, optional fields. From [core guide](promptforge/crates/promptforge-core/user-guide-promptforge-core.md) "Prompt Files".
+- **introduction.md** - What Runvil is, component overview, how the pieces fit together. Synthesized from opening paragraphs of all 7 guides.
+- **getting-started.md** - Install, first prompt file, first `runvil run` invocation. From [CLI guide](runvil/crates/runvil-cli/user-guide-runvil-cli.md) "Running Your First Prompt" + "Input and Output".
+- **prompt-files.md** - Format, YAML frontmatter, structural rules, optional fields. From [core guide](runvil/crates/runvil-core/user-guide-runvil-core.md) "Prompt Files".
 - **execution.md** - The `run` function, caller-owned resources, RunConfig builder, RunLimits. From core guide "Execution Model".
 - **lua.md** - H1 phase, shared libraries, section environment, template substitution, control flow, sandbox constraints. From core guide "Lua Scripting".
 - **models.md** - Declaration, binding, hard constraints, `model:infer`, catalog, dialects. From core guide "Models".
 - **tools.md** - Declaration, scoping, dispatch loop, safety, call counts, custom tools, built-in web search. From core guide "Tools".
 - **fanout.md** - `fanout()`, arm execution, resilience, concurrency config. From core guide "Fanout".
 - **store.md** - Virtual filesystem, safe injection, path validation, glob matching. From core guide "Store".
-- **gateway.md** - TOML config, starting, model routing, auth, queuing, web search, profiles, local GGUF inference. From [gateway guide](promptforge/crates/promptforge-gateway/user-guide-promptforge-gateway.md) in its entirety.
-- **mcp-server.md** - Starting, config, tool surface, running prompts, discovery, live reload, transport security. From [MCP server guide](promptforge/crates/promptforge-mcp-server/user-guide-promptforge-mcp-server.md).
-- **tool-picker.md** - Descriptors, catalogs, resolving, shortlisting, thresholds, near-duplicate detection, embedded model. From [tool-picker guide](promptforge/crates/promptforge-tool-picker/user-guide-promptforge-tool-picker.md).
-- **webfetch.md** - Fetch contract, content processing, size limits, SSRF boundary, error behavior. From [webfetch guide](promptforge/crates/promptforge-webfetch/user-guide-promptforge-webfetch.md).
-- **dev-runner.md** - Prerequisites, first run, watch mode, store dump, raw trace, diagnostics. From [dev guide](promptforge/crates/promptforge-dev/user-guide-promptforge-dev.md).
+- **gateway.md** - TOML config, starting, model routing, auth, queuing, web search, profiles, local GGUF inference. From [gateway guide](runvil/crates/runvil-gateway/user-guide-runvil-gateway.md) in its entirety.
+- **mcp-server.md** - Starting, config, tool surface, running prompts, discovery, live reload, transport security. From [MCP server guide](runvil/crates/runvil-mcp-server/user-guide-runvil-mcp-server.md).
+- **tool-picker.md** - Descriptors, catalogs, resolving, shortlisting, thresholds, near-duplicate detection, embedded model. From [tool-picker guide](runvil/crates/runvil-tool-picker/user-guide-runvil-tool-picker.md).
+- **webfetch.md** - Fetch contract, content processing, size limits, SSRF boundary, error behavior. From [webfetch guide](runvil/crates/runvil-webfetch/user-guide-runvil-webfetch.md).
+- **dev-runner.md** - Prerequisites, first run, watch mode, store dump, raw trace, diagnostics. From [dev guide](runvil/crates/runvil-dev/user-guide-runvil-dev.md).
 - **errors.md** - Error taxonomy across all crates (RunError, CompletionError, StoreError, ToolError, ParseError, DialectError). From core guide "Error Handling" plus gateway/MCP error sections.
 
 ## SUMMARY.md
@@ -313,15 +313,15 @@ Todos:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\cabinet\_scratch\dokuman-promptforge-core\report-template.md
+### c:\Users\Vinnie\src\cursor\cabinet\_scratch\dokuman-runvil-core\report-template.md
 
-# promptforge-core User Guide
+# runvil-core User Guide
 
 Template shape: **The Tour** (dependency order, each section building on the last)
 
 ## Opening Hook
 
-[Write a 3-4 sentence opening paragraph. What promptforge-core IS (a Rust library for parsing and executing AI prompt files), why it matters (structured prompt authoring with embedded Lua, multi-model orchestration, tool dispatch), and what the reader gains (the ability to build prompt execution pipelines with full programmatic control). Sell it.]
+[Write a 3-4 sentence opening paragraph. What runvil-core IS (a Rust library for parsing and executing AI prompt files), why it matters (structured prompt authoring with embedded Lua, multi-model orchestration, tool dispatch), and what the reader gains (the ability to build prompt execution pipelines with full programmatic control). Sell it.]
 
 ## Prompt Files
 
@@ -364,21 +364,21 @@ Template shape: **The Tour** (dependency order, each section building on the las
 [Cover the error taxonomy: parse errors, execution errors, model errors, tool errors. Explain how errors surface to the caller. Keep brief.]
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\crates\make-user-guide\user-guide-1.md
+### c:\Users\Vinnie\src\cursor\runvil\crates\make-user-guide\user-guide-1.md
 
-# PromptForge User Guide
+# Runvil User Guide
 
-PromptForge turns Markdown files into executable AI prompt pipelines. This guide covers every component: the CLI that runs prompts, the gateway that talks to model backends, the core library that parses and executes prompt files, the MCP server, the tool picker, the web fetch tool, and the development runner.
+Runvil turns Markdown files into executable AI prompt pipelines. This guide covers every component: the CLI that runs prompts, the gateway that talks to model backends, the core library that parses and executes prompt files, the MCP server, the tool picker, the web fetch tool, and the development runner.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\crates\make-user-guide\user-guide-2.md
+### c:\Users\Vinnie\src\cursor\runvil\crates\make-user-guide\user-guide-2.md
 
 ---
 
 *This guide was assembled from per-crate documentation. For source-level details, see each crate's individual user guide.*
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\guide\src\SUMMARY.md
+### c:\Users\Vinnie\src\cursor\runvil\guide\src\SUMMARY.md
 
 # Summary
 
@@ -399,36 +399,36 @@ PromptForge turns Markdown files into executable AI prompt pipelines. This guide
 - [Errors](errors.md)
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\guide\src\introduction.md
+### c:\Users\Vinnie\src\cursor\runvil\guide\src\introduction.md
 
 # Introduction
 
-PromptForge turns Markdown files into executable AI prompt pipelines. You write a prompt as a document - YAML frontmatter for metadata, embedded Lua for logic, prose blocks for model instructions - and the system parses, validates, and executes it against any OpenAI-compatible endpoint.
+Runvil turns Markdown files into executable AI prompt pipelines. You write a prompt as a document - YAML frontmatter for metadata, embedded Lua for logic, prose blocks for model instructions - and the system parses, validates, and executes it against any OpenAI-compatible endpoint.
 
-A PromptForge prompt is a single file. Sections run top to bottom. Lua blocks control flow, bind models, declare tools, and write to a virtual filesystem. The model sees the prose. The tool loop dispatches calls and feeds results back. Fanout maps a worker section over a list in parallel. The result is a string.
+A Runvil prompt is a single file. Sections run top to bottom. Lua blocks control flow, bind models, declare tools, and write to a virtual filesystem. The model sees the prose. The tool loop dispatches calls and feeds results back. Fanout maps a worker section over a list in parallel. The result is a string.
 
 ## Components
 
-PromptForge is a workspace of cooperating crates:
+Runvil is a workspace of cooperating crates:
 
 | Crate | What it does |
 |-------|-------------|
-| **promptforge-cli** | Command-line tool. Point it at a prompt file and run it. |
-| **promptforge-gateway** | Model backend server. Routes chat completions to configured LLM endpoints, manages credentials, serves a model catalog, and optionally runs local GGUF models. |
-| **promptforge-core** | The library. Parser, execution engine, Lua sandbox, model resolution, tool dispatch, fanout, virtual store. Everything above depends on this. |
-| **promptforge-mcp-server** | Serves prompts as MCP tools for agentic harnesses like Cursor and Claude Code. |
-| **promptforge-tool-picker** | Semantic tool resolution. Matches capability descriptions to concrete tools using an embedded embedding model. |
-| **promptforge-webfetch** | Built-in web fetch tool. Retrieves pages, extracts readable content, guards against SSRF. |
-| **promptforge-dev** | Interactive development runner. Watch mode, store dump inspection, raw trace capture. |
+| **runvil-cli** | Command-line tool. Point it at a prompt file and run it. |
+| **runvil-gateway** | Model backend server. Routes chat completions to configured LLM endpoints, manages credentials, serves a model catalog, and optionally runs local GGUF models. |
+| **runvil-core** | The library. Parser, execution engine, Lua sandbox, model resolution, tool dispatch, fanout, virtual store. Everything above depends on this. |
+| **runvil-mcp-server** | Serves prompts as MCP tools for agentic harnesses like Cursor and Claude Code. |
+| **runvil-tool-picker** | Semantic tool resolution. Matches capability descriptions to concrete tools using an embedded embedding model. |
+| **runvil-webfetch** | Built-in web fetch tool. Retrieves pages, extracts readable content, guards against SSRF. |
+| **runvil-dev** | Interactive development runner. Watch mode, store dump inspection, raw trace capture. |
 
 ## How to read this guide
 
 This guide follows the user journey. Start with [Getting Started](getting-started.md) to run your first prompt. Then read [Prompt Files](prompt-files.md) and [Lua Scripting](lua.md) to understand the format. The remaining chapters cover each subsystem in depth.
 
-If you are integrating PromptForge as a library, the [Execution](execution.md) chapter explains the programmatic API. If you are deploying a model backend, start with [Gateway](gateway.md).
+If you are integrating Runvil as a library, the [Execution](execution.md) chapter explains the programmatic API. If you are deploying a model backend, start with [Gateway](gateway.md).
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\CHANGELOG.md
+### c:\Users\Vinnie\src\cursor\runvil\CHANGELOG.md
 
 # Changelog
 
@@ -441,17 +441,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial public release of PromptForge
-- promptforge-core: prompt parser, Lua sandbox, execution engine, model resolution, tool dispatch, fanout, virtual store
-- promptforge-cli: command-line prompt runner
-- promptforge-gateway: OpenAI-compatible model backend with TOML configuration, named profiles, and local GGUF inference
-- promptforge-mcp-server: MCP tool server for agentic harnesses (Cursor, Claude Code)
-- promptforge-tool-picker: semantic tool resolution with embedded embedding model
-- promptforge-webfetch: web page fetcher with readability extraction and SSRF protection
-- promptforge-dev: interactive development runner with watch mode and store dump inspection
-- User guide published at https://cppalliance.github.io/promptforge/
+- Initial public release of Runvil
+- runvil-core: prompt parser, Lua sandbox, execution engine, model resolution, tool dispatch, fanout, virtual store
+- runvil-cli: command-line prompt runner
+- runvil-gateway: OpenAI-compatible model backend with TOML configuration, named profiles, and local GGUF inference
+- runvil-mcp-server: MCP tool server for agentic harnesses (Cursor, Claude Code)
+- runvil-tool-picker: semantic tool resolution with embedded embedding model
+- runvil-webfetch: web page fetcher with readability extraction and SSRF protection
+- runvil-dev: interactive development runner with watch mode and store dump inspection
+- User guide published at https://cppalliance.github.io/runvil/
 
-[0.1.0]: https://github.com/cppalliance/promptforge/releases/tag/v0.1.0
+[0.1.0]: https://github.com/cppalliance/runvil/releases/tag/v0.1.0
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\cabinet\_scratch\dokuman-promptforge-core\draft.md`, `c:\Users\Vinnie\src\cursor\promptforge\CHANGELOG.md`, `c:\Users\Vinnie\src\cursor\promptforge\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-cli\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-core\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-core\user-guide-promptforge-core.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-dev\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-gateway\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-mcp-server\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-tool-picker\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-webfetch\README.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\cabinet\_scratch\dokuman-runvil-core\draft.md`, `c:\Users\Vinnie\src\cursor\runvil\CHANGELOG.md`, `c:\Users\Vinnie\src\cursor\runvil\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-cli\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-core\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-core\user-guide-runvil-core.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-dev\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-gateway\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-mcp-server\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-tool-picker\README.md`, `c:\Users\Vinnie\src\cursor\runvil\crates\runvil-webfetch\README.md`

@@ -104,7 +104,7 @@ Hardware is within reach of the workstation profiles this workspace has already 
 
 ## Relationship to the existing design
 
-This proposal introduces no new crate. It is the `promptforge-ext-label` pipeline with a different consumer bolted to its output.
+This proposal introduces no new crate. It is the `runvil-ext-label` pipeline with a different consumer bolted to its output.
 
 - **Stage 1 and Stage 2 are `design-label.md`.** The mechanical strip, fixed-token chunking, signal scoring on a small encoder, and pairwise tree reduction are already specified there, down to the ONNX sessions, the FP32 precision decision, and the export gate inherited from `design-classify.md`. The only change is the signal taxonomy: PaperGate's evidence categories in place of the domain-agnostic action and object signals used for progress phrasing.
 - **Stage 3 is new, and it is heavy.** `design-label.md`'s consumer is a 270M decoder composing a five-word status line. This proposal's consumer is a 70B reasoning over evidence packets and returning graded verdicts. The label pipeline's output feeds a phrase; the funnel's output feeds a judge. Nothing in the reduction machinery cares which, which is the point of keeping the reducer domain-neutral.

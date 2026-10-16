@@ -25,13 +25,13 @@ use std::error::Error;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -90,7 +90,7 @@ let shared: Arc<dyn RunRecorder> = recorder.clone();
 let harness = Harness::new(shared, Arc::new(Offline), Arc::new(Clock), CapabilityRegistry::new(), HostServices::new());
 
 // 6. Run a prompt that returns a text: the run begins, records, and ends.
-let hello = "---\nname: hello\ndescription: Says hello\npromptforge: 0\n---\n\n# Hello\n\n## Greet\n\n```lua\nreturn 'Hello.'\n```\n";
+let hello = "---\nname: hello\ndescription: Says hello\nrunvil: 0\n---\n\n# Hello\n\n## Greet\n\n```lua\nreturn 'Hello.'\n```\n";
 let request = RunRequest {
     name: "desk-hello-1".into(),
     source: hello.into(),
@@ -191,13 +191,13 @@ use harness::{Harness, HostSnapshot, RunRequest};
 use std::error::Error;
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -214,7 +214,7 @@ use std::sync::Arc;
 // 1. Run a prompt over a memory recorder, and keep a handle to read it back.
 let recorder = Arc::new(MemoryRecorder::new());
 let harness = Harness::new(recorder.clone(), Arc::new(Offline), Arc::new(Clock), CapabilityRegistry::new(), HostServices::new());
-let hello = "---\nname: hello\ndescription: Says hello\npromptforge: 0\n---\n\n# Hello\n\n## Greet\n\n```lua\nreturn 'Hello.'\n```\n";
+let hello = "---\nname: hello\ndescription: Says hello\nrunvil: 0\n---\n\n# Hello\n\n## Greet\n\n```lua\nreturn 'Hello.'\n```\n";
 let request = RunRequest {
     name: "desk-hello-1".into(),
     source: hello.into(),
@@ -245,7 +245,7 @@ assert!(recorder.records(run).iter().all(|record| record.kind != RecordKind::Eve
 2. Step 2 reads the run's records with [`MemoryRecorder::records`], by the `run_id` the report carries, and keeps the `kind` of each event's payload.
 3. Step 3 asserts that the run reported its section starting, and that every event names the run by the request's `name` in its `execution` field.
 
-The records hold effects and answers too, so a history shows what the run asked for and what the Harness answered, not only what the run reported. A model round's thinking, reply, and tool-call events each carry the round's id as `round`, the id the round's [`Round`](promptforge::effect::Round) held when it reached your broker.
+The records hold effects and answers too, so a history shows what the run asked for and what the Harness answered, not only what the run reported. A model round's thinking, reply, and tool-call events each carry the round's id as `round`, the id the round's [`Round`](runvil::effect::Round) held when it reached your broker.
 
 You might expect the Harness to keep a run's events for you to read later. Instead, it keeps nothing: the recorder is the only copy, so a Host that shows a run's history keeps the records it needs in its own recorder.
 

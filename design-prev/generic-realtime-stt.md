@@ -2,7 +2,7 @@
 
 ## Outcome
 
-PromptForge exposes speech as a Gateway product capability. The Gateway owns speech artifacts, models, workers, profile replacement, batch transcription, and Realtime transcription. Workshop is an independent consumer: its server authenticates and relays one fixed Realtime target, and its browser UI owns microphone capture and transcript presentation.
+Runvil exposes speech as a Gateway product capability. The Gateway owns speech artifacts, models, workers, profile replacement, batch transcription, and Realtime transcription. Workshop is an independent consumer: its server authenticates and relays one fixed Realtime target, and its browser UI owns microphone capture and transcript presentation.
 
 The only live streaming endpoint is `WS /v1/realtime?intent=transcription`. The removed `/stt` and `/stt/capability` routes, Workshop-specific status frames, and custom status headers have no compatibility path.
 
@@ -33,13 +33,13 @@ No Gateway STT crate depends on Workshop. No Workshop crate depends on a Gateway
 
 ## Exact workspace dependency policy
 
-- `gateway` -> `gateway-config`, `gateway-config-ui`, `gateway-local`, `gateway-logging`, `gateway-routing`, `gateway-stt`, `gateway-web-search`, `promptforge-core`, `shared-loopback`, `shared-progress`, `shared-protocol`, `shared-sidecar`
+- `gateway` -> `gateway-config`, `gateway-config-ui`, `gateway-local`, `gateway-logging`, `gateway-routing`, `gateway-stt`, `gateway-web-search`, `runvil-core`, `shared-loopback`, `shared-progress`, `shared-protocol`, `shared-sidecar`
 - `gateway-stt` -> `gateway-config`, `gateway-local`, `gateway-stt-backend-whisper`, `gateway-stt-engine`, `shared-progress`
 - `gateway-stt-engine` -> none
 - `gateway-stt-backend-whisper` -> `gateway-stt-engine`, `gateway-whisper-ffi`, `shared-progress`
 - `gateway-whisper-ffi` -> none
 - `shared-loopback` -> none
-- `workshop-server` -> `build-ui`, `promptforge-agent`, `promptforge-core-support`, `promptforge-model-client`, `promptforge-store`, `promptforge-tools`, `shared-loopback`, `shared-progress`, `shared-sidecar`
+- `workshop-server` -> `build-ui`, `runvil-agent`, `runvil-core-support`, `runvil-model-client`, `runvil-store`, `runvil-tools`, `shared-loopback`, `shared-progress`, `shared-sidecar`
 
 The architecture test reads Cargo metadata across normal, development, target-specific, and build dependencies. Any extra or missing workspace edge fails.
 
@@ -102,7 +102,7 @@ The Workshop server exposes `/v1/realtime` on its own origin. It validates Origi
 
 ## Architecture and CI gates
 
-- `cargo test -p gateway-stt --test it architecture` reads Cargo metadata and enforces only four direct local product boundaries across normal, development, build, renamed, and target-specific dependencies: Gateway cannot depend on Workshop or PromptForge, PromptForge cannot depend on Gateway or Workshop, and Workshop cannot depend on Gateway.
+- `cargo test -p gateway-stt --test it architecture` reads Cargo metadata and enforces only four direct local product boundaries across normal, development, build, renamed, and target-specific dependencies: Gateway cannot depend on Workshop or Runvil, Runvil cannot depend on Gateway or Workshop, and Workshop cannot depend on Gateway.
 - Compiler lanes deny unsafe code in `gateway-stt`, `gateway-stt-engine`, and `gateway-stt-backend-whisper`; `gateway-whisper-ffi` compiles under its explicit unsafe boundary and warnings-denied policy.
 - Normal CI installs only config UI dependencies before building Gateway, proving the default Gateway build cannot invoke Workshop UI tooling.
 - TypeScript checking, production bundles, and behavior tests validate both UIs without an import walker or source-topology gate.

@@ -312,7 +312,7 @@ part is using it to collapse the dynamic and static surfaces into one state.
 ## Advanced configuration: model-tiered selection via a context-clearing goto
 
 For the hard case (near-duplicate or foreign-overlap disambiguation), selection can be
-staged across two sections using existing promptforge primitives, which is the "right"
+staged across two sections using existing runvil primitives, which is the "right"
 form of a selection subcontext because it reuses the per-section control surface rather
 than inventing a new one:
 

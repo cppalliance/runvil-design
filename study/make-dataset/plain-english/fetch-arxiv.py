@@ -25,7 +25,7 @@ NS = {"a": "http://www.w3.org/2005/Atom"}
 def curl(url):
     return subprocess.run(
         ["curl", "-sS", "--max-time", "30",
-         "-H", "User-Agent: promptforge-study/1.0 (research)", url],
+         "-H", "User-Agent: runvil-study/1.0 (research)", url],
         capture_output=True, text=True, encoding="utf-8",
     ).stdout
 

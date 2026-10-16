@@ -132,7 +132,7 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p54]** okay thanks. none of that detour should affect the plan. Update the plan for what we know
 
-**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/promptforge.md
+**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/runvil.md
 
 **[p56]** I want the transcript of this design discussion to be written to a markdown file. Leave out chain of thought. I only want the user prompts and the LLM replies and the subagent reports. Show me a one-page sample including 1 of each of thoese ellements before we commit
 
@@ -146,10 +146,10 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p61]** where's the chat transcript where we designed the talktron
 
-**[p62]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @promptforge-design as promptforge-design.md
+**[p62]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @runvil-design as runvil-design.md
 
 **[p63]** now create a new plan which is a duplicate of this plan but without any of the talktron or context compaction
 
-**[p64]** go through this design doc @promptforge-design/design/design-promptforge.md and give me a numbered list of features
+**[p64]** go through this design doc @runvil-design/design/design-runvil.md and give me a numbered list of features
 
 **[p65]** I wanna keep talking about it, so now I'm thinking, so now I'm thinking that the basic unit of operation is the function. Basically, it's a inference and a function, the return value is a string. It's just a string and the inputs are-is a structured input key value pair, I guess and Every prompt, for each prompt, is a function. You pass in parameters and it returns a string, but it can have side effects. Okay, now. Every section heading. Is also A function. But It returns a string, but it can only take a string. And the string that it takes is defined by the node that transfers control over to it. So for example, if you're in a section and then we do a go-to. Well, we have to, we pass a string. We have to pa we can pass an optional string. And the goto is actually, there's, there's only gonna be one tool for transferring control. And we can make it, let's say that it's ca we'll give it the name call. And the first parameter to call is the type of call. It's a goto? It's a Function? It's Context preserving goto maybe, I don't know, but, you know, there's a type. or, or it could even be a return. Maybe, maybe it's also a return, but it takes a string. And that string is passed to the destination. And if the destination is a node, then that becomes the beginning of the prompt, like that gets, that gets injected, or it can go to the Lua, and then the Lua can like manipulate it, something. What do you think about that?

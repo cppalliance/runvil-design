@@ -1,12 +1,12 @@
-﻿# PromptForge: How to Build Real-Time Two-Model Speech-to-Text
+﻿# Runvil: How to Build Real-Time Two-Model Speech-to-Text
 
-Report type: evaluation / review. It judges PromptForge's real-time speech-to-text (the gateway pipeline, the whisper.cpp engine, and the workshop client) against 6 open-source codebases plus a wide sweep of papers, vendor APIs, model cards, parameter threads, and unrelated software that solved the same "fast guess, slow correction" problem, and prescribes ideas to adopt, in payoff order.
+Report type: evaluation / review. It judges Runvil's real-time speech-to-text (the gateway pipeline, the whisper.cpp engine, and the workshop client) against 6 open-source codebases plus a wide sweep of papers, vendor APIs, model cards, parameter threads, and unrelated software that solved the same "fast guess, slow correction" problem, and prescribes ideas to adopt, in payoff order.
 
 ## Executive summary
 
 The two-model structure is ahead of every project we found, but the rule that decides which words lock, the way the accurate model's text lands, and the way the UI draws the result are all behind what the field already does with small, proven pieces of logic.
 
-PromptForge already has a fast `base.en` pass, a slower `small.en` pass, and a wire event that exposes `finalized`, `agreed`, and `tentative` text with a revision number. None of the six reference projects runs a real fast-model plus accurate-model pair with that three-way split. The weak points are in how it uses that structure: the agreed prefix is an exact token match of two passes (so a flipped comma blocks a commit), the final text overwrites what the user already saw, every 500 ms tick re-decodes the whole window with default whisper settings, and the editor throws the split away and rewrites the whole range each time. The top two findings fix the commit rule and the reconciliation rule, and they are plain logic with no new model.
+Runvil already has a fast `base.en` pass, a slower `small.en` pass, and a wire event that exposes `finalized`, `agreed`, and `tentative` text with a revision number. None of the six reference projects runs a real fast-model plus accurate-model pair with that three-way split. The weak points are in how it uses that structure: the agreed prefix is an exact token match of two passes (so a flipped comma blocks a commit), the final text overwrites what the user already saw, every 500 ms tick re-decodes the whole window with default whisper settings, and the editor throws the split away and rewrites the whole range each time. The top two findings fix the commit rule and the reconciliation rule, and they are plain logic with no new model.
 
 ### Key findings
 
@@ -61,7 +61,7 @@ Handy was added as a second reference inside the transcribe.cpp dive; the URL fi
 
 ## Baseline: where the subject stands
 
-PromptForge's speech-to-text is about 93 percent Rust (four crates: the safe FFI to whisper.cpp, the model backend, a backend-neutral engine, and the API with take, segmenter, and realtime session) and 7 percent TypeScript. A browser AudioWorklet sends 24 kHz PCM16 in 100 ms chunks, base64 encoded, over an OpenAI-Realtime-compatible WebSocket. Every 500 ms the server re-decodes the trailing window (up to 15 s, in practice under 10 s) with `base.en` and pushes a full-snapshot hypothesis event split into finalized, agreed, and tentative text. A plain RMS gate (0.001) over 30 ms frames closes a segment after 2 s of silence, or every 10 s with an 8 s overlap, and each closed segment goes to `small.en` with a prompt of glossary plus the tail of finalized text. When a final lands it replaces the interim text for its audio range. The browser reducer replaces the whole editor range with the full transcript string.
+Runvil's speech-to-text is about 93 percent Rust (four crates: the safe FFI to whisper.cpp, the model backend, a backend-neutral engine, and the API with take, segmenter, and realtime session) and 7 percent TypeScript. A browser AudioWorklet sends 24 kHz PCM16 in 100 ms chunks, base64 encoded, over an OpenAI-Realtime-compatible WebSocket. Every 500 ms the server re-decodes the trailing window (up to 15 s, in practice under 10 s) with `base.en` and pushes a full-snapshot hypothesis event split into finalized, agreed, and tentative text. A plain RMS gate (0.001) over 30 ms frames closes a segment after 2 s of silence, or every 10 s with an 8 s overlap, and each closed segment goes to `small.en` with a prompt of glossary plus the tail of finalized text. When a final lands it replaces the interim text for its audio range. The browser reducer replaces the whole editor range with the full transcript string.
 
 Strengths the findings build on:
 - **S1.** Strict audio and range accounting, with an RAII PCM budget and bounded queues.

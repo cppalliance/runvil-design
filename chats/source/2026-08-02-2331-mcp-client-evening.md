@@ -52,7 +52,7 @@ I think we need to get training data and run tests to see if the classifier will
 
 why do you call it a "spike" ? and is that a term of art ?
 
-let's build promptforge-tool-picker crate which is this design (I am tweaking the name, adjust all docs) @promptforge-design/study-mcp-toolpicker/design-mcp-toolpicker.md the crate goes here @promptforge/crates and I have input to give. Use @tools-public/tools/architect.md
+let's build runvil-tool-picker crate which is this design (I am tweaking the name, adjust all docs) @runvil-design/study-mcp-toolpicker/design-mcp-toolpicker.md the crate goes here @runvil/crates and I have input to give. Use @tools-public/tools/architect.md
 
 So this crate shouldn't depend on MCP, I don't think. I think it just needs to take And, oh, and we need to take a catalog. We have to define a tool catalog as a type somewhere, and then it takes a tool. And, I don't know, like, it builds whatever representation it needs, and then later, you, you present. And then it tells you the tool. Or it gives you a list of tools.
 
@@ -62,8 +62,8 @@ I don't want the model put into git. Instead, the build process should download 
 
 I want the study to say tool-picker yes rename it in the plan
 
-@promptforge-design/study-mcp-toolpicker rename to study-tool-picker
-@promptforge-design/mcp-classifier-spike rename to spike-tool-picker
+@runvil-design/study-mcp-toolpicker rename to study-tool-picker
+@runvil-design/mcp-classifier-spike rename to spike-tool-picker
 
 what is a .venv?
 
@@ -75,7 +75,7 @@ we are keeping the eval dataset outside of the crate right?
 
 yes and this repo should not refer to the design repo
 
-adopt @tools-public/how-to/vibe-how-to.md and also the architect design goes in the crate's root, at promptforge-tool-picker/
+adopt @tools-public/how-to/vibe-how-to.md and also the architect design goes in the crate's root, at runvil-tool-picker/
 
 opus 4.8 medium? fable 5 medium? or should I do max thinking?
 
@@ -87,26 +87,26 @@ do a @tools-public/how-to/rust-how-to.md pass in a subagent now
 
 ## Plans
 
-### promptforge tool picker
+### runvil tool picker
 
-*Build promptforge-tool-picker: a pure, deterministic, embedding-based tool-resolution engine that takes an abstract tool catalog and resolves plain-English capability needs to a concrete tool, a shortlist, or a loud abstention - with no Lua, MCP, or protocol dependencies.*
+*Build runvil-tool-picker: a pure, deterministic, embedding-based tool-resolution engine that takes an abstract tool catalog and resolves plain-English capability needs to a concrete tool, a shortlist, or a loud abstention - with no Lua, MCP, or protocol dependencies.*
 
-# Build the promptforge-tool-picker crate
+# Build the runvil-tool-picker crate
 
-A pure Rust engine that ingests an abstract tool catalog, embeds each tool once with a bundled CPU sentence-transformer, and resolves a plain-English capability need to one of four outcomes. It carries no Lua, no MCP/protocol, and no network dependency. Governing design: [design-mcp-toolpicker.md](promptforge-design/study-mcp-toolpicker/design-mcp-toolpicker.md) and its evidence [RESULTS.md](promptforge-design/study-mcp-toolpicker/RESULTS.md), as narrowed by the decisions below.
+A pure Rust engine that ingests an abstract tool catalog, embeds each tool once with a bundled CPU sentence-transformer, and resolves a plain-English capability need to one of four outcomes. It carries no Lua, no MCP/protocol, and no network dependency. Governing design: [design-mcp-toolpicker.md](runvil-design/study-mcp-toolpicker/design-mcp-toolpicker.md) and its evidence [RESULTS.md](runvil-design/study-mcp-toolpicker/RESULTS.md), as narrowed by the decisions below.
 
 ## Decisions that override the design doc
 
-- Crate name is `promptforge-tool-picker` (was `promptforge-mcp-toolpicker`); rename across all study docs.
-- No Lua dependency and no `promptforge-mcp-client` dependency. The Lua verbs (`tools.add_need`, `choose_mcp_tool`) and the context-rewrite hook are NOT in this crate - they are future integration-layer work in the caller. This crate exposes a Rust API only.
-- Likely no `promptforge-core` dependency: the engine returns tool descriptors, not `dyn Tool`; the caller maps a chosen descriptor to a concrete tool.
+- Crate name is `runvil-tool-picker` (was `runvil-mcp-toolpicker`); rename across all study docs.
+- No Lua dependency and no `runvil-mcp-client` dependency. The Lua verbs (`tools.add_need`, `choose_mcp_tool`) and the context-rewrite hook are NOT in this crate - they are future integration-layer work in the caller. This crate exposes a Rust API only.
+- Likely no `runvil-core` dependency: the engine returns tool descriptors, not `dyn Tool`; the caller maps a chosen descriptor to a concrete tool.
 - The catalog is the sole input contract and its type lives in this crate.
 
 ## Boundary
 
 ```mermaid
 flowchart LR
-  producer["Catalog producer (CLI / future mcp-client / tests)"] -->|"Catalog"| picker["promptforge-tool-picker (embed + rank + policy)"]
+  producer["Catalog producer (CLI / future mcp-client / tests)"] -->|"Catalog"| picker["runvil-tool-picker (embed + rank + policy)"]
   picker -->|"Outcome: Bind | Duplicate | ForeignAmbiguous | Absent"| caller["Integration layer (Lua verbs, context-rewrite) - out of scope"]
 ```
 
@@ -128,7 +128,7 @@ flowchart LR
 
 ## Build method
 
-Execute per the Vibe rulebook: one testable commit per step, each written in a subagent, reviewed in a fresh subagent that writes findings to `vibe-review.md` (overwritten each cycle), fixed in a third; git stays in the main context. Each step handed to its subagent by this plan's path plus the step number. Learn house rules first: workspace lints (forbid unsafe, deny unwrap/expect, warn missing_docs, clippy pedantic), edition 2024, `[lints] workspace = true`, thiserror for library errors, `///` on every public item, and update STATUS.md on commits (see [AGENTS.md](promptforge/AGENTS.md)). Use `promptforge-webfetch` as the crate-structure template.
+Execute per the Vibe rulebook: one testable commit per step, each written in a subagent, reviewed in a fresh subagent that writes findings to `vibe-review.md` (overwritten each cycle), fixed in a third; git stays in the main context. Each step handed to its subagent by this plan's path plus the step number. Learn house rules first: workspace lints (forbid unsafe, deny unwrap/expect, warn missing_docs, clippy pedantic), edition 2024, `[lints] workspace = true`, thiserror for library errors, `///` on every public item, and update STATUS.md on commits (see [AGENTS.md](runvil/AGENTS.md)). Use `runvil-webfetch` as the crate-structure template.
 
 <review>
 Project-specific review checks, in addition to the general code-review block:
@@ -142,7 +142,7 @@ Project-specific review checks, in addition to the general code-review block:
 
 Work them in order; each is one commit carrying code, test, and docs.
 
-1. Crate skeleton: `promptforge/crates/promptforge-tool-picker/` with Cargo.toml (workspace member, `[lints] workspace = true`), lib.rs, module stubs.
+1. Crate skeleton: `runvil/crates/runvil-tool-picker/` with Cargo.toml (workspace member, `[lints] workspace = true`), lib.rs, module stubs.
 2. Catalog types: `ToolDescriptor`, `Catalog`, serde derives, enriched-text derivation (name + description + parameter names), unit tests.
 3. Config and Error types (thiserror), thresholds with documented defaults.
 4. Model assets: acquire bge-small-en-v1.5 (safetensors + tokenizer.json + config.json), optionally all-MiniLM-L6-v2; wire bundling/loading with checksum verification.
@@ -151,9 +151,9 @@ Work them in order; each is one commit carrying code, test, and docs.
 7. Cosine ranking + top-k ordering, with tests.
 8. Four-outcome policy (floor, margin, duplicate threshold, annotation tie-break) -> `Outcome`; one test per outcome using crafted mini-catalogs.
 9. Public API: `build` / `resolve` / `shortlist` tied together; integration test.
-10. Evidence regression test: drive the engine with the study fixtures ([data/catalog.jsonl](promptforge-design/study-mcp-toolpicker/data/catalog.jsonl), [data/needs.jsonl](promptforge-design/study-mcp-toolpicker/data/needs.jsonl)) and assert the measured accuracy bands from RESULTS.md hold within tolerance, as a guard against regressions.
+10. Evidence regression test: drive the engine with the study fixtures ([data/catalog.jsonl](runvil-design/study-mcp-toolpicker/data/catalog.jsonl), [data/needs.jsonl](runvil-design/study-mcp-toolpicker/data/needs.jsonl)) and assert the measured accuracy bands from RESULTS.md hold within tolerance, as a guard against regressions.
 11. Register the crate in the workspace `members` list; verify `cargo build`/`clippy`/`test` clean; bump MSRV only if Candle requires it.
-12. Rename `promptforge-mcp-toolpicker` -> `promptforge-tool-picker` across the study docs (design-mcp-toolpicker.md, manifest.md, rationale.md, README.md, RESULTS.md) and update STATUS.md.
+12. Rename `runvil-mcp-toolpicker` -> `runvil-tool-picker` across the study docs (design-mcp-toolpicker.md, manifest.md, rationale.md, README.md, RESULTS.md) and update STATUS.md.
 13. After implementation is complete, generate the design document: spawn one subagent whose entire prompt is - read this plan file, grep for `<design-doc>`, and follow the block inside it. Set `{slug}` = `tool-picker`.
 
 <design-doc>
@@ -246,7 +246,7 @@ carries no key design choices, write no document and return the reason.
 
 Todos:
 
-- Create promptforge/crates/promptforge-tool-picker/ with Cargo.toml (workspace member, [lints] workspace = true), lib.rs, module stubs.
+- Create runvil/crates/runvil-tool-picker/ with Cargo.toml (workspace member, [lints] workspace = true), lib.rs, module stubs.
 - Define ToolDescriptor and Catalog with serde; enriched-text derivation (name + description + parameter names); unit tests.
 - Config type (model_id default bge-small-en-v1.5, weights_path, similarity_floor, margin, duplicate_threshold ~0.98, top_k) and thiserror Error type with documented defaults.
 - Acquire bge-small-en-v1.5 (safetensors + tokenizer.json + config.json), optionally all-MiniLM-L6-v2; wire bundling/loading with checksum verification.
@@ -257,7 +257,7 @@ Todos:
 - Public API build/resolve/shortlist tied together; integration test.
 - Regression test driving the engine with study fixtures (data/catalog.jsonl, data/needs.jsonl), asserting RESULTS.md accuracy bands hold within tolerance.
 - Register crate in workspace members; verify build/clippy/test clean; bump MSRV only if Candle requires it.
-- Rename promptforge-mcp-toolpicker -> promptforge-tool-picker across study docs and update STATUS.md.
+- Rename runvil-mcp-toolpicker -> runvil-tool-picker across study docs and update STATUS.md.
 - Final step: spawn a subagent to read this plan, grep <design-doc>, and generate design-tool-picker.md from the finished work.
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge\STATUS.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil\STATUS.md`

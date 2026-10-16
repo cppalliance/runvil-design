@@ -132,7 +132,7 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p54]** okay thanks. none of that detour should affect the plan. Update the plan for what we know
 
-**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/promptforge.md
+**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/runvil.md
 
 **[p56]** I want the transcript of this design discussion to be written to a markdown file. Leave out chain of thought. I only want the user prompts and the LLM replies and the subagent reports. Show me a one-page sample including 1 of each of thoese ellements before we commit
 
@@ -146,4 +146,4 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p61]** where's the chat transcript where we designed the talktron
 
-**[p62]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @promptforge-design as promptforge-design.md
+**[p62]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @runvil-design as runvil-design.md

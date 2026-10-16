@@ -32,7 +32,7 @@ goto( "## Research", "Search the web for {{ args.name }}" )
 
 **[p231]** yes it has to resolve at the call site, that's the whole point. this is the "poor man's argument list." Or another way to look at it "the lazy engineer's function parameters." The best engineers are lazy. This is the best kind of feature because it gives us everything with the minimal implementaiton
 
-**[p232]** the hell with design-promptforge.md it is overengineered.
+**[p232]** the hell with design-runvil.md it is overengineered.
 
 **[p233]** we can refer to the design doc to mine it for ideas but its bloatslop
 
@@ -95,7 +95,7 @@ goto( "## Research", "Search the web for {{ args.name }}" )
 
 **[p260]** we can always just put a flag on the bag for floating
 
-**[p261]** spawn async subagent and update the @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md plan here with everything new. and lets keep designing
+**[p261]** spawn async subagent and update the @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md plan here with everything new. and lets keep designing
 
 **[p262]** how does mapreduce work
 
@@ -144,7 +144,7 @@ Apply test 2 to data
 
 **[p278]** arg without Lua is too little
 
-**[p279]** remove everything already implemented, from these plans @c:\Users\Vinnie\.cursor\plans\lua_args_substitution_278b888c.plan.md @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md leave the rest
+**[p279]** remove everything already implemented, from these plans @c:\Users\Vinnie\.cursor\plans\lua_args_substitution_278b888c.plan.md @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md leave the rest
 
 **[p280]** yeah I want the master plan to be unbuilt design. the design reference is the Rust code + what is unbuilt.
 
@@ -281,6 +281,6 @@ sys.now is the current time
 
 **[p346]** well yeah paperflow is read-only
 
-**[p347]** obviously promptforge has to handle edit in place wtf..
+**[p347]** obviously runvil has to handle edit in place wtf..
 
-**[p348]** promptforge needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.
+**[p348]** runvil needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.

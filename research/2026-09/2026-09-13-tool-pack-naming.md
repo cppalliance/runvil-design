@@ -1,8 +1,8 @@
 <!-- sources: cabinet/_research/2026-09-13-conduct-research-tool-naming-namespaces.md, 2026-09-13-conduct-research-global-naming-systems.md, 2026-09-13-conduct-research-plugin-ecosystem-naming-versioning.md, plus decentralized naming systems survey of same date -->
 
-# Global Tool Naming for PromptForge Tool Packs: Survey and Recommendation
+# Global Tool Naming for Runvil Tool Packs: Survey and Recommendation
 
-Four parallel surveys covered agent/LLM tool wire naming, classic package namespaces, decentralized protocol naming, and plugin ecosystems. This report synthesizes them into a recommendation for promptforge's tool-pack naming: packs installed as a unit, globally unique tool names, prompts binding global names to prompt-local aliases in frontmatter.
+Four parallel surveys covered agent/LLM tool wire naming, classic package namespaces, decentralized protocol naming, and plugin ecosystems. This report synthesizes them into a recommendation for runvil's tool-pack naming: packs installed as a unit, globally unique tool names, prompts binding global names to prompt-local aliases in frontmatter.
 
 ## The constraint that shapes everything: the wire alphabet
 
@@ -16,7 +16,7 @@ A second wire lesson: never recover routing by parsing the wire name. Prefix sch
 
 The surveys converged unanimously: when there is no central registry, every successful ecosystem roots global uniqueness in **DNS ownership**. Java did it by pure convention (the JLS says explicitly "instead of having to create a separate registry"), Go by making import paths domain-anchored fetch URLs, Kubernetes by reserving API groups as DNS subdomains, AT Protocol by reverse-DNS NSIDs with DNS TXT proof of authority, and the official MCP registry by reverse-DNS namespaces verified through GitHub OAuth (`io.github.user/*`) or DNS TXT records (`com.example/*`).
 
-The MCP registry model is the strongest fit for promptforge: globally unique, human-readable, no allocation bottleneck, and a future promptforge registry can add Maven-style DNS verification later without renaming anything. The alternative - a central registry assigning names (VS Code's `publisher.name`, Obsidian's PR-gated flat namespace) - works only if promptforge runs the only registry, which contradicts the DLL/no-registry-first distribution model.
+The MCP registry model is the strongest fit for runvil: globally unique, human-readable, no allocation bottleneck, and a future runvil registry can add Maven-style DNS verification later without renaming anything. The alternative - a central registry assigning names (VS Code's `publisher.name`, Obsidian's PR-gated flat namespace) - works only if runvil runs the only registry, which contradicts the DLL/no-registry-first distribution model.
 
 The cautionary poles: Neovim (no registry, no namespacing - attribution and collision avoidance both failed, and the ecosystem is now retrofitting exactly the pack-identity concept) and WordPress (no runtime isolation - the ecosystem pays forever in prefix conventions and still collides). The lesson from both: qualify every tool name with its pack, always, and let the runtime enforce the boundary rather than convention.
 
@@ -26,7 +26,7 @@ XML namespaces are the classic proof of the user's model: global URI identity, d
 
 Two alias lessons worth importing:
 
-- **Bind once at manifest level, not per use site.** Cargo's `foo = { package = "bar" }` and npm's alias installs are the best-regarded designs; Go and Python's per-file import aliasing produce recurring confusion. Promptforge frontmatter is the manifest - one binding block, whole-prompt scope.
+- **Bind once at manifest level, not per use site.** Cargo's `foo = { package = "bar" }` and npm's alias installs are the best-regarded designs; Go and Python's per-file import aliasing produce recurring confusion. Runvil frontmatter is the manifest - one binding block, whole-prompt scope.
 - **Never let the compact and global forms be lexically ambiguous.** The CURIE lesson from RDF: if a short string could parse as either an alias or a global name, tooling and humans both eventually misread it. Aliases should be wire-legal (`[a-zA-Z0-9_-]`), global names should contain characters aliases can't (dots/slashes), making the distinction self-evident at a glance.
 
 ## Versioning: beside the name, with a qualified escape hatch
@@ -50,11 +50,11 @@ calls:
   term-worker: ./agents/terminal.md        # called prompts bound the same way
 ```
 
-- **Pack id:** `namespace/pack` where namespace is reverse-DNS (`io.github.corp`, `com.example`) or a reserved first-party prefix (`promptforge/...`, reserved now, before anyone else squats it). Slash form over dotted form: it matches the MCP registry convention promptforge will interoperate with, and it reads as a path, which it conceptually is.
+- **Pack id:** `namespace/pack` where namespace is reverse-DNS (`io.github.corp`, `com.example`) or a reserved first-party prefix (`runvil/...`, reserved now, before anyone else squats it). Slash form over dotted form: it matches the MCP registry convention runvil will interoperate with, and it reads as a path, which it conceptually is.
 - **Global tool name:** `namespace/pack/tool` - always pack-qualified, never bare. Three segments, no more.
 - **Local alias:** wire-legal (`^[a-zA-Z0-9_-]{1,64}$`), chosen by the prompt author, the only name the model ever sees. Aliases and global names are lexically disjoint by construction.
 - **Version:** beside the pack id (`@1` major pin in frontmatter; exact resolution recorded in the run's event log), with WIT-style major-qualified references as the designed-in escape hatch for coexistence.
-- **Registry later, not now:** when a promptforge registry exists, model it on the DID method registry / MCP registry - a PR-based directory with DNS-proof namespace verification, not a root of trust. Names work without it from day one.
+- **Registry later, not now:** when a runvil registry exists, model it on the DID method registry / MCP registry - a PR-based directory with DNS-proof namespace verification, not a root of trust. Names work without it from day one.
 - **Normalization fixed at launch:** comparison is case-sensitive on the exact string (OpenAPI's lesson: uniqueness must survive lowercasing and separator removal, so forbid pack names that collide under normalization at registration/publish time).
 
 ## What this means for the picker

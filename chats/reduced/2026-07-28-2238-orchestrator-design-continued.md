@@ -80,11 +80,11 @@
 
 **[p54]** okay thanks. none of that detour should affect the plan. Update the plan for what we know
 
-**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/promptforge.md
+**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/runvil.md
 
 **[p65]** I wanna keep talking about it, so now I'm thinking, so now I'm thinking that the basic unit of operation is the function. Basically, it's a inference and a function, the return value is a string. It's just a string and the inputs are-is a structured input key value pair, I guess and Every prompt, for each prompt, is a function. You pass in parameters and it returns a string, but it can have side effects. Okay, now. Every section heading. Is also A function. But It returns a string, but it can only take a string. And the string that it takes is defined by the node that transfers control over to it. So for example, if you're in a section and then we do a go-to. Well, we have to, we pass a string. We have to pa we can pass an optional string. And the goto is actually, there's, there's only gonna be one tool for transferring control. And we can make it, let's say that it's ca we'll give it the name call. And the first parameter to call is the type of call. It's a goto? It's a Function? It's Context preserving goto maybe, I don't know, but, you know, there's a type. or, or it could even be a return. Maybe, maybe it's also a return, but it takes a string. And that string is passed to the destination. And if the destination is a node, then that becomes the beginning of the prompt, like that gets, that gets injected, or it can go to the Lua, and then the Lua can like manipulate it, something. What do you think about that?
 
-**[p66]** So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-prompt forge executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
+**[p66]** So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-runvil executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
 
 **[p68]** we are doing this in Rust
 
@@ -136,7 +136,7 @@
 
 **[p100]** This can't be right. What about the "breadcrumbs?" That's structured data!!
 
-**[p102]** make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @promptforge-design
+**[p102]** make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @runvil-design
 
 **[p105-p112]** [troubleshooting: file:/// links to the plan file would not open because of Windows paths; eventually resolved, and a design-plans.md with working links was created]
 
@@ -148,16 +148,16 @@
 The gateway is needed because vLLM lacks proper queuing, rate limiting, and 503 responses
 Rust is chosen because it compiles to a native binary that can be installed as a Windows service or Unix daemon - always running when the machine starts
 Loopback connections don't require API keys; remote intranet access uses whitelisted IPs or API keys
-PromptForge as a unit
+Runvil as a unit
 
-**[p117]** Every PromptForge prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
+**[p117]** Every Runvil prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
 A prompt can produce side effects (create files via tools) beyond its return value
 The single-file-per-prompt model reflects the existing workflow and should be preserved - if you want to spread work across files, you decompose into individual functions (separate prompt files)
 Directories can serve as namespaces for organizing prompts
 Prompt-first inversion
 
-**[p118]** Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, PromptForge starts with the prompt and adds structured programming (Lua) into it
-You should be able to write a PromptForge prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
+**[p118]** Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, Runvil starts with the prompt and adds structured programming (Lua) into it
+You should be able to write a Runvil prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
 Small-model friendliness (the core pressure-relief principle)
 
 **[p119]** Each design choice is evaluated by whether it relieves pressure on the context window, enabling smaller models
@@ -180,11 +180,11 @@ Between sections, the model's narration and throat-clearing should be trimmed ra
 Preferred mechanism: a tool call to advance to the next section where the model explicitly passes only the context it wants the next section to have - this is better than bare goto because it lets you pass a curated instruction string
 MCP integration
 
-**[p122]** PromptForge prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
+**[p122]** Runvil prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
 The server monitors the prompt directory for file changes and refreshes its cache - no restart needed during development (developer convenience, not a production feature)
-The PromptForge MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
+The Runvil MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
 
-**[p123]** What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the PromptForge executor, we have a lot of shit going on. What do you think?
+**[p123]** What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the Runvil executor, we have a lot of shit going on. What do you think?
 
 **[p129]** What's the smallest thing we can implement? Can we just implement the executor and we just, and have a, a frontier model invoke it using the shell command from the command line? And it doesn't even do any inference, it'll just like, I don't know, print "Hello, world".
 
@@ -213,9 +213,9 @@ Principles and decision rationale kept from the plan structure:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md
 
-BLUF (kept): PromptForge is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
+BLUF (kept): Runvil is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
 
 The payoff is threefold. First, iteration speed: a new analysis tool goes from idea to running in an hour, edited in one file, with no orchestration code to write or debug. Second, model sovereignty: every design decision (context clearing, flat tool calls, per-section scoping, fan-out to small models) is chosen to make mid-size open-weight models reliable, so the whole stack runs on your own hardware at roughly 1/100th of frontier API cost. Third, integrity: because subagent prompts are shipped verbatim from named sections rather than paraphrased by the model, what you test is what runs.
 
@@ -227,13 +227,13 @@ The four primitives (kept): everything reduces to Parse (markdown into a section
 
 [Dropped: mermaid architecture diagram, runtime line-count estimates, document roadmap.]
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md (two drafts)
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md (two drafts)
 
-[pasted: two drafts of a design-session transcript artifact covering the compaction algorithm, Mentograph model-tiering and distillation economics, and the orchestrator idea. The second draft restyles user turns as blockquotes and drops the "### Assistant" headers per p59-p60. The user turns duplicate the Prompts section above; the assistant exposition's rationale is superseded by the plan and promptforge.md summaries kept above.]
+[pasted: two drafts of a design-session transcript artifact covering the compaction algorithm, Mentograph model-tiering and distillation economics, and the orchestrator idea. The second draft restyles user turns as blockquotes and drops the "### Assistant" headers per p59-p60. The user turns duplicate the Prompts section above; the assistant exposition's rationale is superseded by the plan and runvil.md summaries kept above.]
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\example-diligence.md
+### c:\Users\Vinnie\src\cursor\runvil-design\example-diligence.md
 
-Simplified Diligence written in PromptForge as a teaching example; every idiom of the language appears at least once. Kept: the idiom index and the frontmatter (the YAML key set per p82). Section bodies dropped.
+Simplified Diligence written in Runvil as a teaching example; every idiom of the language appears at least once. Kept: the idiom index and the frontmatter (the YAML key set per p82). Section bodies dropped.
 
 Idiom index:
 - frontmatter: name/description/version/args/tools/default_return
@@ -257,7 +257,7 @@ Frontmatter keys: name, description, version, args (JSON-schema object with prop
 
 Section layout: Main, Industry, Diagnose, Challenge, Couple, Synthesize, Report (return fence), then below the fence the task targets: Test Battery with individually fannable H3 children (Credential Depth, Staffing Model, Financial Viability) and Company.
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\design-plans.md
+### c:\Users\Vinnie\src\cursor\runvil-design\design-plans.md
 
 [Dropped: plan file link inventory.]
 

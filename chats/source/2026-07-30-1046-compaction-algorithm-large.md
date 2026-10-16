@@ -140,7 +140,7 @@ but we know Cursor does quite a lot for us surely it can't be that easy. Cursor 
 
 okay thanks. none of that detour should affect the plan. Update the plan for what we know
 
-when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/promptforge.md
+when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/runvil.md
 
 The beginning of the above subagent result is already visible to the user. Perform any follow-up actions (if needed). DO NOT regurgitate or reiterate its result unless asked. If multiple subagents have now completed and none are still running, briefly summarize the findings and conclusions across all of them. Otherwise, if no follow-ups remain, end your response with a brief third-person confirmation that the subagent has completed. If you mention an agent or subagent in your response, link it with the `[label](id)` format using the agent_id or task_id from the notification instead of printing the raw ID. Don't repeat the same confirmation every time.
 
@@ -170,15 +170,15 @@ get rid of ### Assistant and the blank line that follows
 
 where's the chat transcript where we designed the talktron
 
-@c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @promptforge-design as promptforge-design.md
+@c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @runvil-design as runvil-design.md
 
 now create a new plan which is a duplicate of this plan but without any of the talktron or context compaction
 
-go through this design doc @promptforge-design/design/design-promptforge.md and give me a numbered list of features
+go through this design doc @runvil-design/design/design-runvil.md and give me a numbered list of features
 
 I wanna keep talking about it, so now I'm thinking, so now I'm thinking that the basic unit of operation is the function. Basically, it's a inference and a function, the return value is a string. It's just a string and the inputs are-is a structured input key value pair, I guess and Every prompt, for each prompt, is a function. You pass in parameters and it returns a string, but it can have side effects. Okay, now. Every section heading. Is also A function. But It returns a string, but it can only take a string. And the string that it takes is defined by the node that transfers control over to it. So for example, if you're in a section and then we do a go-to. Well, we have to, we pass a string. We have to pa we can pass an optional string. And the goto is actually, there's, there's only gonna be one tool for transferring control. And we can make it, let's say that it's ca we'll give it the name call. And the first parameter to call is the type of call. It's a goto? It's a Function? It's Context preserving goto maybe, I don't know, but, you know, there's a type. or, or it could even be a return. Maybe, maybe it's also a return, but it takes a string. And that string is passed to the destination. And if the destination is a node, then that becomes the beginning of the prompt, like that gets, that gets injected, or it can go to the Lua, and then the Lua can like manipulate it, something. What do you think about that?
 
-So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-prompt forge executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
+So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-runvil executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
 
 how do we handle all the corner cases and quoting rules to do the substitution of {{ }}
 
@@ -268,29 +268,29 @@ This can't be right. What about the "breadcrumbs?" That's structured data!!
 
 show me exactly the diligence dataflow
 
-make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @promptforge-design
+make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @runvil-design
 
-@promptforge-design/example-diligence.md:62 wtf is this?
+@runvil-design/example-diligence.md:62 wtf is this?
 
 spawn a subagent update the plan for what we learned @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md
 
-link promptforge_orchestrator_only.plan.md. for me
+link runvil_orchestrator_only.plan.md. for me
 
 it won't open.
 
 what are the dates on those
 
-can you please link promptforge_orchestrator_only.plan.md  for me
+can you please link runvil_orchestrator_only.plan.md  for me
 
 its becaose of windows paths
 
 No I got it open finally.
 
-@c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md
+@c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md
 
 The beginning of the above subagent result is already visible to the user. Perform any follow-up actions (if needed). DO NOT regurgitate or reiterate its result unless asked. If multiple subagents have now completed and none are still running, briefly summarize the findings and conclusions across all of them. Otherwise, if no follow-ups remain, end your response with a brief third-person confirmation that the subagent has completed. If you mention an agent or subagent in your response, link it with the `[label](id)` format using the agent_id or task_id from the notification instead of printing the raw ID. Don't repeat the same confirmation every time.
 
-@promptforge-design make a markdown file with a working file:/// link to the plan in it - design-plans.md
+@runvil-design make a markdown file with a working file:/// link to the plan in it - design-plans.md
 
 what is relevant in here to the plan
 
@@ -302,16 +302,16 @@ All inference traffic must bottleneck through a single gateway process (in Rust)
 The gateway is needed because vLLM lacks proper queuing, rate limiting, and 503 responses
 Rust is chosen because it compiles to a native binary that can be installed as a Windows service or Unix daemon - always running when the machine starts
 Loopback connections don't require API keys; remote intranet access uses whitelisted IPs or API keys
-PromptForge as a unit
+Runvil as a unit
 
-Every PromptForge prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
+Every Runvil prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
 A prompt can produce side effects (create files via tools) beyond its return value
 The single-file-per-prompt model reflects the existing workflow and should be preserved - if you want to spread work across files, you decompose into individual functions (separate prompt files)
 Directories can serve as namespaces for organizing prompts
 Prompt-first inversion
 
-Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, PromptForge starts with the prompt and adds structured programming (Lua) into it
-You should be able to write a PromptForge prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
+Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, Runvil starts with the prompt and adds structured programming (Lua) into it
+You should be able to write a Runvil prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
 Small-model friendliness (the core pressure-relief principle)
 
 Each design choice is evaluated by whether it relieves pressure on the context window, enabling smaller models
@@ -334,13 +334,13 @@ Between sections, the model's narration and throat-clearing should be trimmed ra
 Preferred mechanism: a tool call to advance to the next section where the model explicitly passes only the context it wants the next section to have - this is better than bare goto because it lets you pass a curated instruction string
 MCP integration
 
-PromptForge prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
+Runvil prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
 The server monitors the prompt directory for file changes and refreshes its cache - no restart needed during development (developer convenience, not a production feature)
-The PromptForge MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
+The Runvil MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
 
-What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the PromptForge executor, we have a lot of shit going on. What do you think?
+What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the Runvil executor, we have a lot of shit going on. What do you think?
 
-Okay, so I guess we need a minimal prompt forge? And then we need We need a A gateway. That's it. But don't, shouldn't we really I don't know. Really put it all in one plan? Look at this gate, look at what i have for the gateway.@promptforge-design/design/design-gateway.md
+Okay, so I guess we need a minimal runvil? And then we need We need a A gateway. That's it. But don't, shouldn't we really I don't know. Really put it all in one plan? Look at this gate, look at what i have for the gateway.@runvil-design/design/design-gateway.md
 
 what is pinning
 
@@ -356,7 +356,7 @@ Here's my question: what kind of log should we put into the repo? Should we put 
 
 Like it, and then. Do you wanna make like an agents dot md or a cloud dot md at the root that says that any changes have to update this status file?
 
-I dont want no mdc. rather have AGENTS.md in the repo. start a new plan plan to build in@promptforge the executor. this will be a multi-crate repo
+I dont want no mdc. rather have AGENTS.md in the repo. start a new plan plan to build in@runvil the executor. this will be a multi-crate repo
 
 do not look at the python implementation
 
@@ -503,7 +503,7 @@ I'm sorry I do not understand. Isn't it JSON ?
 
 oh.... now I get it. Of course they should not share them. that's unnecessary coupling.
 
-@c:\Users\Vinnie\.cursor\plans\promptforge_executor_tranche_1_08fd6c2c.plan.md do we need this?
+@c:\Users\Vinnie\.cursor\plans\runvil_executor_tranche_1_08fd6c2c.plan.md do we need this?
 
 lets plan the gateway. in the plan, plan the move to trash too
 
@@ -559,9 +559,9 @@ oh that was a mistake. it goes from my local gateway, to my company gateway, to 
 
 is this all in the design doc
 
-update this @promptforge-design/design/design-gateway.md
+update this @runvil-design/design/design-gateway.md
 
-Okay, let's talk about the control flow. @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md
+Okay, let's talk about the control flow. @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md
 
 I want to refine the call() model. The full call() has the different kinds. but what if a section is only going to goto with clear? we could restrict the tools further. we can just offer goto() that has no mode. this reduces pressure because the model doesnt have to pick a call kind
 
@@ -589,7 +589,7 @@ yes it has to resolve at the call site, that's the whole point. this is the "poo
 
 stop
 
-the hell with design-promptforge.md it is overengineered.
+the hell with design-runvil.md it is overengineered.
 
 we can refer to the design doc to mine it for ideas but its bloatslop
 
@@ -652,7 +652,7 @@ at 3B you probably have a tiny context window
 
 we can always just put a flag on the bag for floating
 
-spawn async subagent and update the @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md plan here with everything new. and lets keep designing
+spawn async subagent and update the @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md plan here with everything new. and lets keep designing
 
 how does mapreduce work
 
@@ -707,7 +707,7 @@ arg without Lua is too little
 
 run
 
-remove everything already implemented, from these plans @c:\Users\Vinnie\.cursor\plans\lua_args_substitution_278b888c.plan.md @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md leave the rest
+remove everything already implemented, from these plans @c:\Users\Vinnie\.cursor\plans\lua_args_substitution_278b888c.plan.md @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md leave the rest
 
 yeah I want the master plan to be unbuilt design. the design reference is the Rust code + what is unbuilt.
 
@@ -852,9 +852,9 @@ does wg21-paperflow do this
 
 well yeah paperflow is read-only
 
-obviously promptforge has to handle edit in place wtf..
+obviously runvil has to handle edit in place wtf..
 
-promptforge needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.
+runvil needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.
 
 Lua needs equal access to the vfs
 
@@ -928,7 +928,7 @@ The beginning of the above subagent result is already visible to the user. Perfo
 
 how do we dissect these @tools-public/how-to/how-to-ville.md
 
-no I mean if we embed the xml blocks, the numbered bullets in a Promptforge program, what is the syntax for extracting that material into a fanout?
+no I mean if we embed the xml blocks, the numbered bullets in a Runvil program, what is the syntax for extracting that material into a fanout?
 
 update the plan with everything we know. put all the control flow, xml, store, and related things together in one tight compact section iun the plan
 
@@ -1048,15 +1048,15 @@ Todos:
 - Write the full design document to cabinet/_output/ following the structure above. BLUF first, inverted pyramid, all sections. No YAML frontmatter, date/model at bottom in italics.
 - Check cabinet/_output/ for existing files with matching prefix before writing (conflict resolution per cabinet rules).
 
-### PromptForge Executor Tranche 1
+### Runvil Executor Tranche 1
 
-*Scaffold the promptforge Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
+*Scaffold the runvil Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
 
-# PromptForge Executor - Tranche 1: Scaffold + Parser
+# Runvil Executor - Tranche 1: Scaffold + Parser
 
 ## Target repo
 
-`c:\Users\Vinnie\src\cursor\promptforge\` (empty git repo, fresh)
+`c:\Users\Vinnie\src\cursor\runvil\` (empty git repo, fresh)
 
 ## What this tranche delivers
 
@@ -1065,18 +1065,18 @@ A Rust workspace with one library crate and one binary crate. The binary reads a
 ## Crate layout (multi-crate workspace)
 
 ```
-promptforge/
+runvil/
   Cargo.toml              # [workspace] members
   AGENTS.md               # rule: update STATUS.md after every tranche
   STATUS.md               # living snapshot of what exists and works
   crates/
-    promptforge-core/     # library: parser, (later: lua, vfs, store, execute)
+    runvil-core/     # library: parser, (later: lua, vfs, store, execute)
       Cargo.toml
       src/
         lib.rs
         parser.rs         # the deliverable
         frontmatter.rs    # YAML frontmatter parsing
-    promptforge-cli/      # binary: the command-line entry point
+    runvil-cli/      # binary: the command-line entry point
       Cargo.toml
       src/
         main.rs           # reads a file, calls parser, prints result
@@ -1102,7 +1102,7 @@ Given a markdown file with YAML frontmatter, H2 sections, optional Lua code fenc
 
 ## Reference implementation
 
-The Python prototype at [wg21-paperflow/packages/promptforge/src/promptforge/parser.py](wg21-paperflow/packages/promptforge/src/promptforge/parser.py) does this already. Port the logic, not the code. The design doc at [design-promptforge.md](promptforge-design/design/design-promptforge.md) is authoritative for the file anatomy (see "File anatomy" and "Frontmatter" sections).
+The Python prototype at [wg21-paperflow/packages/runvil/src/runvil/parser.py](wg21-paperflow/packages/runvil/src/runvil/parser.py) does this already. Port the logic, not the code. The design doc at [design-runvil.md](runvil-design/design/design-runvil.md) is authoritative for the file anatomy (see "File anatomy" and "Frontmatter" sections).
 
 ## Tests
 
@@ -1116,24 +1116,24 @@ The Python prototype at [wg21-paperflow/packages/promptforge/src/promptforge/par
 ## AGENTS.md content
 
 ```markdown
-# PromptForge
+# Runvil
 
-Multi-crate Rust workspace for the PromptForge pipeline runtime.
+Multi-crate Rust workspace for the Runvil pipeline runtime.
 
 ## Rules
 
 - After completing a tranche of work (compiles + tests pass), update STATUS.md
   before committing.
 - STATUS.md is the snapshot a fresh context reads first. Keep it under 80 lines.
-- Design authority: ../promptforge-design/design/ (design-promptforge.md for
+- Design authority: ../runvil-design/design/ (design-runvil.md for
   language semantics, design-gateway.md for the gateway, design.md for the system).
-- Reference implementation: ../wg21-paperflow/packages/promptforge/ (Python prototype).
+- Reference implementation: ../wg21-paperflow/packages/runvil/ (Python prototype).
 ```
 
 ## STATUS.md initial content
 
 ```markdown
-# PromptForge Status
+# Runvil Status
 
 ## What exists and works
 
@@ -1147,7 +1147,7 @@ Nothing yet. Repo scaffolded, first tranche in progress.
 ## Design decisions settled
 
 - Rust + mlua (not Python + lupa)
-- Multi-crate workspace: promptforge-core (lib), promptforge-cli (bin)
+- Multi-crate workspace: runvil-core (lib), runvil-cli (bin)
 - Fall-through default, context clears on every section transition
 - args global and read-only for the run
 - State tiering: files primary, counters for audit, store for battery+coupling
@@ -1162,29 +1162,29 @@ Nothing yet. Repo scaffolded, first tranche in progress.
 
 Todos:
 
-- Create workspace Cargo.toml, crates/promptforge-core/ and crates/promptforge-cli/ with minimal Cargo.toml files. Add AGENTS.md and STATUS.md at repo root.
+- Create workspace Cargo.toml, crates/runvil-core/ and crates/runvil-cli/ with minimal Cargo.toml files. Add AGENTS.md and STATUS.md at repo root.
 - Implement YAML frontmatter parsing in frontmatter.rs. Struct with name, description, version, args (serde_json::Value for the JSON Schema), tools (Vec<String>), default_return (Option<String>), outputs, progress. Deserialize with serde_yaml. Error on missing required fields.
 - Implement section parser in parser.rs using pulldown-cmark. Walk heading events to split into H2 sections (ordered Vec, not HashMap - file order matters). Detect Lua code fences and separate from prose. Nest H3 children under parent H2. Require ## Main exists.
-- Wire up promptforge-cli main.rs: read a file path from args, call the parser, print the section tree (section names, has_lua, prose length, child count) to stdout.
+- Wire up runvil-cli main.rs: read a file path from args, call the parser, print the section tree (section names, has_lua, prose length, child count) to stdout.
 - Write tests: parse example-diligence.md, parse a minimal prompt, error on missing Main, error on bad frontmatter, Lua block separation, H3 nesting.
 - Update STATUS.md to reflect what was built. Commit.
 
 ### gateway v0
 
-*Stand up promptforge-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire promptforge-core to talk through it with a shared token (moving the vendor key out of the executor). Retire the completed tranche 1 plan.*
+*Stand up runvil-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire runvil-core to talk through it with a shared token (moving the vendor key out of the executor). Retire the completed tranche 1 plan.*
 
-# PromptForge Gateway v0 (walking skeleton)
+# Runvil Gateway v0 (walking skeleton)
 
 ## Goal
 
-Add the `promptforge-gateway` vertebra to the skeleton and **move the LLM credential out of the executor into the gateway**. This is breadth-first: stand the crate up, establish the seam, defer everything hard.
+Add the `runvil-gateway` vertebra to the skeleton and **move the LLM credential out of the executor into the gateway**. This is breadth-first: stand the crate up, establish the seam, defer everything hard.
 
-The vertical slice: `promptforge run prompts/hello.md` -> core's `GatewayClient` (holds only the gateway URL + a shared token) -> `promptforge-gateway` (holds `ANTHROPIC_API_KEY`, maps the model name, forwards) -> Anthropic's OpenAI-compatible endpoint -> reply prints. Same output as today, but the executor no longer knows any vendor.
+The vertical slice: `runvil run prompts/hello.md` -> core's `GatewayClient` (holds only the gateway URL + a shared token) -> `runvil-gateway` (holds `ANTHROPIC_API_KEY`, maps the model name, forwards) -> Anthropic's OpenAI-compatible endpoint -> reply prints. Same output as today, but the executor no longer knows any vendor.
 
 ## Two decisions (veto at confirmation)
 
-- **Same workspace.** New crate `crates/promptforge-gateway` (binary + thin lib target), not a separate repo. Rationale: the end-to-end test drives the gateway with core's real client in one `cargo test`, and it matches the design's "binary crate with a thin library target."
-- **Rewire now.** Core stops reading `ANTHROPIC_API_KEY` and points at the gateway. Consequence: `promptforge run` now requires the gateway running. If you'd rather stand the crate up but keep core direct-to-Anthropic this round, say so and I'll split it.
+- **Same workspace.** New crate `crates/runvil-gateway` (binary + thin lib target), not a separate repo. Rationale: the end-to-end test drives the gateway with core's real client in one `cargo test`, and it matches the design's "binary crate with a thin library target."
+- **Rewire now.** Core stops reading `ANTHROPIC_API_KEY` and points at the gateway. Consequence: `runvil run` now requires the gateway running. If you'd rather stand the crate up but keep core direct-to-Anthropic this round, say so and I'll split it.
 
 ## Scope
 
@@ -1196,16 +1196,16 @@ Out (deferred, one-line note in the crate doc so each is a decision not an omiss
 
 ```mermaid
 flowchart LR
-    CLI["promptforge run"] --> Core["promptforge-core GatewayClient<br/>URL + shared token"]
-    Core -->|"OpenAI JSON + Bearer token"| GW["promptforge-gateway (axum)"]
+    CLI["runvil run"] --> Core["runvil-core GatewayClient<br/>URL + shared token"]
+    Core -->|"OpenAI JSON + Bearer token"| GW["runvil-gateway (axum)"]
     GW -->|"auth /v1/*"| Route["model lookup -> Endpoint"]
     Route --> Up["OpenAiUpstream<br/>substitute upstream, Bearer api_key"]
     Up -->|"OpenAI JSON"| Anth["api.anthropic.com/v1"]
 ```
 
-## New crate: `crates/promptforge-gateway`
+## New crate: `crates/runvil-gateway`
 
-Binary `promptforge-gateway` plus a lib target (types are `promptforge_gateway::Type`). Modules:
+Binary `runvil-gateway` plus a lib target (types are `runvil_gateway::Type`). Modules:
 
 - `config.rs` - `Config`, `ServerConfig`, `EndpointConfig`, `ModelConfig`, `Secret`. Parse `gateway.toml` via the `toml` crate. `${VAR}` expanded from the process env at load (`$$` escapes a literal `$`); an unresolved var fails the load. `Config::validate` rejects: duplicate endpoint/model names, a model naming an undefined endpoint, an empty endpoint list, an unknown model on load. `Secret(String)` with no `Serialize`, `Debug`/`Display` both print `redacted`, one `expose()` accessor.
 - `wire.rs` - gateway-owned request/response structs (NOT shared with core; JSON is the contract). Minimal viable set:
@@ -1228,13 +1228,13 @@ Binary `promptforge-gateway` plus a lib target (types are `promptforge_gateway::
 - `routing.rs` - `Routing { models: HashMap<String, Arc<Model>> }`, `Model { name, upstream, endpoint: Arc<Endpoint> }`, `Endpoint { upstream: Arc<dyn Upstream> }`. `routing.model(name) -> Result<_, UnknownModel>`. (Single endpoint per model in v0; fewest-in-flight selection is deferred with admission control.)
 - `error.rs` - `GatewayError` subset -> HTTP status + OpenAI error envelope `{error:{message,type,code}}`: `Unauthorized`(401), `UnknownModel`(404), `MalformedRequest`(400), `UpstreamTransport`(502), `UpstreamStatus`(passthrough class). Enough shape that the fuller table drops in later.
 - `lib.rs` - `build_router(state) -> axum::Router` with `POST /v1/chat/completions`, `GET /health`; a bearer-auth layer on `/v1/*` comparing against `server.token`. `AppState { routing: Arc<Routing>, token: Secret }`.
-- `main.rs` - positional config path (`promptforge-gateway serve <gateway.toml>`), build a multi-thread tokio runtime inside `main` (no `#[tokio::main]`, matching the design's rationale for the future service handler), `axum::serve`. Basic `tracing_subscriber` to stdout for v0.
+- `main.rs` - positional config path (`runvil-gateway serve <gateway.toml>`), build a multi-thread tokio runtime inside `main` (no `#[tokio::main]`, matching the design's rationale for the future service handler), `axum::serve`. Basic `tracing_subscriber` to stdout for v0.
 
 Handlers: `/health` -> `200 {"status":"serving"}` (no auth). `/v1/chat/completions` -> auth, parse body, `routing.model(&req.model)?`, `endpoint.upstream.send(...)`, return JSON.
 
-## Modify `crates/promptforge-core`
+## Modify `crates/runvil-core`
 
-- [crates/promptforge-core/src/client.rs](crates/promptforge-core/src/client.rs): the client now targets the gateway. `PROMPTFORGE_BASE_URL` (e.g. `http://127.0.0.1:8081/v1`) and `PROMPTFORGE_TOKEN` (the shared bearer). Drop `ANTHROPIC_API_KEY` and the Anthropic default URL from core. Keep `PROMPTFORGE_MODEL` (default `claude-sonnet-4-6`, must match a `[[model]]` name). Rename `Client` -> `GatewayClient` to make the seam legible; update `execute.rs`, `main.rs`, `lib.rs` re-exports.
+- [crates/runvil-core/src/client.rs](crates/runvil-core/src/client.rs): the client now targets the gateway. `RUNVIL_BASE_URL` (e.g. `http://127.0.0.1:8081/v1`) and `RUNVIL_TOKEN` (the shared bearer). Drop `ANTHROPIC_API_KEY` and the Anthropic default URL from core. Keep `RUNVIL_MODEL` (default `claude-sonnet-4-6`, must match a `[[model]]` name). Rename `Client` -> `GatewayClient` to make the seam legible; update `execute.rs`, `main.rs`, `lib.rs` re-exports.
 - Everything else in core is unchanged; the request/response structs stay core's own (deliberate duplication).
 
 ## Config files (repo root)
@@ -1243,7 +1243,7 @@ Handlers: `/health` -> `200 {"status":"serving"}` (no auth). `/v1/chat/completio
 ```toml
 [server]
 bind = "127.0.0.1:8081"
-token = "${PROMPTFORGE_TOKEN}"
+token = "${RUNVIL_TOKEN}"
 
 [[endpoint]]
 name = "anthropic"
@@ -1267,13 +1267,13 @@ endpoints = ["anthropic"]
 - `routing`: model hit; unknown model -> `UnknownModel`.
 - `handler` (via `tower::ServiceExt::oneshot`, stubbed `Upstream`): missing/wrong bearer -> 401; unknown model -> 404; happy path returns the stub's `ChatResponse` with `model` rewritten to the requested name; `/health` -> 200 without auth.
 - `end-to-end with the real client` (the design's honesty test, in miniature): start the gateway on an ephemeral port with an endpoint pointed at a tiny in-test fake backend (axum returning a canned completion), drive it with core's `GatewayClient`, assert the reply. Full fake-backend fidelity (SSE, Anthropic translation, admission) is deferred.
-- Manual: `promptforge-gateway serve gateway.toml` in one shell, `promptforge run prompts/hello.md` in another, prints "Hello, world!".
+- Manual: `runvil-gateway serve gateway.toml` in one shell, `runvil run prompts/hello.md` in another, prints "Hello, world!".
 
 ## Housekeeping
 
 - Update [STATUS.md](STATUS.md): gateway v0 exists and holds the key; core talks through it; how to run both processes; deferred-list recorded under decisions.
 - Update [README.md](README.md): new crate in the workspace list; two-process run instructions.
-- Retire the finished tranche 1 plan: move `C:\Users\Vinnie\.cursor\plans\promptforge_executor_tranche_1_08fd6c2c.plan.md` to `cabinet/_trash/` (per cabinet rules, never delete). State on execution: "Moving promptforge_executor_tranche_1_08fd6c2c.plan.md to _trash/. It can be recovered from there."
+- Retire the finished tranche 1 plan: move `C:\Users\Vinnie\.cursor\plans\runvil_executor_tranche_1_08fd6c2c.plan.md` to `cabinet/_trash/` (per cabinet rules, never delete). State on execution: "Moving runvil_executor_tranche_1_08fd6c2c.plan.md to _trash/. It can be recovered from there."
 - Commit.
 
 ## Verification
@@ -1283,19 +1283,19 @@ endpoints = ["anthropic"]
 Todos:
 
 - Move the completed tranche 1 plan to cabinet/_trash/ (state the recovery line)
-- Add crates/promptforge-gateway (bin + lib) to the workspace; add axum, toml, tracing, tracing-subscriber deps; write gateway.toml
+- Add crates/runvil-gateway (bin + lib) to the workspace; add axum, toml, tracing, tracing-subscriber deps; write gateway.toml
 - Implement config.rs: Config/Endpoint/Model structs, Secret, ${VAR} interpolation, load + validate
 - Implement wire.rs (ChatRequest/ChatResponse with flatten passthrough), upstream.rs (Upstream trait + OpenAiUpstream), routing.rs (model lookup), error.rs (GatewayError -> OpenAI envelope)
 - Implement lib.rs build_router (POST /v1/chat/completions, GET /health, bearer auth on /v1/*) and main.rs (positional config path, runtime built in main, axum::serve)
-- Rewire promptforge-core: Client -> GatewayClient targeting PROMPTFORGE_BASE_URL + PROMPTFORGE_TOKEN, drop vendor key; update execute.rs/main.rs/lib.rs
+- Rewire runvil-core: Client -> GatewayClient targeting RUNVIL_BASE_URL + RUNVIL_TOKEN, drop vendor key; update execute.rs/main.rs/lib.rs
 - Config, routing, handler (oneshot + stub Upstream), and end-to-end-with-real-client (gateway + fake backend) tests
 - Update STATUS.md and README.md (new crate, two-process run, deferred list); cargo build/clippy/test; manual two-process run; commit
 
 ### Lua args substitution
 
-*Embed Lua (mlua) in promptforge-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else - no files, store, exits, fall-through, or model-side control.*
+*Embed Lua (mlua) in runvil-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else - no files, store, exits, fall-through, or model-side control.*
 
-# PromptForge: Lua + args + substitution (rung 0)
+# Runvil: Lua + args + substitution (rung 0)
 
 ## Goal
 
@@ -1304,7 +1304,7 @@ Prove Lua embedding end to end on top of the existing parse -> execute -> gatewa
 Deliverable:
 
 ```
-promptforge run prompts/greet.md name=World
+runvil run prompts/greet.md name=World
 ```
 
 with `greet.md`:
@@ -1322,7 +1322,7 @@ Repeat exactly, no extra words: {{ var.greeting }}
 ## Scope
 
 In:
-- `mlua` embedded in [crates/promptforge-core](crates/promptforge-core), sandboxed.
+- `mlua` embedded in [crates/runvil-core](crates/runvil-core), sandboxed.
 - `args`: table populated from the CLI - positional -> `args[1..]` (1-indexed, Lua convention), `key=value` -> `args.name`.
 - `var`: table the Lua block writes.
 - Run the **entry section's** Lua block (before the model turn), then substitute, then the existing single-section model call.
@@ -1332,11 +1332,11 @@ Out (explicitly deferred to later rungs): virtual files, store, counters, `goto`
 
 ## Files
 
-- `crates/promptforge-core/Cargo.toml` - add `mlua = { version = "0.10", features = ["lua54", "vendored"] }`. Vendored compiles Lua from source; needs the MSVC C toolchain (already present from the reqwest/ring build).
-- `crates/promptforge-core/src/lua.rs` (new) - build a sandboxed `mlua::Lua`: empty globals, register `args` and `var` tables, load only `string`/`table`/`math` + `tostring`/`tonumber`/`ipairs`/`pairs`/`type`; do NOT load `io`/`os`/`require`/`load`/`loadfile`/`dofile`/`package`/`debug`. Set a basic instruction-count hook to abort a runaway block. Run a section's Lua source; read the `var` table back out.
-- `crates/promptforge-core/src/subst.rs` (new) - resolve `{{ path }}` in prose. Parse `args.name`, `args[1]`, `var.x`; look up in the args/var values; scalar -> string, table -> `serde_json` string, missing -> `Error`.
-- `crates/promptforge-core/src/execute.rs` - before the model call: if the entry section has a Lua block, run it (produces `var`); then run substitution over the prose; then send the substituted prose (existing round trip).
-- `crates/promptforge-cli/src/main.rs` - parse trailing `token` / `key=value` args after the file path into the args map; pass to `execute::run`.
+- `crates/runvil-core/Cargo.toml` - add `mlua = { version = "0.10", features = ["lua54", "vendored"] }`. Vendored compiles Lua from source; needs the MSVC C toolchain (already present from the reqwest/ring build).
+- `crates/runvil-core/src/lua.rs` (new) - build a sandboxed `mlua::Lua`: empty globals, register `args` and `var` tables, load only `string`/`table`/`math` + `tostring`/`tonumber`/`ipairs`/`pairs`/`type`; do NOT load `io`/`os`/`require`/`load`/`loadfile`/`dofile`/`package`/`debug`. Set a basic instruction-count hook to abort a runaway block. Run a section's Lua source; read the `var` table back out.
+- `crates/runvil-core/src/subst.rs` (new) - resolve `{{ path }}` in prose. Parse `args.name`, `args[1]`, `var.x`; look up in the args/var values; scalar -> string, table -> `serde_json` string, missing -> `Error`.
+- `crates/runvil-core/src/execute.rs` - before the model call: if the entry section has a Lua block, run it (produces `var`); then run substitution over the prose; then send the substituted prose (existing round trip).
+- `crates/runvil-cli/src/main.rs` - parse trailing `token` / `key=value` args after the file path into the args map; pass to `execute::run`.
 - `prompts/greet.md` (new) - the demo above.
 - Extend `Error` in `lib.rs` with a `Lua(String)` variant (non-leaking) and a `Substitution(String)` variant.
 
@@ -1344,7 +1344,7 @@ Out (explicitly deferred to later rungs): virtual files, store, counters, `goto`
 
 ```mermaid
 flowchart LR
-    CLI["promptforge run greet.md name=World"] --> Parse["parse section (prose + lua fence)"]
+    CLI["runvil run greet.md name=World"] --> Parse["parse section (prose + lua fence)"]
     Parse --> Lua["run Lua block: reads args, writes var"]
     Lua --> Subst["resolve {{ args.x }} / {{ var.x }} in prose"]
     Subst --> Model["send substituted prose to gateway"]
@@ -1355,7 +1355,7 @@ flowchart LR
 
 - `subst` unit: `{{ args.name }}` scalar; `{{ args[1] }}` positional; `{{ var.x }}` after Lua sets it; table value -> JSON; missing key -> error; text with no placeholders unchanged.
 - `lua` unit: block runs and sets `var`; block reads `args`; `io`/`os`/`require` are absent (sandbox); instruction-count hook aborts an infinite loop.
-- e2e (manual, through the gateway): `promptforge run prompts/greet.md name=World` prints `Hello, World!`.
+- e2e (manual, through the gateway): `runvil run prompts/greet.md name=World` prints `Hello, World!`.
 
 ## Verification
 
@@ -1367,7 +1367,7 @@ The one real risk is `mlua` vendored building on Windows/MSVC. First task valida
 
 Todos:
 
-- Add mlua (lua54, vendored) to promptforge-core; verify it builds on Windows/MSVC before building on top
+- Add mlua (lua54, vendored) to runvil-core; verify it builds on Windows/MSVC before building on top
 - lua.rs: sandboxed mlua VM - register args + var tables, load safe stdlib only, block io/os/require/etc., instruction-count hook; run a block and read var back
 - subst.rs: resolve {{ args.x / args[i] / var.x }} in prose (scalar->string, table->JSON, missing->error, single pass)
 - execute.rs: run entry section's Lua block, then substitute prose, then the existing model round trip
@@ -1377,38 +1377,38 @@ Todos:
 
 ### webfetch crate extraction
 
-*Extract web_fetch from promptforge-core into a new promptforge-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
+*Extract web_fetch from runvil-core into a new runvil-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
 
 # Web_fetch crate extraction and hardening
 
 ## Goal
 
-Move `web_fetch` out of core into its own crate `promptforge-webfetch`, harden it to the full `design-search.md` fetch spec (all SSRF mitigations, size caps, timeouts, content-type handling), and relocate the design doc into the crate as `design-webfetch.md`, reconciled to the real code. `web_search` stays in core (it proxies through the gateway; no model-chosen URL, no SSRF surface).
+Move `web_fetch` out of core into its own crate `runvil-webfetch`, harden it to the full `design-search.md` fetch spec (all SSRF mitigations, size caps, timeouts, content-type handling), and relocate the design doc into the crate as `design-webfetch.md`, reconciled to the real code. `web_search` stays in core (it proxies through the gateway; no model-chosen URL, no SSRF surface).
 
 ## Current state
 
-- `web_fetch` lives in [promptforge/crates/promptforge-core/src/tools/web_fetch.rs](promptforge/crates/promptforge-core/src/tools/web_fetch.rs). It runs in-process, does `reqwest::Client::new().get(url)` on any model-chosen URL, follows redirects by default, has a 30s timeout, and no size cap, scheme check, or address check. It uses `readabilityrs` + `htmd`.
-- The `Tool` trait is defined in [promptforge/crates/promptforge-core/src/tools.rs](promptforge/crates/promptforge-core/src/tools.rs) (`name`, `description`, `parameters_schema`, async `call(&self, args) -> Result<String>`).
-- The CLI resolves tool names in [promptforge/crates/promptforge-cli/src/tools.rs](promptforge/crates/promptforge-cli/src/tools.rs) via `select_tools`, constructing `WebFetch::new()`.
-- The design doc is [promptforge-design/design/design-search.md](promptforge-design/design/design-search.md); it documents a heavier `Extension`-trait crate covering both search and fetch, with `dom_smoothie`/`html2text` (not the real stack).
+- `web_fetch` lives in [runvil/crates/runvil-core/src/tools/web_fetch.rs](runvil/crates/runvil-core/src/tools/web_fetch.rs). It runs in-process, does `reqwest::Client::new().get(url)` on any model-chosen URL, follows redirects by default, has a 30s timeout, and no size cap, scheme check, or address check. It uses `readabilityrs` + `htmd`.
+- The `Tool` trait is defined in [runvil/crates/runvil-core/src/tools.rs](runvil/crates/runvil-core/src/tools.rs) (`name`, `description`, `parameters_schema`, async `call(&self, args) -> Result<String>`).
+- The CLI resolves tool names in [runvil/crates/runvil-cli/src/tools.rs](runvil/crates/runvil-cli/src/tools.rs) via `select_tools`, constructing `WebFetch::new()`.
+- The design doc is [runvil-design/design/design-search.md](runvil-design/design/design-search.md); it documents a heavier `Extension`-trait crate covering both search and fetch, with `dom_smoothie`/`html2text` (not the real stack).
 
 ## Target architecture
 
 ```mermaid
 flowchart LR
-    Cli["promptforge-cli"] --> Core["promptforge-core (Tool trait, execute loop, WebSearch)"]
-    Cli --> WF["promptforge-webfetch (WebFetch)"]
+    Cli["runvil-cli"] --> Core["runvil-core (Tool trait, execute loop, WebSearch)"]
+    Cli --> WF["runvil-webfetch (WebFetch)"]
     WF -->|"impl Tool"| Core
     WF -->|"guarded resolver + URL policy"| Net["public internet only"]
 ```
 
-`promptforge-webfetch` depends on `promptforge-core` for the `Tool` trait plus `Error`/`Result`, exactly as an extension crate should. Core loses its `readabilityrs`/`htmd` dependency.
+`runvil-webfetch` depends on `runvil-core` for the `Tool` trait plus `Error`/`Result`, exactly as an extension crate should. Core loses its `readabilityrs`/`htmd` dependency.
 
 ## Crate layout
 
-- New member `crates/promptforge-webfetch` in [promptforge/Cargo.toml](promptforge/Cargo.toml) `members` and a `[workspace.dependencies] promptforge-webfetch` entry.
+- New member `crates/runvil-webfetch` in [runvil/Cargo.toml](runvil/Cargo.toml) `members` and a `[workspace.dependencies] runvil-webfetch` entry.
 - `src/lib.rs`: `WebFetch` (impl `Tool`), `FetchConfig`, `FetchError`, and the URL policy / resolver modules.
-- Deps: `promptforge-core`, `reqwest` (add `gzip`, `brotli`, `stream`, `charset`; no `cookies`), `url`, `ipnet`, `mime`, `readabilityrs`, `htmd`, `encoding_rs`, `async-trait`, `serde_json`, `thiserror`, `tokio`, `tracing`. New workspace deps: `url`, `ipnet`, `mime`, `encoding_rs`.
+- Deps: `runvil-core`, `reqwest` (add `gzip`, `brotli`, `stream`, `charset`; no `cookies`), `url`, `ipnet`, `mime`, `readabilityrs`, `htmd`, `encoding_rs`, `async-trait`, `serde_json`, `thiserror`, `tokio`, `tracing`. New workspace deps: `url`, `ipnet`, `mime`, `encoding_rs`.
 - `WebFetch::new()` uses `FetchConfig::default()` so the CLI change is only the import path; `WebFetch::with_config(cfg)` is added for future `prompts.toml` wiring.
 
 ## Security surface (the full design-search fetch spec)
@@ -1424,7 +1424,7 @@ flowchart LR
 
 ## Design doc
 
-Author `crates/promptforge-webfetch/design-webfetch.md` refocused to the real architecture: describe the `Tool` trait (not the 8-method `Extension` trait, `Surfaces`, `on_section`, Lua bindings), the `readabilityrs` + `htmd` stack (not `dom_smoothie`/`html2text`), and drop all `web_search`/`SearchProvider`/Brave/search-caching/search-rate-limit content. Keep the URL policy, SSRF/CIDR, guarded resolver, DNS-rebinding, redirect, size-cap, content-type, charset, timeout, error, and test sections. Note config is currently `FetchConfig` defaults (prompts.toml `[extensions]` wiring is future) and that per-run deadline integration is deferred (the `Tool` trait carries no `CallCtx`). Then move the original [promptforge-design/design/design-search.md](promptforge-design/design/design-search.md) to `cabinet/_trash/` (per workspace rule, never delete) and update inbound cross-references to it in `design.md`, `design-mcp.md`, `design-core.md`, `design-gateway.md`.
+Author `crates/runvil-webfetch/design-webfetch.md` refocused to the real architecture: describe the `Tool` trait (not the 8-method `Extension` trait, `Surfaces`, `on_section`, Lua bindings), the `readabilityrs` + `htmd` stack (not `dom_smoothie`/`html2text`), and drop all `web_search`/`SearchProvider`/Brave/search-caching/search-rate-limit content. Keep the URL policy, SSRF/CIDR, guarded resolver, DNS-rebinding, redirect, size-cap, content-type, charset, timeout, error, and test sections. Note config is currently `FetchConfig` defaults (prompts.toml `[extensions]` wiring is future) and that per-run deadline integration is deferred (the `Tool` trait carries no `CallCtx`). Then move the original [runvil-design/design/design-search.md](runvil-design/design/design-search.md) to `cabinet/_trash/` (per workspace rule, never delete) and update inbound cross-references to it in `design.md`, `design-mcp.md`, `design-core.md`, `design-gateway.md`.
 
 ## Non-goals
 
@@ -1438,16 +1438,16 @@ Each commit: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `
 
 Todos:
 
-- Create promptforge-webfetch crate; move web_fetch.rs from core (behavior unchanged); add workspace member + dep; update CLI import in select_tools; remove readabilityrs/htmd from core Cargo.toml. Green build + existing tests pass.
+- Create runvil-webfetch crate; move web_fetch.rs from core (behavior unchanged); add workspace member + dep; update CLI import in select_tools; remove readabilityrs/htmd from core Cargo.toml. Green build + existing tests pass.
 - Add FetchConfig + URL policy on parsed url::Url: scheme allowlist, reject userinfo, port allowlist, reject IP literals. Unit tests incl. literal-encoding cases.
 - Add ipnet blocked-CIDR table (full v4+v6 from design-search) + addr_allowed + deny_extra/allow_exact; GuardedResolver (reqwest::dns::Resolve) installed on the client; custom redirect policy re-checking each hop. Tests: per-range, DNS rebinding, redirect-to-internal, https->http downgrade.
 - Content-Length precheck + streamed max_bytes cap + max_chars/truncated; content-type routing (html/plain/json-xml/pdf-refuse/absent-refuse); charset via encoding_rs; connect+total timeouts; no cookies/no credentials. Tests for each.
 - FetchError enum with terminal/retryable taxonomy and model-facing vs log rendering, mapped to core Error/ToolError. Tests for rendering and argument validation.
-- Author crates/promptforge-webfetch/design-webfetch.md refocused to the real Tool-trait + readabilityrs/htmd architecture (drop search/Extension/Surfaces content); move original design-search.md to cabinet/_trash; update inbound cross-refs in design.md/design-mcp.md/design-core.md/design-gateway.md.
+- Author crates/runvil-webfetch/design-webfetch.md refocused to the real Tool-trait + readabilityrs/htmd architecture (drop search/Extension/Surfaces content); move original design-search.md to cabinet/_trash; update inbound cross-refs in design.md/design-mcp.md/design-core.md/design-gateway.md.
 
 ### multi-turn research prompt
 
-*Author a PromptForge prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
+*Author a Runvil prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
 
 # Multi-turn web research prompt
 
@@ -1455,7 +1455,7 @@ Todos:
 
 A prompt file that takes a single input like "Tell me about <person>", makes several `web_search` and `web_fetch` calls to gather material, and once it has enough for a compact factual summary (about 500-600 tokens) stops calling tools and emits that summary as its final message - which the runtime returns as the run's result. Plus a small runtime change so the tool-call loop can take enough turns to actually do that.
 
-This rests entirely on machinery already built: frontmatter `tools`, the single `args` string, `{{ args }}` substitution, and the tool-call loop in [execute.rs](promptforge/crates/promptforge-core/src/execute.rs) that dispatches tools until the model returns plain text. No new tool, store, or token-enforcement mechanism is needed.
+This rests entirely on machinery already built: frontmatter `tools`, the single `args` string, `{{ args }}` substitution, and the tool-call loop in [execute.rs](runvil/crates/runvil-core/src/execute.rs) that dispatches tools until the model returns plain text. No new tool, store, or token-enforcement mechanism is needed.
 
 ## How the stop-and-return works
 
@@ -1463,24 +1463,24 @@ The runtime's tool-call loop already ends a section when the model replies with 
 
 ## The one runtime change: a configurable loop cap
 
-Today [execute.rs](promptforge/crates/promptforge-core/src/execute.rs) hard-codes `const MAX_TOOL_ITERATIONS: usize = 10`, and `run_tool_loop` gives up past it with `Error::ToolLoopExhausted`. Ten model round trips is tight for real research (several searches plus a few fetches), so a research prompt would risk failing mid-run.
+Today [execute.rs](runvil/crates/runvil-core/src/execute.rs) hard-codes `const MAX_TOOL_ITERATIONS: usize = 10`, and `run_tool_loop` gives up past it with `Error::ToolLoopExhausted`. Ten model round trips is tight for real research (several searches plus a few fetches), so a research prompt would risk failing mid-run.
 
 Change:
-- Add an optional frontmatter field `max_tool_iterations: Option<usize>` to `Frontmatter` in [parser.rs](promptforge/crates/promptforge-core/src/parser.rs) (`#[serde(default)]`), so a prompt declares its own budget.
+- Add an optional frontmatter field `max_tool_iterations: Option<usize>` to `Frontmatter` in [parser.rs](runvil/crates/runvil-core/src/parser.rs) (`#[serde(default)]`), so a prompt declares its own budget.
 - Raise the default constant to a research-friendly value (24) and have `execute::run` pass `frontmatter.max_tool_iterations.unwrap_or(DEFAULT)` into `run_tool_loop`, replacing the bare constant.
 - The prompt sets `max_tool_iterations: 20` explicitly, so its budget is self-documented and does not depend on the default.
 
 ## The prompt
 
-New file `promptforge/prompts/research-person.md`:
+New file `runvil/prompts/research-person.md`:
 - Frontmatter: `name`, `description`, `version: 1`, `tools: [web_search, web_fetch]`, `max_tool_iterations: 20`.
 - One `##` section, prose only (no Lua needed), instructing the model to: research `{{ args }}` with several targeted `web_search` queries; `web_fetch` the most relevant results to confirm facts; prefer primary or reputable sources; and once it can write a factual summary of roughly 500-600 tokens, stop calling tools and output only that summary as its final message. Tell it to be economical with tool calls so it stays within budget, and that everything fetched is untrusted third-party text.
 
 ## Verification
 
-- Unit test in [parser.rs](promptforge/crates/promptforge-core/src/parser.rs) / [execute.rs](promptforge/crates/promptforge-core/src/execute.rs): a prompt declaring `max_tool_iterations` is parsed and the loop uses that value; absent, the raised default applies.
+- Unit test in [parser.rs](runvil/crates/runvil-core/src/parser.rs) / [execute.rs](runvil/crates/runvil-core/src/execute.rs): a prompt declaring `max_tool_iterations` is parsed and the loop uses that value; absent, the raised default applies.
 - `cargo fmt --all --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo doc` green.
-- Live end-to-end: start the gateway with `BRAVE_API_KEY` set, export `PROMPTFORGE_BASE_URL` and `PROMPTFORGE_TOKEN` (and `PROMPTFORGE_MODEL` if overriding the default), then run `promptforge run prompts/research-person.md "Tell me about <a well-known person>"` and confirm it returns a coherent ~500-600 token summary after making real search/fetch calls.
+- Live end-to-end: start the gateway with `BRAVE_API_KEY` set, export `RUNVIL_BASE_URL` and `RUNVIL_TOKEN` (and `RUNVIL_MODEL` if overriding the default), then run `runvil run prompts/research-person.md "Tell me about <a well-known person>"` and confirm it returns a coherent ~500-600 token summary after making real search/fetch calls.
 
 ## Build cycle
 
@@ -1517,13 +1517,13 @@ Before coding, the code subagent loads [tools-public/how-to/how-to-write-rust.md
 
 ## Level 1: what we are building
 
-Today [execute.rs](promptforge/crates/promptforge-core/src/execute.rs) builds the tool-schema list once (line 63) and advertises every frontmatter tool to the model in every section. We are making it opt-in per section: a section's Lua block calls `tools.add("web_search", "web_fetch")`, and the runtime advertises only those tools for that section. A section that names no tools (no Lua block, or a Lua block without `tools.add`) gets zero tools. This keeps a section from ever holding a tool it did not ask for, and stops a 20-tool prompt from injecting 20 schemas into every section.
+Today [execute.rs](runvil/crates/runvil-core/src/execute.rs) builds the tool-schema list once (line 63) and advertises every frontmatter tool to the model in every section. We are making it opt-in per section: a section's Lua block calls `tools.add("web_search", "web_fetch")`, and the runtime advertises only those tools for that section. A section that names no tools (no Lua block, or a Lua block without `tools.add`) gets zero tools. This keeps a section from ever holding a tool it did not ask for, and stops a 20-tool prompt from injecting 20 schemas into every section.
 
 ## Level 2 and 3: the pieces
 
-- **`tools.add` in Lua** ([lua.rs](promptforge/crates/promptforge-core/src/lua.rs)): expose a `tools` table with an `add` host function taking a variadic list of strings. Calls accumulate into one ordered, de-duplicated set (so conditional `tools.add` in `if` branches works). Capture the set in a `Rc<RefCell<Vec<String>>>` moved into the function (the VM is non-async, single-threaded, so `Rc`/`RefCell` are fine). Return the accumulated names on `LuaOutcome` as a new `scoped_tools: Vec<String>` field. `add` never touches the model or validates against the registry - it only records names.
-- **Per-section filtering** ([execute.rs](promptforge/crates/promptforge-core/src/execute.rs)): move schema building inside the section loop. For each section, get the scoped names (from the section's Lua outcome; empty when the section has no Lua block). Filter the run's `tools` slice to those whose `name()` is in the scoped set, build schemas from that subset, and pass both the filtered schemas and the filtered dispatch targets into `run_tool_loop`. A scoped name not present in the run's tools is a hard error (extend `Error::UnknownTool` or add a focused variant), never silently dropped - so a typo or an undeclared tool fails loudly.
-- **Prompt update** ([research-person.md](promptforge/prompts/research-person.md)): add a Lua block at the top of the `## Research` section, `tools.add("web_search", "web_fetch")`, so it keeps its tools under the opt-in rule. Other prompts (`hello.md`, `greet.md`, `echo.md`) declare no tools and are unaffected.
+- **`tools.add` in Lua** ([lua.rs](runvil/crates/runvil-core/src/lua.rs)): expose a `tools` table with an `add` host function taking a variadic list of strings. Calls accumulate into one ordered, de-duplicated set (so conditional `tools.add` in `if` branches works). Capture the set in a `Rc<RefCell<Vec<String>>>` moved into the function (the VM is non-async, single-threaded, so `Rc`/`RefCell` are fine). Return the accumulated names on `LuaOutcome` as a new `scoped_tools: Vec<String>` field. `add` never touches the model or validates against the registry - it only records names.
+- **Per-section filtering** ([execute.rs](runvil/crates/runvil-core/src/execute.rs)): move schema building inside the section loop. For each section, get the scoped names (from the section's Lua outcome; empty when the section has no Lua block). Filter the run's `tools` slice to those whose `name()` is in the scoped set, build schemas from that subset, and pass both the filtered schemas and the filtered dispatch targets into `run_tool_loop`. A scoped name not present in the run's tools is a hard error (extend `Error::UnknownTool` or add a focused variant), never silently dropped - so a typo or an undeclared tool fails loudly.
+- **Prompt update** ([research-person.md](runvil/prompts/research-person.md)): add a Lua block at the top of the `## Research` section, `tools.add("web_search", "web_fetch")`, so it keeps its tools under the opt-in rule. Other prompts (`hello.md`, `greet.md`, `echo.md`) declare no tools and are unaffected.
 
 ```mermaid
 flowchart TD
@@ -1574,7 +1574,7 @@ Read the diff for the commit. Apply each as yes-or-no; append failures to vibe-r
 
 ## Verification
 
-`cargo fmt --all --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo doc` green. Live: start the gateway with `BRAVE_API_KEY`, run `promptforge run prompts/research-person.md "Tell me about <person>"`, confirm a coherent summary (proves scoping advertises the two tools it named).
+`cargo fmt --all --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo doc` green. Live: start the gateway with `BRAVE_API_KEY`, run `runvil run prompts/research-person.md "Tell me about <person>"`, confirm a coherent summary (proves scoping advertises the two tools it named).
 
 ## Decisions and confidence
 
@@ -1614,10 +1614,10 @@ flowchart TD
 
 ## The pieces
 
-- **Tool property** ([tools.rs](promptforge/crates/promptforge-core/src/tools.rs)): add a defaulted trait method `fn untrusted_output(&self) -> bool { false }` to `Tool`, documented. Everything is trusted unless it says otherwise.
-- **web_fetch opts in** ([promptforge-webfetch/src/lib.rs](promptforge/crates/promptforge-webfetch/src/lib.rs)): override `untrusted_output()` to return `true`.
-- **Wrapping in the loop** ([execute.rs](promptforge/crates/promptforge-core/src/execute.rs), `run_tool_loop`): generate one random tag per section (loop invocation). At the append site - currently `conversation.push(Message::tool(call.id, result))` - if `tool.untrusted_output()` is true, replace `result` with the guard block: a fixed rule sentence, then `<<<UNTRUSTED-{tag}>>>`, the content with any occurrence of the marker strings escaped, then `<<<END-UNTRUSTED-{tag}>>>`. Trusted tools append verbatim as today.
-- **Random tag** ([Cargo.toml](promptforge/Cargo.toml)): add `fastrand` (the lean no-tree choice from the Rust guide) to generate an unpredictable hex tag. The tag need only be unguessable by the fetched content, not cryptographic.
+- **Tool property** ([tools.rs](runvil/crates/runvil-core/src/tools.rs)): add a defaulted trait method `fn untrusted_output(&self) -> bool { false }` to `Tool`, documented. Everything is trusted unless it says otherwise.
+- **web_fetch opts in** ([runvil-webfetch/src/lib.rs](runvil/crates/runvil-webfetch/src/lib.rs)): override `untrusted_output()` to return `true`.
+- **Wrapping in the loop** ([execute.rs](runvil/crates/runvil-core/src/execute.rs), `run_tool_loop`): generate one random tag per section (loop invocation). At the append site - currently `conversation.push(Message::tool(call.id, result))` - if `tool.untrusted_output()` is true, replace `result` with the guard block: a fixed rule sentence, then `<<<UNTRUSTED-{tag}>>>`, the content with any occurrence of the marker strings escaped, then `<<<END-UNTRUSTED-{tag}>>>`. Trusted tools append verbatim as today.
+- **Random tag** ([Cargo.toml](runvil/Cargo.toml)): add `fastrand` (the lean no-tree choice from the Rust guide) to generate an unpredictable hex tag. The tag need only be unguessable by the fetched content, not cryptographic.
 - **Escaping**: before wrapping, replace any literal occurrence of the open/close marker in the content so a page cannot inject a fake closing tag and break out of the data block.
 
 ## Rust conventions for this change
@@ -1661,7 +1661,7 @@ Read the diff for the commit. Apply each as yes-or-no; append failures to vibe-r
 
 ## Verification
 
-`cargo fmt --all --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo doc` green. Live: gateway with `BRAVE_API_KEY`, `promptforge run prompts/research-person.md "Tell me about <person>"` still returns a coherent summary.
+`cargo fmt --all --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo doc` green. Live: gateway with `BRAVE_API_KEY`, `runvil run prompts/research-person.md "Tell me about <person>"` still returns a coherent summary.
 
 ## Decisions and confidence
 
@@ -1675,13 +1675,13 @@ Todos:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md
 
-# PromptForge: A Markdown-Driven Pipeline Runtime
+# Runvil: A Markdown-Driven Pipeline Runtime
 
 ## Bottom line up front
 
-PromptForge is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
+Runvil is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
 
 The payoff is threefold. First, iteration speed: a new analysis tool goes from idea to running in an hour, edited in one file, with no orchestration code to write or debug. Second, model sovereignty: every design decision (context clearing, flat tool calls, per-section scoping, fan-out to small models) is chosen to make mid-size open-weight models reliable, so the whole stack runs on your own hardware at roughly 1/100th of frontier API cost. Third, integrity: because subagent prompts are shipped verbatim from named sections rather than paraphrased by the model, what you test is what runs.
 
@@ -1737,7 +1737,7 @@ The model reads a section's prose as its instructions, calls tools to read and w
 
 ## The four primitives
 
-Everything in PromptForge reduces to four mechanisms. Every feature named later in this document - `goto`, `Task`, `fanout`, virtual files, `ask_user`, model tiering, postconditions, self-extending pipelines - is a composition of these four. A reader should finish the document thinking "that is all it is," which is the point.
+Everything in Runvil reduces to four mechanisms. Every feature named later in this document - `goto`, `Task`, `fanout`, virtual files, `ask_user`, model tiering, postconditions, self-extending pipelines - is a composition of these four. A reader should finish the document thinking "that is all it is," which is the point.
 
 1. **Parse.** Read a markdown file into a section map. H2 headings (`## Name`) are the primary addressable sections; H3 headings (`### Name`) are children of their H2, individually addressable for fan-out. `## Main` is the entry point.
 2. **Configure.** Run a section's optional Lua block, exposing five host objects: `state` (read-only view of accumulated state), `store` (query/count interface to the state store), `tools` (the tool-set builder: add/remove), `params` (arguments passed into the section), and `context` (a handle to inject assembled text into the model's initial prompt). Preconditions run before the model launches; postconditions run after the model calls `done()`.
@@ -1749,9 +1749,9 @@ The runtime is these four things plus an inference client and a state store. Est
 <!-- FORGE-END -->
 
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md
 
-# PromptForge Design Transcript
+# Runvil Design Transcript
 
 Design session, July 23-24, 2026. Vinnie Falco and Claude Opus 4.8.
 
@@ -1854,9 +1854,9 @@ The data sovereignty point is probably the strongest argument. You're collecting
 <!-- CHECKPOINT -->
 
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md
 
-# PromptForge Design Transcript
+# Runvil Design Transcript
 
 Design session, July 23-24, 2026. Vinnie Falco and Claude Opus 4.8.
 
@@ -2137,10 +2137,10 @@ Exactly. You don't debug a three-level-deep task chain by tracing through three 
 <!-- CHECKPOINT -->
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\example-diligence.md
+### c:\Users\Vinnie\src\cursor\runvil-design\example-diligence.md
 
 <!--
-Simplified Diligence, written in PromptForge, as a teaching example.
+Simplified Diligence, written in Runvil, as a teaching example.
 Not the real 30-test tool. Every idiom of the language appears at least once,
 labelled in an HTML comment so you can find it. Reading this top to bottom
 should teach the whole language.
@@ -2397,24 +2397,24 @@ Research {{ args.firm }}: founding, size, revenue signals, named clients,
 headcount trend, financial signals. Write it to `company.md`, then stop.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\design-plans.md
+### c:\Users\Vinnie\src\cursor\runvil-design\design-plans.md
 
-# PromptForge Plans
+# Runvil Plans
 
-- [promptforge_orchestrator_only.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_orchestrator_only.plan.md) - canonical, Rust/mlua, current
+- [runvil_orchestrator_only.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_orchestrator_only.plan.md) - canonical, Rust/mlua, current
 - [orchestrator_design_document_165f20dc.plan.md](file:///C:/Users/Vinnie/.cursor/plans/orchestrator_design_document_165f20dc.plan.md) - original, Python, stale
-- [promptforge_rust_implementation_52045052.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_rust_implementation_52045052.plan.md) - 2026-07-25
-- [promptforge_rust_design_doc_f2637515.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_rust_design_doc_f2637515.plan.md) - 2026-07-25
-- [promptforge_design_documents_8062dc42.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_design_documents_8062dc42.plan.md) - 2026-07-25
-- [promptforge_and_papergate_4d0dd9cc.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_and_papergate_4d0dd9cc.plan.md) - 2026-07-23
-- [promptforge_and_papergate_248ce28f.plan.md](file:///C:/Users/Vinnie/.cursor/plans/promptforge_and_papergate_248ce28f.plan.md) - 2026-07-23
+- [runvil_rust_implementation_52045052.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_rust_implementation_52045052.plan.md) - 2026-07-25
+- [runvil_rust_design_doc_f2637515.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_rust_design_doc_f2637515.plan.md) - 2026-07-25
+- [runvil_design_documents_8062dc42.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_design_documents_8062dc42.plan.md) - 2026-07-25
+- [runvil_and_papergate_4d0dd9cc.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_and_papergate_4d0dd9cc.plan.md) - 2026-07-23
+- [runvil_and_papergate_248ce28f.plan.md](file:///C:/Users/Vinnie/.cursor/plans/runvil_and_papergate_248ce28f.plan.md) - 2026-07-23
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\AGENTS.md
+### c:\Users\Vinnie\src\cursor\runvil\AGENTS.md
 
-# PromptForge
+# Runvil
 
-Multi-crate Rust workspace for the PromptForge pipeline runtime.
+Multi-crate Rust workspace for the Runvil pipeline runtime.
 
 ## Rules
 
@@ -2426,17 +2426,17 @@ Multi-crate Rust workspace for the PromptForge pipeline runtime.
 - The plan is the spec. Work from the plan and AGENTS.md only.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\README.md
+### c:\Users\Vinnie\src\cursor\runvil\README.md
 
-# PromptForge
+# Runvil
 
 A runtime that executes analysis pipelines defined in a single markdown file. The
 markdown is the program, the model is the CPU.
 
 ## Workspace
 
-- `crates/promptforge-core` - library: prompt parser, HTTP client, section execution
-- `crates/promptforge-cli` - binary: the `promptforge` command-line tool
+- `crates/runvil-core` - library: prompt parser, HTTP client, section execution
+- `crates/runvil-cli` - binary: the `runvil` command-line tool
 
 ## Build
 
@@ -2449,7 +2449,7 @@ cargo test
 
 ```
 export ANTHROPIC_API_KEY=sk-ant-...
-cargo run -p promptforge-cli -- run prompts/hello.md
+cargo run -p runvil-cli -- run prompts/hello.md
 ```
 
 Prints the model's response to the first section of the prompt.
@@ -2474,9 +2474,9 @@ each transition.
 ```
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\STATUS.md
+### c:\Users\Vinnie\src\cursor\runvil\STATUS.md
 
-# PromptForge Status
+# Runvil Status
 
 ## What exists and works
 
@@ -2484,18 +2484,18 @@ Tranche 1 in progress: parser + HTTP client + execute.
 
 ## What's next
 
-Goal: `promptforge run prompts/hello.md` prints "Hello, world!"
+Goal: `runvil run prompts/hello.md` prints "Hello, world!"
 
 ## How to run
 
 ```
 export ANTHROPIC_API_KEY=sk-ant-...
-cargo run -p promptforge-cli -- run prompts/hello.md
+cargo run -p runvil-cli -- run prompts/hello.md
 ```
 
 ## Decisions settled
 
-- Rust multi-crate workspace: promptforge-core (lib), promptforge-cli (bin)
+- Rust multi-crate workspace: runvil-core (lib), runvil-cli (bin)
 - OpenAI-compatible HTTP (Anthropic URL hardcoded now, gateway later)
 - Anthropic base URL hardcoded; API key from ANTHROPIC_API_KEY env var
 - Entry point is the first H2, not a named section
@@ -2511,7 +2511,7 @@ cargo run -p promptforge-cli -- run prompts/hello.md
 - Context-preserving call: support it or not?
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\hello.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\hello.md
 
 ---
 name: hello
@@ -2528,7 +2528,7 @@ A minimal test prompt.
 Say "Hello, world!"
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\echo.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\echo.md
 
 ---
 name: echo
@@ -2547,7 +2547,7 @@ return args
 ```
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\greet.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\greet.md
 
 ---
 name: greet
@@ -2569,7 +2569,7 @@ var.greeting = "Hello, " .. args .. "!"
 Repeat exactly, with no extra words: {{ var.greeting }}
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\target\chain.md
+### c:\Users\Vinnie\src\cursor\runvil\target\chain.md
 
 ---
 name: chain
@@ -2588,7 +2588,7 @@ local x = 1
 Reply with exactly one word, lowercase, nothing else: done
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\target\chain.md
+### c:\Users\Vinnie\src\cursor\runvil\target\chain.md
 
 ---
 name: chain
@@ -2607,7 +2607,7 @@ local x = 1
 Reply with exactly one word, lowercase, nothing else: done
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\research-person.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\research-person.md
 
 ---
 name: research-person
@@ -2635,4 +2635,4 @@ Do this:
 Cover, when known: who the person is and why they are notable, their background, their major work or contributions, and any widely reported recent developments. State plainly when something is uncertain or could not be verified.
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge-design\design\design-gateway.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\design\design-paperstore.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\design\design-promptforge.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\design\design.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\example-diligence.md`, `c:\Users\Vinnie\src\cursor\promptforge\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\STATUS.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil-design\design\design-gateway.md`, `c:\Users\Vinnie\src\cursor\runvil-design\design\design-paperstore.md`, `c:\Users\Vinnie\src\cursor\runvil-design\design\design-runvil.md`, `c:\Users\Vinnie\src\cursor\runvil-design\design\design.md`, `c:\Users\Vinnie\src\cursor\runvil-design\example-diligence.md`, `c:\Users\Vinnie\src\cursor\runvil\README.md`, `c:\Users\Vinnie\src\cursor\runvil\STATUS.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md`

@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use promptforge_tool_picker::{
+use runvil_tool_picker::{
     BuildError, Catalog, Config, ConfigError, ConfigField, Model, ModelLoadError, Outcome,
     QueryError, SelectionError, ToolDescriptor, ToolId, ToolPicker,
 };

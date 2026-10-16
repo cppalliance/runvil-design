@@ -24,7 +24,7 @@
 - "each subhead only needs a few of them" (p85); tool count 5-7 for small orchestrator models (p119)
 - Opt-in chosen "for isolation - a section can never hold a tool it did not ask for" (2026-07-30-1046-compaction-algorithm-large-part5.md plans)
 - Restricting call kinds "reduces pressure because the model doesnt have to pick" (2026-07-30-1046-compaction-algorithm-large-part3.md p222)
-- Only web_search on the first turn: "this locks the model to calling just one tool" (2026-08-09-1058-promptforge-core-large-part4.md p372)
+- Only web_search on the first turn: "this locks the model to calling just one tool" (2026-08-09-1058-runvil-core-large-part4.md p372)
 
 **Merge/derivation notes:**
 - Grouped-draft record (line 460) merged from ai-proposed (affirmed), user-stated, and user-corrective sources across 7 chat units; endorsement: affirmed.
@@ -48,11 +48,11 @@
 - Attaching max_turns to individual tools ("max_turns is not really on the tools its on the subagent itself").
 
 **Concrete incidents / author-verbatim phrases:**
-- The author hit tool-binding failures that did not fail hard and could not tell why nothing worked: a tools.add failure case that "is not failing hard" (2026-08-14-1613-promptforge-core-largest-part2.md p89).
+- The author hit tool-binding failures that did not fail hard and could not tell why nothing worked: a tools.add failure case that "is not failing hard" (2026-08-14-1613-runvil-core-largest-part2.md p89).
 - "my gut tells me there should only be one version of tools.add" (p90)
 - "we need to bake the limit into the tools.add call" (p170)
 - "this means we take ALL the tools away on exhaustion" (p176)
-- "unknown aliases are hard errors with clear diagnostics" (2026-08-09-1058-promptforge-core-large-part4.md p271)
+- "unknown aliases are hard errors with clear diagnostics" (2026-08-09-1058-runvil-core-large-part4.md p271)
 - "naming an unscoped yet global tool should hard-error" (p273)
 
 **Merge/derivation notes:**
@@ -73,7 +73,7 @@
 - Counting only successful tool calls (wrong target: the assertion measures the model, not the tool).
 
 **Concrete incidents / author-verbatim phrases:**
-- "The prompt needs to have a way to say that a tool has to be called" (2026-08-09-1058-promptforge-core-large-part4.md p265)
+- "The prompt needs to have a way to say that a tool has to be called" (2026-08-09-1058-runvil-core-large-part4.md p265)
 - "if it doesn't perform at least one web search, that's a problem" (purpose pass Record 3)
 - "no to require_called, it violates the design principle of do more with less" (p267)
 - "failed tool call counts as a call, we are measuring if the model is performing not if the tool is performing" (p271)
@@ -98,9 +98,9 @@
 - Allowing jump() from tool handlers (makes no sense - no section walk to transfer into).
 
 **Concrete incidents / author-verbatim phrases:**
-- "we don't wanna have to write a Rust function just for setting a variable... a front end to the real search tool... when the tool is called, it does a tools.add for fetch" (2026-08-09-1058-promptforge-core-large-part4.md p373)
+- "we don't wanna have to write a Rust function just for setting a variable... a front end to the real search tool... when the tool is called, it does a tools.add for fetch" (2026-08-09-1058-runvil-core-large-part4.md p373)
 - "the user is opting in to the behavior, so that makes it ok" (p374)
-- "invocable from any lua chunk in an H2 and it should just add the tool for the next prose call" (2026-08-18-1126-promptforge-md-aug18-morning.md p144)
+- "invocable from any lua chunk in an H2 and it should just add the tool for the next prose call" (2026-08-18-1126-runvil-md-aug18-morning.md p144)
 - "a Lua tool should have all the same capabilities as a regular tool, a native Rust tool" (p160)
 - "Lua needs to jump local tool handlers cannot" (p162-163)
 
@@ -130,9 +130,9 @@
 
 **Concrete incidents / author-verbatim phrases:**
 - "The prompt has to specify what the minimum context size is" (purpose pass Record 5).
-- "switching a model in the middle of a block has consequences for the KV cache... that's not visible to the programmer" (2026-08-18-1126-promptforge-md-aug18-morning.md p179)
+- "switching a model in the middle of a block has consequences for the KV cache... that's not visible to the programmer" (2026-08-18-1126-runvil-md-aug18-morning.md p179)
 - No model selected before first prose is an error (p66-67).
-- "H3 should inherit the H2's model unless it specifies otherwise" (2026-08-09-1058-promptforge-core-large-part2.md p142)
+- "H3 should inherit the H2's model unless it specifies otherwise" (2026-08-09-1058-runvil-core-large-part2.md p142)
 - models.use only in the first Lua block, then locked (p175, p177).
 
 **Merge/derivation notes:**
@@ -151,7 +151,7 @@
 - Strict model-name binding that fails hard on mismatch - fails hard on catalog drift for no benefit.
 
 **Concrete incidents / author-verbatim phrases:**
-- The author hit a hard "model binding failed" error and rejected strict binding: "this makes no sense. the models need to be way looser than the tools. Shouldn't this use the tool-picker?" (2026-08-14-1613-promptforge-core-largest-part2.md p132-133)
+- The author hit a hard "model binding failed" error and rejected strict binding: "this makes no sense. the models need to be way looser than the tools. Shouldn't this use the tool-picker?" (2026-08-14-1613-runvil-core-largest-part2.md p132-133)
 - "The reduce section stays ordinary markdown; only its model slot and a staircase-streaming aggregator change" (2026-07-30-0654-map-reduce-synthesis.md design documents section)
 
 **Merge/derivation notes:**

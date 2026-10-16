@@ -1,6 +1,6 @@
 # Workshop UI: How the VS Code Family Builds Menus, Keybindings, Quick Open, and SPA Messaging
 
-Report type: evaluation / review. It judges the PromptForge Workshop UI against 7 open-source codebases in the VS Code family (the upstream, four forks, two from-scratch reimplementations), and prescribes the naming, file organization, registry mechanics, and messaging shape to adopt for the menu overhaul, in payoff order.
+Report type: evaluation / review. It judges the Runvil Workshop UI against 7 open-source codebases in the VS Code family (the upstream, four forks, two from-scratch reimplementations), and prescribes the naming, file organization, registry mechanics, and messaging shape to adopt for the menu overhaul, in payoff order.
 
 ## Executive summary
 

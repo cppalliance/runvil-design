@@ -169,7 +169,7 @@ Capabilities bundle tools + prompt fragments + session state + VFS mounts into o
 - **CLI and SDKs** - agent-first CLI (`everruns <noun> <verb>` tree shared by MCP, session shell, and CLI hosts) managing agents, sessions, files, triggers with text/JSON/YAML output; typed Rust/Python/TypeScript SDKs with SSE reconnection.
 - **File-defined agents** - agents authored as importable definition files. (`docs/how-to/define-agents-as-files.md`)
 
-## 16. Harnesses (the feature most relevant to promptforge)
+## 16. Harnesses (the feature most relevant to runvil)
 
 - **Harness as base environment** - capabilities + optional system prompt + starter files + model defaults, with live single-parent inheritance (`parent_harness_id`) and merge/chain resolution into a runtime `HarnessDefinition`. Agents and sessions resolve harnesses by id or name. (`knowledge/harnesses/harness-types.md`; `everruns-platform::harness`)
 - **Built-in harnesses** - `base` (zero tools, full manual composition), `generic` (batteries: filesystem, bashkit, web fetch, storage, session, schedules, AGENTS.md, skills, infinity context, tool search, compaction, budgeting), `platform-chat` (focused operator surface, no filesystem/shell/web-fetch), `data-analyst` (SQL, charts, persistent memory). Importable examples: `coding-daytona`, `coding-container`, `data-analyst`. (`docs/built-ins/`)

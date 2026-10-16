@@ -8,7 +8,7 @@ Verification round 3 passed the complete automated release suite, rebuilt and si
 - Installed-process gate: passed
 - Post-relaunch recovery gate: passed
 - Physical microphone and device-error checks: passed by final operator acceptance
-- Installed application: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+- Installed application: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
 - Installed Workshop left open: PID 87536
 - Installed Gateway left open: PID 96452 on port 51984
 - Signing: not tested; release signing remains release-CI-only
@@ -17,12 +17,12 @@ Verification round 3 passed the complete automated release suite, rebuilt and si
 ## 2026-09-08 installed rolling-dictation acceptance
 
 - Package: fresh unsigned NSIS installer containing bounded estimated overlap reconciliation and live pending-prefix continuity
-- Installed paths: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe` and sibling `promptforge-gateway.exe`
+- Installed paths: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe` and sibling `runvil-gateway.exe`
 - Physical microphone: passed
 - Live trailing hypothesis replacement: passed
 - Operator verdict: `The microphone worked really well.`
 - Installer finish-page contrast: passed; the operator confirmed the contrast problem was solved
-- Installer component wording: changed afterward to `PromptForge Workshop`, `PromptForge Gateway`, and `Speech to Text (Transcription)` and pending package confirmation
+- Installer component wording: changed afterward to `Runvil Workshop`, `Runvil Gateway`, and `Speech to Text (Transcription)` and pending package confirmation
 - Remote release and path-gated installer smoke checks: passed
 - Remaining remote full-CI and native-Whisper waits: explicitly waived by the operator after local verification and physical microphone acceptance
 - Signing: not tested; release signing remains release-CI-only
@@ -124,10 +124,10 @@ Guide regeneration, mdBook compilation, and the explicit cleanliness diff passed
 - `guide/src/workshop/index.md`: `4BC7756A0D6D66807061BD747C72618096B24ACC5031F536F12B4019C53F4226`
 - `guide/src/language/index.md`: `41E9E4458BC1ED9F969F0DB7E13C24A3D94A4E88253D88239E6AA3F40F631AFD`
 - `guide/src/agent/index.md`: `1C66A4A2EF1AF16AE38668F2D0910124F20520E714610EA8B150C282ECAC623E`
-- `guide/promptforge-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
-- `guide/promptforge-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
-- `guide/promptforge-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
-- `guide/promptforge-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
+- `guide/runvil-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
+- `guide/runvil-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
+- `guide/runvil-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
+- `guide/runvil-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
 
 ### Fresh unsigned package and identities
 
@@ -139,7 +139,7 @@ Guide regeneration, mdBook compilation, and the explicit cleanliness diff passed
 - Final installer SHA-256: `5ABFB2436BC18FCD8DD9EF0D0923F414AB47E0D20661978C11A8520305AA21ED`
 - Silent install exit code: 0
 - Installed Workshop SHA-256: `6A25AD42F771CE07C1BD7D70365C0436D5CF6CEC91E83D506D97B98C47548C4B`
-- Installed Workshop identity: product `PromptForge`, version `0.2.0`, unsigned, expected installed path
+- Installed Workshop identity: product `Runvil`, version `0.2.0`, unsigned, expected installed path
 - The installed and bundle-stage Workshop images had equal size and matching product identity but different PE hashes after NSIS extraction
 - Protected release configuration cleanliness: passed
 - Signing: not tested; release signing remains release-CI-only
@@ -160,7 +160,7 @@ The first round 3 package observation successfully built and installed the packa
 - Replacement identity changed by PID and boot identity: yes
 - Port changed in this observation: yes; deterministic coverage permits OS port reuse
 - Configured bearer remained stable: yes; deterministic coverage also proves atomic propagation of a configured edit
-- Replacement image path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Replacement image path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Replacement health: 200
 - Replacement bearer-authenticated model catalog: 200
 - Replacement invalid-bearer probe: 401
@@ -204,7 +204,7 @@ Every listed command ran as its own process invocation and exited with code 0.
 - `cargo build -p gateway`: passed
 - `cargo build -p workshop`: passed
 - `cargo check -p gateway --no-default-features`: passed
-- `$fixture=(Resolve-Path 'local\stt-fixtures').Path; $env:PATH="$fixture;$env:PATH"; $env:PROMPTFORGE_WHISPER_LIBRARY=(Resolve-Path 'local\stt-fixtures\whisper.dll').Path; cargo test -p gateway-stt-backend-whisper --test native_whisper -- --ignored`: passed, 5 passed and 0 failed
+- `$fixture=(Resolve-Path 'local\stt-fixtures').Path; $env:PATH="$fixture;$env:PATH"; $env:RUNVIL_WHISPER_LIBRARY=(Resolve-Path 'local\stt-fixtures\whisper.dll').Path; cargo test -p gateway-stt-backend-whisper --test native_whisper -- --ignored`: passed, 5 passed and 0 failed
 - `cargo +nightly-2026-09-05 miri test -p gateway-stt-engine --features test-fixtures miri_`: passed, 2 selected tests passed and 0 failed
 - `cargo +nightly-2026-09-05 miri test -p gateway-stt --features test-fixtures miri_`: passed, 11 selected tests passed and 0 failed
 - `node tools/check-stt-architecture.mjs`: passed
@@ -217,7 +217,7 @@ Every listed command ran as its own process invocation and exited with code 0.
 - Gateway config UI `npm test`: passed, 128 passed and 0 failed, cancelled, or skipped; `check-layers: ok`
 - `cargo run -p build-user-guide`: passed
 - `mdbook build guide`: passed
-- `git diff --exit-code -- guide/src/SUMMARY.md guide/src/gateway/index.md guide/src/workshop/index.md guide/src/language/index.md guide/src/agent/index.md guide/promptforge-gateway-guide.md guide/promptforge-workshop-guide.md guide/promptforge-language-guide.md guide/promptforge-agent-guide.md`: passed
+- `git diff --exit-code -- guide/src/SUMMARY.md guide/src/gateway/index.md guide/src/workshop/index.md guide/src/language/index.md guide/src/agent/index.md guide/runvil-gateway-guide.md guide/runvil-workshop-guide.md guide/runvil-language-guide.md guide/runvil-agent-guide.md`: passed
 
 ### Native equivalence and architecture ratchets
 
@@ -252,10 +252,10 @@ Regeneration and the explicit diff command passed. The post-regeneration SHA-256
 - `guide/src/workshop/index.md`: `4BC7756A0D6D66807061BD747C72618096B24ACC5031F536F12B4019C53F4226`
 - `guide/src/language/index.md`: `41E9E4458BC1ED9F969F0DB7E13C24A3D94A4E88253D88239E6AA3F40F631AFD`
 - `guide/src/agent/index.md`: `1C66A4A2EF1AF16AE38668F2D0910124F20520E714610EA8B150C282ECAC623E`
-- `guide/promptforge-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
-- `guide/promptforge-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
-- `guide/promptforge-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
-- `guide/promptforge-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
+- `guide/runvil-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
+- `guide/runvil-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
+- `guide/runvil-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
+- `guide/runvil-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
 
 ### Fresh unsigned NSIS package
 
@@ -263,11 +263,11 @@ Packaging began only after the automated suite and deterministic replacement gat
 
 - Command: `$env:RUSTUP_TOOLCHAIN='stable'; cargo build --release --locked -p gateway`
   - Result: passed
-  - Release Gateway: `C:\Users\Vinnie\cursor\promptforge\target\release\promptforge-gateway.exe`
+  - Release Gateway: `C:\Users\Vinnie\cursor\runvil\target\release\runvil-gateway.exe`
   - Last modified: `2026-09-07T13:53:06.4583106Z`
   - Size: 13,405,696 bytes
   - SHA-256: `C60DFDEBC6E45EEE82AF6952FF81CF1B0A1F0B92ADC8EA1BFE68F82105E8C06B`
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
   - Result: passed
   - Staged Gateway size: 13,405,696 bytes
   - Staged Gateway SHA-256: `C60DFDEBC6E45EEE82AF6952FF81CF1B0A1F0B92ADC8EA1BFE68F82105E8C06B`
@@ -285,7 +285,7 @@ Packaging began only after the automated suite and deterministic replacement gat
   - Protected release configuration remained unchanged
   - `bundle.createUpdaterArtifacts=false` was supplied only through the command line
 - Fresh installer:
-  - Path: `C:\Users\Vinnie\cursor\promptforge\target\release\bundle\nsis\PromptForge_0.2.0_x64-setup.exe`
+  - Path: `C:\Users\Vinnie\cursor\runvil\target\release\bundle\nsis\Runvil_0.2.0_x64-setup.exe`
   - Created: `2026-09-07T15:03:51.3220507Z`
   - Last modified: `2026-09-07T15:04:11.8150990Z`
   - Size: 12,034,299 bytes
@@ -296,17 +296,17 @@ Packaging began only after the automated suite and deterministic replacement gat
 
 ### Installation and installed identities
 
-- Installed PromptForge processes observed before installation: 0
+- Installed Runvil processes observed before installation: 0
 - Silent installer start: `2026-09-07T15:04:12.2545905Z`
 - Silent installer finish: `2026-09-07T15:04:15.6907930Z`
 - Installer exit code: 0
 - Installed Workshop:
-  - Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+  - Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
   - Last modified: `2026-09-07T15:03:50Z`
   - Size: 24,229,376 bytes
   - SHA-256: `1238646F70A7B84CBEBD12523925022C3215315B51F487258C484F44C6AAEE86`
 - Installed Gateway:
-  - Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+  - Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
   - Last modified: `2026-09-07T13:53:06Z`
   - Size: 13,405,696 bytes
   - SHA-256: `C60DFDEBC6E45EEE82AF6952FF81CF1B0A1F0B92ADC8EA1BFE68F82105E8C06B`
@@ -316,11 +316,11 @@ Packaging began only after the automated suite and deterministic replacement gat
 
 - Installed Workshop launched: `2026-09-07T15:04:16.1579831Z`
 - Workshop PID: 55388
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
 - Workshop loopback port: 57155
 - Initial installed Gateway PID: 92432
 - Initial installed Gateway port: 57150
-- Initial installed Gateway path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Initial installed Gateway path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Initial Gateway key present: yes; the value was not recorded
 - Initial Gateway health status: 200
 - Initial Gateway model-catalog status: 200
@@ -339,7 +339,7 @@ A second direct observation repeated the forced termination:
 - Replacement observed after approximately 2.571 seconds
 - Replacement Gateway PID: 59984
 - Replacement Gateway port: 61013
-- Replacement Gateway path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Replacement Gateway path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - PID changed: yes
 - Port changed: yes
 - Bearer key remained present: yes
@@ -409,15 +409,15 @@ The engine's 667-line scripted fixture was split into a 362-line fixture and a 3
 - Summary: release profile finished in 21.80 seconds with 9 `gateway-stt` warnings
 - Build started: `2026-09-07T11:38:03.1101939Z`
 - Build finished: `2026-09-07T11:38:25.0377360Z`
-- Artifact: `target/release/promptforge-gateway.exe`
+- Artifact: `target/release/runvil-gateway.exe`
 - Last modified: `2026-09-07T11:38:24.5038009Z`
 - Size: 14,536,192 bytes
 - SHA-256: `2745D151F7ADD0368308D2029976A11D4BAF38ECBA262C0AC27F57E83D67F74B`
 
 ### Target-suffixed sidecar
 
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
-- Artifact: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
+- Artifact: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Last modified: `2026-09-07T11:38:24.5038009Z`
 - Size: 14,536,192 bytes
 - SHA-256: `2745D151F7ADD0368308D2029976A11D4BAF38ECBA262C0AC27F57E83D67F74B`
@@ -439,7 +439,7 @@ The engine's 667-line scripted fixture was split into a 362-line fixture and a 3
 - Build started: `2026-09-07T11:38:45.9576171Z`
 - Build finished: `2026-09-07T11:39:54.3354945Z`
 - Workshop release profile finished in 47.06 seconds
-- Installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Installer created: `2026-09-07T11:39:35.7152137Z`
 - Installer last modified: `2026-09-07T11:39:54.2055172Z`
 - Installer size: 12,393,556 bytes
@@ -450,7 +450,7 @@ The engine's 667-line scripted fixture was split into a 362-line fixture and a 3
 - Protected release configuration: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` have no diff
 - Signing: not tested
 
-The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
+The adjacent `Runvil_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
 
 ### Silent installation and installed identities
 
@@ -458,7 +458,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Installer exit code: 0
 - Install started: `2026-09-07T11:40:09.9664232Z`
 - Install finished: `2026-09-07T11:40:13.3574707Z`
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
 - Workshop file version: `0.2.0`
 - Workshop product version: `0.2.0`
 - Workshop last modified: `2026-09-07T11:39:34Z`
@@ -467,7 +467,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Build-tree Workshop size: 24,290,816 bytes
 - Build-tree Workshop SHA-256: `41A5252E66179E48B76C9CED552B730EFF644F18788F87D8D4C6539EBEF1A867`
 - Workshop comparison: both identities are recorded without claiming equality because the Tauri log records NSIS bundle-information patching during packaging
-- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Gateway sibling last modified: `2026-09-07T11:38:24Z`
 - Gateway sibling size: 14,536,192 bytes
 - Gateway sibling SHA-256: `2745D151F7ADD0368308D2029976A11D4BAF38ECBA262C0AC27F57E83D67F74B`
@@ -480,7 +480,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Readiness-window observation: `2026-09-07T11:41:06.4335573Z`
 - Workshop process ID: 68872
 - Gateway process ID: 91128
-- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\PromptForge`
+- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\Runvil`
 - Both processes remained running at `2026-09-07T11:41:37.3425936Z`
 - No physical microphone, model-menu, or model-turn checklist item was observed during automated preparation
 
@@ -502,15 +502,15 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Summary: release profile finished in 21.49 seconds with 9 `gateway-stt` warnings
 - Build started: `2026-09-07T10:42:19.6689474Z`
 - Build finished: `2026-09-07T10:42:41.2751764Z`
-- Artifact: `target/release/promptforge-gateway.exe`
+- Artifact: `target/release/runvil-gateway.exe`
 - Last modified: `2026-09-07T10:42:40.7268324Z`
 - Size: 14,524,928 bytes
 - SHA-256: `E3D4DD8694423F69DBE1A828BD2915C04E1E6963E2510867F6FC4A1E170C0FA4`
 
 ### Target-suffixed sidecar
 
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
-- Artifact: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
+- Artifact: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Last modified: `2026-09-07T10:42:40.7268324Z`
 - Size: 14,524,928 bytes
 - SHA-256: `E3D4DD8694423F69DBE1A828BD2915C04E1E6963E2510867F6FC4A1E170C0FA4`
@@ -532,7 +532,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Build started: `2026-09-07T10:42:55.4726299Z`
 - Build finished: `2026-09-07T10:44:25.3444665Z`
 - Workshop release profile finished in 59.98 seconds
-- Installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Installer created: `2026-09-07T10:43:58.3597272Z`
 - Installer last modified: `2026-09-07T10:44:16.9471184Z`
 - Installer size: 12,507,285 bytes
@@ -543,7 +543,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Protected release configuration: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` have no diff
 - Signing: not tested
 
-The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
+The adjacent `Runvil_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
 
 ### Silent installation and installed identities
 
@@ -551,8 +551,8 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Installer exit code: 0
 - Install started: `2026-09-07T10:44:29.7572459Z`
 - Install finished: `2026-09-07T10:44:33.1346052Z`
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
-- Workshop version output: `promptforge-workshop 0.2.0`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
+- Workshop version output: `runvil-workshop 0.2.0`
 - Workshop file version: `0.2.0`
 - Workshop product version: `0.2.0`
 - Workshop last modified: `2026-09-07T10:43:56Z`
@@ -561,7 +561,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Build-tree Workshop size: 24,881,664 bytes
 - Build-tree Workshop SHA-256: `6779FC9020AC6CF48299E16F77EF1EBCE3533056185295F9DF13882E20FA618B`
 - Workshop comparison: both identities are recorded without claiming equality because the Tauri log records NSIS bundle-information patching during packaging
-- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Gateway sibling last modified: `2026-09-07T10:42:40Z`
 - Gateway sibling size: 14,524,928 bytes
 - Gateway sibling SHA-256: `E3D4DD8694423F69DBE1A828BD2915C04E1E6963E2510867F6FC4A1E170C0FA4`
@@ -574,7 +574,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Readiness-window observation: `2026-09-07T10:45:11.1809954Z`
 - Workshop process ID: 95492
 - Gateway process ID: 77192
-- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\PromptForge`
+- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\Runvil`
 - Both processes remained running at `2026-09-07T10:45:38.3200361Z`
 - No physical microphone, model-menu, or model-turn checklist item was observed during automated preparation
 
@@ -595,15 +595,15 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Summary: release profile finished in 26.57 seconds with 9 `gateway-stt` warnings
 - Build started: `2026-09-07T09:39:44.2506384Z`
 - Build finished: `2026-09-07T09:40:10.9436429Z`
-- Artifact: `target/release/promptforge-gateway.exe`
+- Artifact: `target/release/runvil-gateway.exe`
 - Last modified: `2026-09-07T09:40:10.4052397Z`
 - Size: 14,477,824 bytes
 - SHA-256: `D79453C2D91A6AF921C93C861624C8CCA4AC31497E1AF19AA38E458849E119DC`
 
 ### Target-suffixed sidecar
 
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
-- Artifact: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
+- Artifact: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Size: 14,477,824 bytes
 - SHA-256: `D79453C2D91A6AF921C93C861624C8CCA4AC31497E1AF19AA38E458849E119DC`
 - Verification: source and staged SHA-256 hashes matched at `2026-09-07T09:40:21.0845907Z`
@@ -624,7 +624,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Build started: `2026-09-07T09:40:48.847Z`
 - Build finished: `2026-09-07T09:42:15.042Z`
 - Workshop release profile finished in 59.28 seconds
-- Installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Installer created: `2026-09-07T09:41:51.6524557Z`
 - Installer last modified: `2026-09-07T09:42:13.4020073Z`
 - Installer size: 12,381,612 bytes
@@ -635,7 +635,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Protected release configuration: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` have no diff
 - Signing: not tested
 
-The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
+The adjacent `Runvil_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
 
 ### Silent installation and installed identities
 
@@ -643,7 +643,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Installer exit code: 0
 - Install started: `2026-09-07T09:42:28.9881969Z`
 - Install finished: `2026-09-07T09:42:32.3954431Z`
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
 - Workshop file version: `0.2.0`
 - Workshop product version: `0.2.0`
 - Workshop last modified: `2026-09-07T09:41:50Z`
@@ -652,7 +652,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Build-tree Workshop size: 24,290,816 bytes
 - Build-tree Workshop SHA-256: `22897B508E501402B4FF17A207917AD3BF30C573B374E2F4DA671BA8DA160EE8`
 - Workshop comparison: both identities are recorded without claiming equality because the Tauri log records NSIS bundle-information patching during packaging
-- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Gateway sibling last modified: `2026-09-07T09:40:10Z`
 - Gateway sibling size: 14,477,824 bytes
 - Gateway sibling SHA-256: `D79453C2D91A6AF921C93C861624C8CCA4AC31497E1AF19AA38E458849E119DC`
@@ -665,7 +665,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Readiness-window observation: `2026-09-07T09:43:11.7819091Z`
 - Workshop process ID: 79208
 - Gateway process ID: 60656
-- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\PromptForge`
+- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\Runvil`
 - Both processes remained running at `2026-09-07T09:43:59.6143596Z`
 - No physical microphone, model-menu, or model-turn checklist item was observed during automated preparation
 
@@ -679,15 +679,15 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Summary: release profile finished in 27.14 seconds with 9 `gateway-stt` warnings
 - Build started: `2026-09-07T07:22:02.4562698Z`
 - Build finished: `2026-09-07T07:22:29.7203501Z`
-- Artifact: `target/release/promptforge-gateway.exe`
+- Artifact: `target/release/runvil-gateway.exe`
 - Last modified: `2026-09-07T07:22:29.1910374Z`
 - Size: 14,459,904 bytes
 - SHA-256: `8A1D73EDD4BE102482B5B7DAF253B09F6D90C51EA0EA13EE439ECAA4E9DF5DEB`
 
 ### Target-suffixed sidecar
 
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
-- Artifact: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
+- Artifact: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Size: 14,459,904 bytes
 - SHA-256: `8A1D73EDD4BE102482B5B7DAF253B09F6D90C51EA0EA13EE439ECAA4E9DF5DEB`
 - Verification: source and staged SHA-256 hashes matched at `2026-09-07T07:22:35.0127460Z`
@@ -707,7 +707,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Result: passed
 - Successful build started: `2026-09-07T07:22:58.5565020Z`
 - Successful build finished: `2026-09-07T07:24:11.0138047Z`
-- Installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Installer created: `2026-09-07T07:23:52.9874435Z`
 - Installer last modified: `2026-09-07T07:24:10.9102655Z`
 - Installer size: 12,374,918 bytes
@@ -718,7 +718,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Protected release configuration: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` have no diff
 - Signing: not tested
 
-The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
+The adjacent `Runvil_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-06T02:42:54.1030502Z` and is excluded from this build's evidence.
 
 ### Silent installation and installed identities
 
@@ -726,14 +726,14 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Installer exit code: 0
 - Install started: `2026-09-07T07:24:18.0065320Z`
 - Install finished: `2026-09-07T07:24:21.3903424Z`
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
-- Workshop version output: `promptforge-workshop 0.2.0`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
+- Workshop version output: `runvil-workshop 0.2.0`
 - Workshop last modified: `2026-09-07T07:23:50Z`
 - Workshop size: 24,245,248 bytes
 - Workshop SHA-256: `42E7D7500425F91AE576F4E1CAE5E11DE0B606EF1836E8EC1A2EEABD059B7A73`
 - Build-tree Workshop SHA-256: `A890D75817337D68A1E8660F8B11F11E7216A9D71C05625A712E9193E8E35CBD`
 - Workshop comparison: both identities are recorded without claiming equality because the Tauri log records NSIS bundle-information patching during packaging
-- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Gateway sibling last modified: `2026-09-07T07:22:28Z`
 - Gateway sibling size: 14,459,904 bytes
 - Gateway sibling SHA-256: `8A1D73EDD4BE102482B5B7DAF253B09F6D90C51EA0EA13EE439ECAA4E9DF5DEB`
@@ -747,7 +747,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Separate post-handoff observation: `2026-09-07T07:26:37.3855897Z`
 - Workshop process ID: 83436
 - Gateway process ID: 98380
-- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\PromptForge`
+- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\Runvil`
 - No physical microphone or model-turn checklist item was observed during automated preparation
 
 ## Completed automated prerequisites
@@ -782,15 +782,15 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Result: passed
 - Summary: release profile finished in 1 minute 52 seconds with 9 `gateway-stt` warnings
 - Finished: `2026-09-07T01:58:30.071Z`
-- Artifact: `target/release/promptforge-gateway.exe`
+- Artifact: `target/release/runvil-gateway.exe`
 - Size: 14,457,344 bytes
 - SHA-256: `7211CA8E7D71533274EADD6264A77781D1F893B746B76EB8A560280770A7120F`
 
 ### Target-suffixed sidecar
 
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
 - Result: passed
-- Artifact: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Artifact: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Size: 14,457,344 bytes
 - SHA-256: `7211CA8E7D71533274EADD6264A77781D1F893B746B76EB8A560280770A7120F`
 - Verification: source and staged SHA-256 hashes match
@@ -810,7 +810,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Result: passed
 - Build started: `2026-09-07T02:17:35.0140268Z`
 - Build finished: `2026-09-07T02:19:29.0773256Z`
-- Installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Installer created: `2026-09-07T02:19:10Z`
 - Installer last modified: `2026-09-07T02:19:28Z`
 - Installer size: 12,360,736 bytes
@@ -820,7 +820,7 @@ The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` remains stale from `2026-09-0
 - Protected files: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` have no diff
 - Signing: not tested
 
-The successful unsigned attempt did not create a current `.sig` file. The adjacent `PromptForge_0.2.0_x64-setup.exe.sig` is stale from `2026-09-06T02:42:54Z` and is excluded from this run's evidence.
+The successful unsigned attempt did not create a current `.sig` file. The adjacent `Runvil_0.2.0_x64-setup.exe.sig` is stale from `2026-09-06T02:42:54Z` and is excluded from this run's evidence.
 
 ## Silent installation
 
@@ -834,17 +834,17 @@ The successful unsigned attempt did not create a current `.sig` file. The adjace
 
 ### Workshop
 
-- Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+- Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
 - Size: 24,210,432 bytes
 - SHA-256: `B0B8B3A7D732CBF3B1982AF1CB588DB20F3A0BECD5ED5A508F65EF6E26459B28`
-- Version output: `promptforge-workshop 0.2.0`
+- Version output: `runvil-workshop 0.2.0`
 - Sibling Gateway present: yes
 
 The Workshop build-tree executable has the same size but SHA-256 `169639C71AD94018FCA0F37E7977B607508EBDE59FE89B5DB4EB34A85366361C`. This is not treated as an applicable byte-for-byte comparison because the Tauri log records patching the Workshop executable with NSIS bundle information during packaging. Both hashes are recorded rather than claiming equality.
 
 ### Gateway
 
-- Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Size: 14,457,344 bytes
 - SHA-256: `7211CA8E7D71533274EADD6264A77781D1F893B746B76EB8A560280770A7120F`
 - Staged sidecar SHA-256: `7211CA8E7D71533274EADD6264A77781D1F893B746B76EB8A560280770A7120F`
@@ -875,11 +875,11 @@ The Workshop build-tree executable has the same size but SHA-256 `169639C71AD940
 - Result: passed
 - Summary: release profile finished in 49.18 seconds with 9 `gateway-stt` warnings
 - Finished: `2026-09-07T04:27:44.975Z`
-- Release Gateway: `target/release/promptforge-gateway.exe`
+- Release Gateway: `target/release/runvil-gateway.exe`
 - Release Gateway last modified: `2026-09-07T04:27:42.7135449Z`
 - Release Gateway size: 14,457,344 bytes
 - Release Gateway SHA-256: `7BE1C818B196A1C889ADE75D8AA09847404808C6530FFC7662DBBC26E10BAD18`
-- Staged sidecar: `crates/workshop/binaries/promptforge-gateway-x86_64-pc-windows-msvc.exe`
+- Staged sidecar: `crates/workshop/binaries/runvil-gateway-x86_64-pc-windows-msvc.exe`
 - Staged sidecar size: 14,457,344 bytes
 - Staged sidecar SHA-256: `7BE1C818B196A1C889ADE75D8AA09847404808C6530FFC7662DBBC26E10BAD18`
 - Staging verified: `2026-09-07T04:27:55.0750924Z`
@@ -894,7 +894,7 @@ The Workshop build-tree executable has the same size but SHA-256 `169639C71AD940
 - Previous installer SHA-256: `D045D0C4F57702AB42C93BBE1CEEC810A900C1952DAD1DE456011854899E5520`
 - Build started: `2026-09-07T04:28:04.7578431Z`
 - Build finished: `2026-09-07T04:29:35.1883254Z`
-- Current installer: `target/release/bundle/nsis/PromptForge_0.2.0_x64-setup.exe`
+- Current installer: `target/release/bundle/nsis/Runvil_0.2.0_x64-setup.exe`
 - Current installer created: `2026-09-07T04:29:17Z`
 - Current installer last modified: `2026-09-07T04:29:35Z`
 - Current installer size: 12,359,149 bytes
@@ -913,15 +913,15 @@ The Workshop build-tree executable has the same size but SHA-256 `169639C71AD940
 
 ### Second installed identities
 
-- Workshop path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
-- Workshop version output: `promptforge-workshop 0.2.0`
+- Workshop path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
+- Workshop version output: `runvil-workshop 0.2.0`
 - Workshop file version: `0.2.0`
 - Workshop last modified: `2026-09-07T04:29:14Z`
 - Workshop size: 24,211,456 bytes
 - Workshop SHA-256: `AD2A99A912F016C7B11B37DEAA29DF6A04AB2292BD8C56E1C3D6065585D29B35`
 - Build-tree Workshop SHA-256: `A0638A0B723997026CFE92DC056597E13D83DBB032B18B8D7453DC2AE513246F`
 - Workshop comparison: both identities are recorded without claiming equality because the Tauri log records NSIS bundle-information patching during packaging
-- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Gateway sibling path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Gateway sibling last modified: `2026-09-07T04:27:42Z`
 - Gateway sibling size: 14,457,344 bytes
 - Gateway sibling SHA-256: `7BE1C818B196A1C889ADE75D8AA09847404808C6530FFC7662DBBC26E10BAD18`
@@ -933,13 +933,13 @@ The Workshop build-tree executable has the same size but SHA-256 `169639C71AD940
 - Launched: `2026-09-07T04:30:08.4151156Z`
 - Workshop process ID: 48564
 - Gateway process ID: 59724
-- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\PromptForge`
+- Both process paths resolve under `C:\Users\Vinnie\AppData\Local\Runvil`
 - Both processes remained running at `2026-09-07T04:30:16.5398864Z`
 
 ## Operator observations - later build-tree launch
 
 - Observed: approximately `2026-09-07T06:33Z` through `2026-09-07T06:36Z`
-- Acceptance applicability: none; process inspection showed both Workshop and Gateway running from `C:\Users\Vinnie\cursor\promptforge\target\release`, not the installed `AppData\Local\PromptForge` paths
+- Acceptance applicability: none; process inspection showed both Workshop and Gateway running from `C:\Users\Vinnie\cursor\runvil\target\release`, not the installed `AppData\Local\Runvil` paths
 - Gateway readiness: serving at `06:33:11Z`, speech ready with GPU and profile switched by `06:33:13Z`, `claude-opus-4-6` advertised, chat endpoint ready
 - Workshop model catalog: failed; the picker exposed no model even though Gateway advertised `claude-opus-4-6`
 - Realtime connection: failed latency; microphone readiness took approximately 20 to 30 seconds
@@ -1064,10 +1064,10 @@ Automated preparation did not perform the checklist. The operator later observed
   - Result: passed, exit code 0, 3.776 seconds
   - Summary: featureless Gateway finished in 1.71 seconds
 - External native prerequisite check:
-  - `C:\Users\Vinnie\cursor\promptforge\local\stt-fixtures\whisper.dll`: present, 1,368,064 bytes
-  - `C:\Users\Vinnie\cursor\promptforge\crates\gateway-stt-backend-whisper\tests\fixtures\ggml-tiny.en.bin`: present, 77,704,715 bytes
-  - `C:\Users\Vinnie\cursor\promptforge\crates\gateway-stt-backend-whisper\tests\fixtures\jfk.wav`: present, 352,078 bytes
-- Command: `$fixture=(Resolve-Path 'local\stt-fixtures').Path; $env:PATH="$fixture;$env:PATH"; $env:PROMPTFORGE_WHISPER_LIBRARY=(Resolve-Path 'local\stt-fixtures\whisper.dll').Path; cargo test -p gateway-stt-backend-whisper --test native_whisper -- --ignored`
+  - `C:\Users\Vinnie\cursor\runvil\local\stt-fixtures\whisper.dll`: present, 1,368,064 bytes
+  - `C:\Users\Vinnie\cursor\runvil\crates\gateway-stt-backend-whisper\tests\fixtures\ggml-tiny.en.bin`: present, 77,704,715 bytes
+  - `C:\Users\Vinnie\cursor\runvil\crates\gateway-stt-backend-whisper\tests\fixtures\jfk.wav`: present, 352,078 bytes
+- Command: `$fixture=(Resolve-Path 'local\stt-fixtures').Path; $env:PATH="$fixture;$env:PATH"; $env:RUNVIL_WHISPER_LIBRARY=(Resolve-Path 'local\stt-fixtures\whisper.dll').Path; cargo test -p gateway-stt-backend-whisper --test native_whisper -- --ignored`
   - Result: passed, exit code 0, 9.969 seconds
   - Native equivalence: 5 passed, 0 failed, 0 ignored, including the fixed JFK transcript, glossary and transcript conditioning, stateless-job independence, absent-final classification, and model-progress terminals
 - Command: `cargo +nightly-2026-09-05 miri test -p gateway-stt-engine --features test-fixtures miri_`
@@ -1110,7 +1110,7 @@ Automated preparation did not perform the checklist. The operator later observed
   - Result: passed, exit code 0, 2.195 seconds
 - Command: `mdbook build guide`
   - Result: passed, exit code 0, 2.272 seconds; HTML backend completed
-- Command: `git diff --exit-code -- guide/src/SUMMARY.md guide/src/gateway/index.md guide/src/workshop/index.md guide/src/language/index.md guide/src/agent/index.md guide/promptforge-gateway-guide.md guide/promptforge-workshop-guide.md guide/promptforge-language-guide.md guide/promptforge-agent-guide.md`
+- Command: `git diff --exit-code -- guide/src/SUMMARY.md guide/src/gateway/index.md guide/src/workshop/index.md guide/src/language/index.md guide/src/agent/index.md guide/runvil-gateway-guide.md guide/runvil-workshop-guide.md guide/runvil-language-guide.md guide/runvil-agent-guide.md`
   - Result: passed, exit code 0, with only Git line-ending notices for the Workshop and Agent single-file guides
 - Generated-doc cleanliness: all nine SHA-256 values were identical before and after regeneration:
   - `guide/src/SUMMARY.md`: `4031AACD9459ED213C3E5D41466993691FD8B2DA07DEC9D090D90E8493F99FFC`
@@ -1118,21 +1118,21 @@ Automated preparation did not perform the checklist. The operator later observed
   - `guide/src/workshop/index.md`: `4BC7756A0D6D66807061BD747C72618096B24ACC5031F536F12B4019C53F4226`
   - `guide/src/language/index.md`: `41E9E4458BC1ED9F969F0DB7E13C24A3D94A4E88253D88239E6AA3F40F631AFD`
   - `guide/src/agent/index.md`: `1C66A4A2EF1AF16AE38668F2D0910124F20520E714610EA8B150C282ECAC623E`
-  - `guide/promptforge-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
-  - `guide/promptforge-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
-  - `guide/promptforge-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
-  - `guide/promptforge-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
+  - `guide/runvil-gateway-guide.md`: `5BF95CD9776A87982E13D9C6E7DA09F7BED2375292E75919F963BF59F497BCDE`
+  - `guide/runvil-workshop-guide.md`: `F45DB5FBAE9B56CB4415218CBA2B8D12EEAB39B45DEF10922349C369E2921DF0`
+  - `guide/runvil-language-guide.md`: `3CDF6E562EF45AC8873703C81701834650CAC7E8A8459839E96466D03AF16DFA`
+  - `guide/runvil-agent-guide.md`: `3B70D4DE22FF4077BC31D9E484BC8672DDF256413795B6BD8708774DB29464F9`
 
 ### Fresh unsigned NSIS package
 
 - Command: `$env:RUSTUP_TOOLCHAIN='stable'; cargo build --release --locked -p gateway`
   - Result: passed, exit code 0, 42.019 seconds; release profile finished in 39.64 seconds with 11 `gateway-stt` warnings
 - Release Gateway:
-  - Path: `C:\Users\Vinnie\cursor\promptforge\target\release\promptforge-gateway.exe`
+  - Path: `C:\Users\Vinnie\cursor\runvil\target\release\runvil-gateway.exe`
   - Last modified: `2026-09-07T13:53:06.4583106Z`
   - Size: 13,405,696 bytes
   - SHA-256: `C60DFDEBC6E45EEE82AF6952FF81CF1B0A1F0B92ADC8EA1BFE68F82105E8C06B`
-- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\promptforge-gateway.exe' "crates\workshop\binaries\promptforge-gateway-$triple.exe" -Force`
+- Command: `$triple='x86_64-pc-windows-msvc'; New-Item -ItemType Directory -Path 'crates\workshop\binaries' -Force | Out-Null; Copy-Item 'target\release\runvil-gateway.exe' "crates\workshop\binaries\runvil-gateway-$triple.exe" -Force`
   - Result: passed, exit code 0
   - Staged sidecar size and SHA-256 exactly matched the release Gateway
 - Command: `$env:RUSTUP_TOOLCHAIN='stable'; cargo install tauri-cli --locked`
@@ -1142,7 +1142,7 @@ Automated preparation did not perform the checklist. The operator later observed
   - Override scope: `bundle.createUpdaterArtifacts=false` was supplied only through the command line
   - Protected release configuration: `crates/workshop/tauri.conf.json` and `.github/workflows/release-workshop.yml` remained clean
 - Fresh installer:
-  - Path: `C:\Users\Vinnie\cursor\promptforge\target\release\bundle\nsis\PromptForge_0.2.0_x64-setup.exe`
+  - Path: `C:\Users\Vinnie\cursor\runvil\target\release\bundle\nsis\Runvil_0.2.0_x64-setup.exe`
   - Created: `2026-09-07T13:55:16.3424357Z`
   - Last modified: `2026-09-07T13:55:37.7434332Z`
   - Size: 12,034,196 bytes
@@ -1156,13 +1156,13 @@ Automated preparation did not perform the checklist. The operator later observed
 - Command: `$setup=Get-ChildItem -Recurse 'target\release\bundle\nsis' -Filter '*-setup.exe' | Select-Object -First 1; if (-not $setup) { throw 'no NSIS installer' }; $process=Start-Process $setup.FullName -ArgumentList '/S' -Wait -PassThru; if($process.ExitCode -ne 0){throw "installer exited $($process.ExitCode)"}`
   - Result: passed; installer exit code 0
 - Installed Workshop:
-  - Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
+  - Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
   - Last modified: `2026-09-07T13:55:14Z`
   - Size: 24,186,880 bytes
   - SHA-256: `94BBB68A5E0C71CE6FFD0FA5014C13E0DF9B17ECE15C80A8B1544991ED7EBCCB`
   - Product version: `0.2.0`
 - Installed Gateway:
-  - Path: `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+  - Path: `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
   - Last modified: `2026-09-07T13:53:06Z`
   - Size: 13,405,696 bytes
   - SHA-256: `C60DFDEBC6E45EEE82AF6952FF81CF1B0A1F0B92ADC8EA1BFE68F82105E8C06B`
@@ -1172,8 +1172,8 @@ Automated preparation did not perform the checklist. The operator later observed
 
 - Installed Workshop launch: passed
 - Handoff observed: `2026-09-07T14:00:32.5494104Z`
-- Workshop process: PID 92768 at `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-workshop.exe`
-- Gateway process: PID 65268 at `C:\Users\Vinnie\AppData\Local\PromptForge\promptforge-gateway.exe`
+- Workshop process: PID 92768 at `C:\Users\Vinnie\AppData\Local\Runvil\runvil-workshop.exe`
+- Gateway process: PID 65268 at `C:\Users\Vinnie\AppData\Local\Runvil\runvil-gateway.exe`
 - Readiness observation: both installed processes remained running 20 seconds after launch
 - Automated Step 42 gates: passed
 - Physical observation completed: microphone recording and chat turns on the reopened installed Workshop

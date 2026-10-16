@@ -23,7 +23,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [1:08]: Believe it or not. OK, so you want to write that in rust?
 
-@Vinnie [1:10]: But, but it needs in Yeah, I'm just gonna, I was just gonna, you know, put it together in rust. so that's one thing. And then the next thing is Or for the prompt for the prompt forge.
+@Vinnie [1:10]: But, but it needs in Yeah, I'm just gonna, I was just gonna, you know, put it together in rust. so that's one thing. And then the next thing is Or for the prompt for the runvil.
 
 @Will Pak [1:26]: Mhm.
 
@@ -89,11 +89,11 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [4:47]: It's very sim pretty straightforward, but why is this file so big? Oh my god, why is this big? Oh, it's pretty huge. OK. Oh, it's cause it's got some rust. D, design notes, oh my god, admission control, jeez. What is all this?
 
-@Vinnie [5:04]: W. Protocol equals OpenAI or anthropic. Jeez. OK, well, Right, and then And then I wanna have the pro and then we have the prompt forge. So PromptForge is a library.
+@Vinnie [5:04]: W. Protocol equals OpenAI or anthropic. Jeez. OK, well, Right, and then And then I wanna have the pro and then we have the runvil. So Runvil is a library.
 
 @Will Pak [5:19]: Yeah.
 
-@Vinnie [5:22]: For running the prompt forts, the structured props with that have the lua, but the prompt forge doesn't do any The prompt forge has to be linked, I guess, with the library to do the, to do the calls. Right? Like prompt for us to talk to the gateway.
+@Vinnie [5:22]: For running the prompt forts, the structured props with that have the lua, but the runvil doesn't do any The runvil has to be linked, I guess, with the library to do the, to do the calls. Right? Like prompt for us to talk to the gateway.
 
 @Will Pak [5:41]: Yes.
 
@@ -103,7 +103,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [5:44]: Yeah. Yeah, well, I was thinking it would just be the local connect like anything loop back to loop back doesn't require an API key. But if we wanna have other machines in our intranet being able to access it, well then they either we need to have like a a whitelisted IP or we need the, the API key, something, we'll figure that out later,
 
-@Vinnie [6:07]: But I want to be able to export, I want a configuration that will allow me to export. Prompt forge prompts as MC as MCP tools. Does that make sense?
+@Vinnie [6:07]: But I want to be able to export, I want a configuration that will allow me to export. Runvil prompts as MC as MCP tools. Does that make sense?
 
 @Will Pak [6:21]: Mhm. I'm trying to understand, right, Trump Forge prompts is an MCP tool. Like dynamically.
 
@@ -113,7 +113,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [6:54]: Yeah.
 
-@Vinnie [6:58]: Every prompt forge Prompt returns a string, that's it. No, no, no pipe, no Jason, no, it's just a text, and then the, the, the prompts can declare their inputs, like in the Yamo, they can say like what what parameters they require, like a file name, or, you know, a number or a set of parameters, right? But they, they all take a, it's like a function call. Basically it's a function call.
+@Vinnie [6:58]: Every runvil Prompt returns a string, that's it. No, no, no pipe, no Jason, no, it's just a text, and then the, the, the prompts can declare their inputs, like in the Yamo, they can say like what what parameters they require, like a file name, or, you know, a number or a set of parameters, right? But they, they all take a, it's like a function call. Basically it's a function call.
 
 @Vinnie [7:27]: So, once you do that, and then if you have a description, that now you have an MCP tool, right?
 
@@ -145,7 +145,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [9:05]: Mhm. Mhm. I see.
 
-@Vinnie [9:08]: But However, however, Some of them are gonna run locally. So I have my own MC, I have my own Basically, the prompt prompt forge is gonna be this, an executable, and when you run it, you're gonna get
+@Vinnie [9:08]: But However, however, Some of them are gonna run locally. So I have my own MC, I have my own Basically, the prompt runvil is gonna be this, an executable, and when you run it, you're gonna get
 
 @Vinnie [9:30]: An optional gateway
 
@@ -169,7 +169,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [10:31]: Huh.
 
-@Vinnie [10:37]: So, So if, if a, if a prompt forge prompt calls another prompt forged prompt, it'll go through, it'll be in process, it won't go through the MCP. There's no, why you don't need a socket for that. Right? Get what I'm saying?
+@Vinnie [10:37]: So, So if, if a, if a runvil prompt calls another runvild prompt, it'll go through, it'll be in process, it won't go through the MCP. There's no, why you don't need a socket for that. Right? Get what I'm saying?
 
 @Will Pak [10:56]: Only to think about it.
 
@@ -177,15 +177,15 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [10:59]: The prompt goes through prompts directly, tools go through the MCP server.
 
-@Vinnie [11:09]: But then we also want prompt forge prompts to be able to use to to be able to use other MCP services. For example, I wanna have a prompt forge prompt that runs locally that accesses Pinecone.
+@Vinnie [11:09]: But then we also want runvil prompts to be able to use to to be able to use other MCP services. For example, I wanna have a runvil prompt that runs locally that accesses Pinecone.
 
 @Will Pak [11:22]: Mhm.
 
-@Vinnie [11:23]: So, that promptForge MCP server has to have its own MCP service configuration where you can add multiple other MCP servers.
+@Vinnie [11:23]: So, that runvil MCP server has to have its own MCP service configuration where you can add multiple other MCP servers.
 
 @Will Pak [11:34]: OK, so Let me just summarize what I heard. it's what you want. Like for example, Rust, it, it's a compiled language. Once you write the code, you execute the code, everything's LinkedIn, you can't change once it's running. But then we have this dynamic interpreter, which is like,
 
-@Will Pak [11:53]: The prompt forge prompts are like Dynamically loaded and parsed. And exploited as a MCP server tool.
+@Will Pak [11:53]: The runvil prompts are like Dynamically loaded and parsed. And exploited as a MCP server tool.
 
 @Vinnie [12:05]: Sometimes. Wait, let me think, let me think about it.
 
@@ -209,7 +209,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [13:04]: Loading functionality exposes tools as Those prompts are dynamically changed. It sounds really complicated. I need to think about it a little.
 
-@Vinnie [13:19]: Yes. Yes. What do you think of the prompt forged concept? Molly.
+@Vinnie [13:19]: Yes. Yes. What do you think of the runvild concept? Molly.
 
 @Will Pak [13:24]: Well,
 
@@ -421,7 +421,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [29:10]: These are the closest ones.
 
-@Will Pak [29:10]: Feel like So, When I read Prompt Forge, I thought, I got this feeling that you're coming up with an Asian programming language plus Interpreter, like, like the CPU for the Asian programming language.
+@Will Pak [29:10]: Feel like So, When I read Runvil, I thought, I got this feeling that you're coming up with an Asian programming language plus Interpreter, like, like the CPU for the Asian programming language.
 
 @Will Pak [29:27]: Right, The CPU is fixed, but the program can change. Which is The prompt force prompts.
 
@@ -431,7 +431,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [30:03]: OK, I mean, I guess that, yeah, OK, and What, how does it look?
 
-@Will Pak [30:08]: So Like there are like multiple attempts to come, to come up with Asian programming language, I guess. This prompt forge is unique in the sense that in one file it combines everything, the prompt, the lure.
+@Will Pak [30:08]: So Like there are like multiple attempts to come, to come up with Asian programming language, I guess. This runvil is unique in the sense that in one file it combines everything, the prompt, the lure.
 
 @Will Pak [30:29]: And the, the, the routing metrics, like routing logic.
 
@@ -441,7 +441,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Will Pak [30:54]: Mhm. OK.
 
-@Vinnie [31:01]: And one of the my design, one of my design goals is that you should be able to write You should be able to write a prompt forge prompt without using any lure, and it will work just like
+@Vinnie [31:01]: And one of the my design, one of my design goals is that you should be able to write You should be able to write a runvil prompt without using any lure, and it will work just like
 
 @Will Pak [31:11]: Hm.
 

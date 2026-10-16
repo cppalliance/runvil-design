@@ -1,16 +1,16 @@
-<!-- STATUS: residue - promptforge-cli - forward design, none of it built; the crate's as-built document is crates/promptforge-cli/design-cli.md - see design.md for the system -->
+<!-- STATUS: residue - runvil-cli - forward design, none of it built; the crate's as-built document is crates/runvil-cli/design-cli.md - see design.md for the system -->
 
-# `promptforge-cli` residue: a terminal client of the MCP server, designed and never built
+# `runvil-cli` residue: a terminal client of the MCP server, designed and never built
 
-This is forward design. Nothing specified below exists: the client it describes connects to `promptforge-mcp-server` over streamable HTTP, offers `run`, `list`, and `validate`, resolves a URL and a bearer through three configuration layers, coerces `key=value` pairs against a prompt's schema, renders progress on stderr, and exits with one of eleven documented codes, and no part of that is implemented.
+This is forward design. Nothing specified below exists: the client it describes connects to `runvil-mcp-server` over streamable HTTP, offers `run`, `list`, and `validate`, resolves a URL and a bearer through three configuration layers, coerces `key=value` pairs against a prompt's schema, renders progress on stderr, and exits with one of eleven documented codes, and no part of that is implemented.
 
-What exists today is a binary of the same name that runs one prompt file in its own process: `promptforge run <file.md> [input]`, with no catalog, no configuration file, no MCP connection, an in-memory store, and success or failure as its only exit statuses. That crate's own `design-cli.md`, at `crates/promptforge-cli/design-cli.md`, is written from its code and is the document to read for what the CLI does.
+What exists today is a binary of the same name that runs one prompt file in its own process: `runvil run <file.md> [input]`, with no catalog, no configuration file, no MCP connection, an in-memory store, and success or failure as its only exit statuses. That crate's own `design-cli.md`, at `crates/runvil-cli/design-cli.md`, is written from its code and is the document to read for what the CLI does.
 
-The divergence is total rather than partial, and several central claims here are not merely unimplemented but inverted. The Scope section forbids in-process execution and any construction of a run configuration, and the crate is exactly that, calling `promptforge_core::execute::run` with a `RunOptions` it builds itself. The dependency table names `promptforge` for data types only, and there is no such crate, only `promptforge-core` used as an engine. The source walk that Scope calls the mechanical form of its own rule does not exist, the crate having no test directory. And the environment variable is `PROMPTFORGE_BASE_URL`, pointing at the gateway, where this document says `PROMPTFORGE_URL`, pointing at a service.
+The divergence is total rather than partial, and several central claims here are not merely unimplemented but inverted. The Scope section forbids in-process execution and any construction of a run configuration, and the crate is exactly that, calling `runvil_core::execute::run` with a `RunOptions` it builds itself. The dependency table names `runvil` for data types only, and there is no such crate, only `runvil-core` used as an engine. The source walk that Scope calls the mechanical form of its own rule does not exist, the crate having no test directory. And the environment variable is `RUNVIL_BASE_URL`, pointing at the gateway, where this document says `RUNVIL_URL`, pointing at a service.
 
 ## Scope
 
-This crate is a client of `promptforge-mcp-server`. It resolves a service URL and a bearer token, connects, finds out which prompts the service has enabled, turns `key=value` arguments into a validated JSON object, invokes the prompt, renders the progress notifications the service sends back, prints the result path, and exits with a documented code. Three commands: `run`, `list`, `validate`.
+This crate is a client of `runvil-mcp-server`. It resolves a service URL and a bearer token, connects, finds out which prompts the service has enabled, turns `key=value` arguments into a validated JSON object, invokes the prompt, renders the progress notifications the service sends back, prints the result path, and exits with a documented code. Three commands: `run`, `list`, `validate`.
 
 What it does not do, and cannot be made to do without a change to this document:
 
@@ -21,19 +21,19 @@ What it does not do, and cannot be made to do without a change to this document:
 - Print a document body. The result carries a path and a short summary, and the CLI passes both along without reading the file.
 - Invent a flag for a prompt parameter. There is no `--entity` and no `--target`; the prompt's own `Frontmatter.params` schema is the only definition of what keys are legal.
 
-It links `promptforge` for data types only - `Prompt`, `Frontmatter`, `Event`, `Outcome`, `Destination` - because the wire carries values of those shapes and reconstructing them here would be a second definition. A test walks `src/` and fails on any occurrence of `Executor` or `RunConfig`, which is the mechanical form of the rule above.
+It links `runvil` for data types only - `Prompt`, `Frontmatter`, `Event`, `Outcome`, `Destination` - because the wire carries values of those shapes and reconstructing them here would be a second definition. A test walks `src/` and fails on any occurrence of `Executor` or `RunConfig`, which is the mechanical form of the rule above.
 
 ## No `--local`
 
-`--local` is dropped. `promptforge run` has exactly one implementation: resolve, connect, coerce, invoke, render, print. Three reasons, in order of weight.
+`--local` is dropped. `runvil run` has exactly one implementation: resolve, connect, coerce, invoke, render, print. Three reasons, in order of weight.
 
-The testability that motivated the flag is already delivered by the core crate. `design-core-residue.md` ships a fake gateway and a recording extension as its test fixtures, so an integration test links `promptforge` directly, builds a `RunConfig`, calls `Executor::run`, and asserts on the exact `Event` sequence and on extension lifecycle ordering. Neither of those is observable through a terminal. `--local` was a worse version of a test that the core crate already supports, exposed as product surface.
+The testability that motivated the flag is already delivered by the core crate. `design-core-residue.md` ships a fake gateway and a recording extension as its test fixtures, so an integration test links `runvil` directly, builds a `RunConfig`, calls `Executor::run`, and asserts on the exact `Event` sequence and on extension lifecycle ordering. Neither of those is observable through a terminal. `--local` was a worse version of a test that the core crate already supports, exposed as product surface.
 
-Development already runs the whole stack on one machine, and `design.md` makes that environment first-class rather than a degraded mode. The service is therefore on the developer's own loopback or LAN address, and `promptforge run` reaches it with a URL and nothing else. `--local` would exist to bypass a process running a few hundred microseconds away.
+Development already runs the whole stack on one machine, and `design.md` makes that environment first-class rather than a degraded mode. The service is therefore on the developer's own loopback or LAN address, and `runvil run` reaches it with a URL and nothing else. `--local` would exist to bypass a process running a few hundred microseconds away.
 
 One execution path means admission cannot diverge. The gateway owns the only queue, and per-tool rate limits are semaphores held in one process's tool registry; both are process-local by design, which `design.md` states as the reason the CLI is a client in the first place. An in-process run does not merely exercise a second code path for admission - it holds a second budget. A limit bug reachable only under `--local` is a bug in a mode no production caller uses, and the effort spent finding it buys nothing.
 
-Tension: `promptforge run` fails when the service is not running, which is a worse first-run experience than a flag that always works. The compensation is entirely in the error text, which names the URL tried, the precedence layer that supplied it, and the process to start.
+Tension: `runvil run` fails when the service is not running, which is a worse first-run experience than a flag that always works. The compensation is entirely in the error text, which names the URL tried, the precedence layer that supplied it, and the process to start.
 
 The same reasoning decides `validate` below, and it is why that command asks the service instead of resolving configuration locally.
 
@@ -48,9 +48,9 @@ use url::Url;
 
 #[derive(Parser)]
 #[command(
-    name = "promptforge",
+    name = "runvil",
     version,
-    about = "Run markdown prompts on a promptforge service",
+    about = "Run markdown prompts on a runvil service",
     disable_help_subcommand = true
 )]
 pub struct Cli {
@@ -62,11 +62,11 @@ pub struct Cli {
 
 #[derive(Args)]
 pub struct ConnArgs {
-    /// Service URL. Highest precedence, above PROMPTFORGE_URL and the config file.
+    /// Service URL. Highest precedence, above RUNVIL_URL and the config file.
     #[arg(long, global = true, value_name = "URL")]
     pub url: Option<Url>,
 
-    /// File holding the bearer token. Above PROMPTFORGE_TOKEN and the config file.
+    /// File holding the bearer token. Above RUNVIL_TOKEN and the config file.
     #[arg(long, global = true, value_name = "PATH")]
     pub token_file: Option<PathBuf>,
 
@@ -88,7 +88,7 @@ pub enum Command {
 #[derive(Args)]
 #[command(trailing_var_arg = true)]
 pub struct RunArgs {
-    /// Prompt name, as it appears in `promptforge list`.
+    /// Prompt name, as it appears in `runvil list`.
     pub prompt: String,
 
     /// Parameters as key=value. The prompt's own schema defines the legal keys.
@@ -138,10 +138,10 @@ pub struct ValidateArgs {
 `#[command(trailing_var_arg = true)]` on `RunArgs` is load-bearing: everything after the prompt name is a parameter, so a value like `note=--check` survives intact. The consequence is that `run`'s own flags precede the prompt name.
 
 ```bash
-$ promptforge run --json staker entity="Bloomberg"     # correct
-$ promptforge run staker entity="Bloomberg" --json     # --json is treated as a parameter
+$ runvil run --json staker entity="Bloomberg"     # correct
+$ runvil run staker entity="Bloomberg" --json     # --json is treated as a parameter
 error: `--json` is not a key=value pair
-  run's own flags go before the prompt name: promptforge run --json staker ...
+  run's own flags go before the prompt name: runvil run --json staker ...
 ```
 
 Tension: that ordering is unusual enough that users will hit it, so the error above is part of the design rather than a fallback.
@@ -153,12 +153,12 @@ Colour and styling honour `NO_COLOR`, `CLICOLOR`, and `TERM=dumb` through `conso
 Three layers per value, highest first:
 
 - `--url` and `--token-file` on the command line.
-- `PROMPTFORGE_URL` and `PROMPTFORGE_TOKEN` in the environment.
+- `RUNVIL_URL` and `RUNVIL_TOKEN` in the environment.
 - `url` and `token` in the config file.
 
-The token's command-line layer is a path rather than a value, because a secret in `argv` is visible in `ps` output and in shell history. `PROMPTFORGE_TOKEN` carries the value directly, since an environment variable is already scoped to the process tree.
+The token's command-line layer is a path rather than a value, because a secret in `argv` is visible in `ps` output and in shell history. `RUNVIL_TOKEN` carries the value directly, since an environment variable is already scoped to the process tree.
 
-The config file is `$PROMPTFORGE_CONFIG` if set, otherwise the platform config directory resolved through `etcetera`: `~/.config/promptforge/config.toml` on Unix and `%APPDATA%\promptforge\config.toml` on Windows.
+The config file is `$RUNVIL_CONFIG` if set, otherwise the platform config directory resolved through `etcetera`: `~/.config/runvil/config.toml` on Unix and `%APPDATA%\runvil\config.toml` on Windows.
 
 ```toml
 url = "http://forge.local:8787/mcp"
@@ -199,12 +199,12 @@ The transport is `rmcp`'s streamable HTTP client over a `reqwest` client that se
 Unreachable is the most common failure and gets the most detailed message. It names the URL, the cause, the precedence chain, and the process to start.
 
 ```bash
-$ promptforge run staker entity="Bloomberg"
+$ runvil run staker entity="Bloomberg"
 error: service unreachable at http://forge.local:8787/mcp
   cause: tcp connect: connection refused
-  url came from: C:\Users\vinnie\AppData\Roaming\promptforge\config.toml
-  also checked: --url (unset), PROMPTFORGE_URL (unset)
-  promptforge run needs promptforge-mcp-server running; start it, or point --url at a service that is
+  url came from: C:\Users\vinnie\AppData\Roaming\runvil\config.toml
+  also checked: --url (unset), RUNVIL_URL (unset)
+  runvil run needs runvil-mcp-server running; start it, or point --url at a service that is
 $ echo $?
 5
 ```
@@ -268,10 +268,10 @@ impl Catalog {
 A miss runs the supplied name against every catalog name by edit distance and offers the nearest if it is close enough, because a mistyped prompt name is the most likely reason a run never starts.
 
 ```bash
-$ promptforge run stakr entity="Bloomberg"
+$ runvil run stakr entity="Bloomberg"
 error: prompt `stakr` is not in the catalog at http://forge.local:8787/mcp
   did you mean `staker` ?
-  promptforge list shows all 7
+  runvil list shows all 7
 $ echo $?
 4
 ```
@@ -319,13 +319,13 @@ Repetition builds arrays. A key repeated against a non-array property is an erro
 Unknown keys are rejected against `properties` whether or not the schema sets `additionalProperties: false`, because a key the prompt does not declare cannot reach the prompt body. Missing required keys are named together, not one per run.
 
 ```bash
-$ promptforge run staker entity="Bloomberg" sinse=2024
+$ runvil run staker entity="Bloomberg" sinse=2024
 error: prompt `staker` has no parameter `sinse`
   did you mean `since` ?
   legal keys: entity (required), since, depth
-$ promptforge run staker since=2024
+$ runvil run staker since=2024
 error: prompt `staker` requires entity
-$ promptforge run staker entity="Bloomberg" since=twenty
+$ runvil run staker entity="Bloomberg" since=twenty
 error: parameter `since` expects an integer, got `twenty`
 $ echo $?
 3
@@ -350,7 +350,7 @@ pub async fn invoke(
 
 The call carries a `progressToken` in its `_meta`. Without it a conforming server sends no notifications and the run looks hung, which makes this one line the difference between the feature working and not existing.
 
-The result's structured content deserializes into `promptforge::Outcome`. A payload that will not deserialize is a protocol error and exits 1, because a client that guesses at a malformed result is worse than one that stops.
+The result's structured content deserializes into `runvil::Outcome`. A payload that will not deserialize is a protocol error and exits 1, because a client that guesses at a malformed result is worse than one that stops.
 
 Elicitation is declared as a client capability and answered by writing the question to stderr and reading one line from stdin, only when stdin is a terminal. When it is not, the CLI declines and the service turns that into a failed run. Tension: a prompt that asks a mid-run question cannot run in a pipeline, which is the correct outcome rather than the convenient one.
 
@@ -374,7 +374,7 @@ pub trait ProgressSink: Send + Sync {
 
 `ProgressSink` is the wire-side counterpart of the core's `Observer`, and the projection between them is lossy on purpose. `ToolCalled`, `ModelTurn`, and `Jumped` do not fit two fields, so the terminal does not see them unless the service publishes the serialized `Event` alongside the standard fields; the verbose path consumes that when present and falls back to one line per notification when it is not.
 
-`Tick` carries no `total` because the service never sends one: a run's section count is not known in advance, for the reasons `crates/promptforge-mcp-server/design-mcp-server.md` gives. There is therefore no fraction and no filling bar anywhere in this renderer, and `index` is used only to detect that something advanced.
+`Tick` carries no `total` because the service never sends one: a run's section count is not known in advance, for the reasons `crates/runvil-mcp-server/design-mcp-server.md` gives. There is therefore no fraction and no filling bar anywhere in this renderer, and `index` is used only to detect that something advanced.
 
 MCP requires `progress` to increase, so a retry arrives as text in `message` rather than as a falling number. The renderer clamps a decreasing index to the previous value, since a conforming server never sends one. Tension: a retried section is visible as words and not as motion, so a long retry loop looks like a stalled section.
 
@@ -385,7 +385,7 @@ Progress goes to stderr, always. The stream tested for a terminal is stderr, not
 TTY mode is one line rewritten in place at most twenty times a second, `ProgressDrawTarget::stderr_with_hz(20)`, template `{spinner} {wide_msg} {elapsed}`. It is `ProgressBar::new_spinner` rather than a bar, because there is no length to give one. `{wide_msg}` pads or truncates to the remaining width, so width is `indicatif`'s arithmetic rather than ours. Below thirty columns the template drops to `{spinner} {elapsed}`, because a truncated label is worse than no label. An absent `message` renders the spinner and the clock alone, which still distinguishes a working run from a hung one.
 
 ```bash
-$ promptforge run staker entity="Bloomberg"
+$ runvil run staker entity="Bloomberg"
 # stderr: one line, rewritten in place. Four successive frames:
 ⠋ Gathering source material                                          0:02
 ⠙ Gathering source material                                          0:18
@@ -400,7 +400,7 @@ C:\forge\out\staker\bloomberg-2026-07-25.md
 Non-TTY mode appends one plain line per notification with a monotonic offset, no ANSI bytes, no in-place update, suitable for a log file or a pipe. Redirecting stderr is therefore all it takes to get the log form.
 
 ```bash
-$ promptforge run staker entity="Bloomberg" 2>run.log
+$ runvil run staker entity="Bloomberg" 2>run.log
 C:\forge\out\staker\bloomberg-2026-07-25.md
 $ cat run.log
 +0.0s Gathering source material
@@ -418,7 +418,7 @@ When no notification ever arrives, the TTY form shows a bare spinner carrying th
 The human form is aligned columns separated by two spaces, with a header and no borders. Box-drawing characters were rejected because `list` output gets piped into `grep`, `cut`, and `awk`, and because they are what breaks on a Windows code page. The description column truncates to the terminal width when stdout is a terminal and is never truncated when it is not, so a pipe gets the whole text.
 
 ```bash
-$ promptforge list
+$ runvil list
 NAME    VERSION  DESCRIPTION
 critic  2        Review a paper against the committee record
 staker  1        Build a stakeholder position report for one entity
@@ -428,7 +428,7 @@ triage  4        Classify an incoming paper and route it
 One prompt in full prints what a caller needs to write the command line, which is the parameter table:
 
 ```bash
-$ promptforge list staker
+$ runvil list staker
 staker 1 - Build a stakeholder position report for one entity
 keywords: governance, stakeholder
 
@@ -449,7 +449,7 @@ The `tools` line renders `Frontmatter::tools` verbatim, which is canonical names
 `--json` emits one JSON document on stdout and nothing else, an array for the catalog and a single object for one prompt, so `jq` needs no reshaping. `params` is the schema verbatim rather than a rendering of it, because a machine consumer wants the schema.
 
 ```bash
-$ promptforge list --json | jq -r '.[] | select(.keywords[]? == "governance") | .name'
+$ runvil list --json | jq -r '.[] | select(.keywords[]? == "governance") | .name'
 staker
 ```
 
@@ -464,9 +464,9 @@ That call is plain HTTP on the service's HTTP surface, not MCP. `design.md` make
 Local work is confined to one call: files named on the command line are read and passed through `Prompt::parse` before anything is sent, so a malformed file is reported without a round trip. That is the core's own parser rather than a copy of it. Parsed source for a file not yet in the catalog is then sent for resolution against the live configuration without being registered, which is how an author checks a new prompt before editing `prompts.toml`.
 
 ```bash
-$ promptforge validate
+$ runvil validate
 7 prompts, 7 ok
-$ promptforge validate prompts/newcomer.md
+$ runvil validate prompts/newcomer.md
 prompts/newcomer.md
   error  slot `careful` does not resolve for this prompt
   error  output root `digest` is not configured
@@ -486,12 +486,12 @@ $ echo $?
 That split is what makes the command composable.
 
 ```bash
-$ report=$(promptforge run staker entity="Bloomberg")
+$ report=$(runvil run staker entity="Bloomberg")
 $ cat "$report"
-$ promptforge run staker entity="Bloomberg" | xargs -I{} cp {} ~/review/
+$ runvil run staker entity="Bloomberg" | xargs -I{} cp {} ~/review/
 ```
 
-The returned value goes to stdout because it is the prompt's product and a caller asked for it, and it goes last so that the common case above - a prompt with one file output and no return value - still yields exactly one line. A prompt that returns a value and writes no file therefore prints just that value, which is what makes `promptforge run classify doc=p1234.md` usable in a shell substitution. `--raw` suppresses the paths and prints the value alone, for the case where a prompt has both and a script wants only the second.
+The returned value goes to stdout because it is the prompt's product and a caller asked for it, and it goes last so that the common case above - a prompt with one file output and no return value - still yields exactly one line. A prompt that returns a value and writes no file therefore prints just that value, which is what makes `runvil run classify doc=p1234.md` usable in a shell substitution. `--raw` suppresses the paths and prints the value alone, for the case where a prompt has both and a script wants only the second.
 
 Tension: a prompt with both a file output and a return value prints two different kinds of thing on one stream, and a script reading it needs to know which prompt it called. The alternative, putting the value on stderr with the summary, was rejected because a value a caller has to scrape out of a log is not a return value.
 
@@ -522,7 +522,7 @@ The first interrupt sends `notifications/cancelled` for the in-flight request id
 Whether the server-side run stops is the server's decision, and the CLI does not claim otherwise. MCP cancellation is a statement that the client has stopped caring, not a kill. The message says exactly that.
 
 ```bash
-$ promptforge run staker entity="Bloomberg"
+$ runvil run staker entity="Bloomberg"
 ⠹ [2/3] Evaluating positions against the record                      0:31
 ^C
 interrupted - cancellation sent for run 3f2a9c1e
@@ -638,7 +638,7 @@ The variants carry the material their messages need rather than pre-rendered str
 
 | Crate | For |
 |---|---|
-| `promptforge` | `Prompt`, `Frontmatter`, `Event`, `Outcome`, `Destination`. Data types only |
+| `runvil` | `Prompt`, `Frontmatter`, `Event`, `Outcome`, `Destination`. Data types only |
 | `clap` | Derive argument parsing, and exit code 2 |
 | `rmcp` | MCP client, streamable HTTP transport, progress notifications, cancellation |
 | `reqwest` | The HTTP client under `rmcp`, and `validate`'s call |

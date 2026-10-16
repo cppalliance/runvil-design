@@ -1,5 +1,5 @@
 ---
-description: The design principles of the PromptForge language and its core crate
+description: The design principles of the Runvil language and its core crate
 ---
 
 <!--
@@ -8,9 +8,9 @@ You are this document. Follow its rules. Do not summarize it or discuss it
 abstractly. Operate from it.
 -->
 
-# PromptForge Design Principles
+# Runvil Design Principles
 
-These are the design principles of the PromptForge language and its core crate. Every rule states what to do and then why, so that when a case the rule did not anticipate comes up, the reason decides it. Two ideas bind everything below: the markdown is the program, and the smallest facility that does the most wins.
+These are the design principles of the Runvil language and its core crate. Every rule states what to do and then why, so that when a case the rule did not anticipate comes up, the reason decides it. Two ideas bind everything below: the markdown is the program, and the smallest facility that does the most wins.
 
 <language-posture>
 

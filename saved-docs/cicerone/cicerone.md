@@ -33,7 +33,7 @@ Write every page of one facade crate, or the pages an API change touched, as a t
 
 ## Inputs and Modes
 
-- `CRATE`: a facade crate, such as `promptforge` or `harness`. A crate without the facade shape makes the survey stop; report its message and stop.
+- `CRATE`: a facade crate, such as `runvil` or `harness`. A crate without the facade shape makes the survey stop; report its message and stop.
 - `MODE`: `plan`, `build`, or `update`. When the user names no mode, use `update` if the plan file exists and `plan` otherwise.
   - `plan` writes or refreshes the plan, then stops for the user's approval.
   - `build` puts every page in scope.
@@ -616,14 +616,14 @@ A Reference entry:
 
 <plan-format>
 
-The plan is the syllabus the user approves, so every sentence in it reads well to a person. Each block tag sits alone on its line. Every page has one `<page-STEM>` block with every field below. This is an example of the format with promptforge as its subject; derive a plan from the inventory and the sources.
+The plan is the syllabus the user approves, so every sentence in it reads well to a person. Each block tag sits alone on its line. Every page has one `<page-STEM>` block with every field below. This is an example of the format with runvil as its subject; derive a plan from the inventory and the sources.
 
 ````markdown
-# Plan for promptforge
+# Plan for runvil
 
 <plan-reader>
 
-A Rust developer writing a program that runs PromptForge prompts: a CLI, a server, or a test suite. They know traits, enums, `Arc`, `Result`, and async. They have never seen a PromptForge prompt.
+A Rust developer writing a program that runs Runvil prompts: a CLI, a server, or a test suite. They know traits, enums, `Arc`, `Result`, and async. They have never seen a Runvil prompt.
 
 </plan-reader>
 
@@ -643,13 +643,13 @@ A Rust developer writing a program that runs PromptForge prompts: a CLI, a serve
 
 <plan-links>
 
-- PromptForge language guide: https://cppalliance.github.io/promptforge/language/
+- Runvil language guide: https://cppalliance.github.io/runvil/language/
 
 </plan-links>
 
 <page-lib>
 
-Purpose: Teach a Rust developer to run PromptForge prompts from their own program.
+Purpose: Teach a Rust developer to run Runvil prompts from their own program.
 Core idea: A run asks for outside work, and your program answers.
 Need this when: always; start here.
 Builds on: none
@@ -657,7 +657,7 @@ Primer sources: guide/src/language/01-what-a-prompt-is.md, guide/src/language/04
 
 ### Tour: Run a prompt
 - How: How do I parse a prompt and drive its run to a result?
-- What if: What happens when a prompt declares an unsupported `promptforge:` version?
+- What if: What happens when a prompt declares an unsupported `runvil:` version?
 - Why: Why does `Run::step` return before the work is done?
 - Example: parse the one-section greeter prompt, answer its two store effects, and assert the result text.
 - Diagram: none
@@ -677,9 +677,9 @@ Primer sources: guide/src/language/01-what-a-prompt-is.md, guide/src/language/04
 - Diagram: the Harness loop, from step to effects to resume and back.
 
 Owns:
-- item: promptforge::Prompt
-- item: promptforge::Run
-- item: promptforge::RunLimits
+- item: runvil::Prompt
+- item: runvil::Run
+- item: runvil::RunLimits
 
 </page-lib>
 ````
@@ -695,8 +695,8 @@ One `## <Name>` record per item, in batch order. Every line starts with its labe
 
 ## RunLimits
 
-- path: promptforge::RunLimits [code crates/promptforge/src/lib.rs:12]
-- signature: `pub struct RunLimits { /* private fields */ }` [code crates/promptforge/src/lib.rs:12]
+- path: runvil::RunLimits [code crates/runvil/src/lib.rs:12]
+- signature: `pub struct RunLimits { /* private fields */ }` [code crates/runvil/src/lib.rs:12]
 - use: The Harness builds one only to change a resource ceiling, then installs it with `RunContext::limits`. [code crates/example/src/context.rs:88-95]
 - meaning: The ceilings one run honors: model rounds per section, concurrent tasks, response bytes, Lua memory, Lua log checkpoints, and the model receive timeout. [comment crates/example/src/limits.rs:1-9]
 - default: `RunContext::new` installs `RunLimits::new`, whose values are safe as they are. [code crates/example/src/context.rs:40-52]
@@ -719,7 +719,7 @@ A curator's Output file holds two blocks, each tag alone on its line. `<brief-pa
 ## Page
 
 - Core idea: A run asks for outside work, and your program answers.
-- Opening: This crate parses PromptForge prompt files and runs them from your own program. (why: the reader decides in one sentence whether this crate is for them)
+- Opening: This crate parses Runvil prompt files and runs them from your own program. (why: the reader decides in one sentence whether this crate is for them)
 - Primer: A prompt is a Markdown file that mixes prose with Lua, and it reaches models and tools only through your program. (why: every tour runs one)
 - Primer example: the smallest runnable prompt, `greeter`, with its frontmatter, its title, and one section.
 - Where this fits: none
@@ -851,7 +851,7 @@ Two blocks, each tag alone on its line. Number goals as the Goals file does. Wri
 ````markdown
 <goals>
 
-- G0 answered: "This crate parses PromptForge prompt files and runs them from your own program." (line 1)
+- G0 answered: "This crate parses Runvil prompt files and runs them from your own program." (line 1)
 - G1 answered: "Call Run::step, perform each effect, and answer it with Run::resume." (lines 40-42)
 - G2 partial: the page says the version is checked, but not what the run returns when it fails (line 55)
 - G3 missed: the page never says why step returns before the work is done

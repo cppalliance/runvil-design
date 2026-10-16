@@ -1,12 +1,12 @@
 """Step 0: clean and chunk the chat corpus. Deterministic, no model.
 
-Reads promptforge-design/chats/source/, writes promptforge-design/chats/scratch/.
+Reads runvil-design/chats/source/, writes runvil-design/chats/scratch/.
 Never modifies the source files.
 """
 import os, re, sys
 
-SRC = r'c:\Users\Vinnie\src\cursor\promptforge-design\chats\source'
-OUT = r'c:\Users\Vinnie\src\cursor\promptforge-design\chats\scratch'
+SRC = r'c:\Users\Vinnie\src\cursor\runvil-design\chats\source'
+OUT = r'c:\Users\Vinnie\src\cursor\runvil-design\chats\scratch'
 
 NOISE_PREFIXES = (
     'The beginning of the above subagent result',
@@ -25,8 +25,8 @@ SPLITS = {
     '2026-07-28-0207-architect-vibe-planning': [59, 116, 171],
     '2026-07-30-1046-compaction-algorithm-large': [62, 133, 223, 329],
     '2026-08-02-1134-mcp-client-large': [65, 133, 223, 348],
-    '2026-08-09-1058-promptforge-core-large': [78, 155, 248, 374],
-    '2026-08-14-1613-promptforge-core-largest': [79, 208, 326, 375],
+    '2026-08-09-1058-runvil-core-large': [78, 155, 248, 374],
+    '2026-08-14-1613-runvil-core-largest': [79, 208, 326, 375],
 }
 
 def normalize(s):

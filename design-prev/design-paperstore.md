@@ -1,10 +1,10 @@
-<!-- STATUS: crate doc - promptforge-ext-paperstore - behind Cargo feature `paperstore` - the transactional reference case - see design.md for the system -->
+<!-- STATUS: crate doc - runvil-ext-paperstore - behind Cargo feature `paperstore` - the transactional reference case - see design.md for the system -->
 
-# `promptforge-ext-paperstore`: WG21 storage as a transactional extension
+# `runvil-ext-paperstore`: WG21 storage as a transactional extension
 
 ## Scope
 
-This crate is where WG21 domain knowledge enters the system, and it is the only place it enters. It holds the paper schema, the table names, the paper id format, the revision convention, the mailing year index, and the two database backends those tables live in. Nothing above it knows any of that: `promptforge` declares no storage concept at all, `promptforge-gateway` routes LLM traffic, and `promptforge-mcp` binds a canonical tool name to the string `"paperstore"` without knowing what a paper is.
+This crate is where WG21 domain knowledge enters the system, and it is the only place it enters. It holds the paper schema, the table names, the paper id format, the revision convention, the mailing year index, and the two database backends those tables live in. Nothing above it knows any of that: `runvil` declares no storage concept at all, `runvil-gateway` routes LLM traffic, and `runvil-mcp` binds a canonical tool name to the string `"paperstore"` without knowing what a paper is.
 
 A deployment that does not link this crate is a working deployment. That is the load-bearing test of the domain boundary from [design.md](design.md), and this crate is the thing the test is about: with the `paperstore` feature off there is no schema, no connection, no `sqlx` in the dependency graph, no WG21 vocabulary anywhere in the binary, and every prompt that names no `paper_*` word runs unchanged. A prompt that does name one fails startup validation with an unbound canonical name, which is the correct failure and the only one.
 
@@ -144,7 +144,7 @@ self._conn.executescript(_SCHEMA)
 
 `design.md` records this accurately: the current Python backend sets only a busy timeout and its comment asserts a single-process assumption. The comment is at the top of the module, and it is worth quoting because it is the assumption this crate breaks: `Designed for single-threaded access from the main coroutine in jobs.py. No WAL or connection pool is needed because workers never touch the DB.` A second comment at the connection explains `check_same_thread=False` as a concession to the preview server handing the backend to Werkzeug worker threads, and asserts that concurrent reads are safe because Python's `sqlite3` is built SERIALIZED while writes stay inside one process.
 
-Both comments are true of the Python deployment and both stop being true the moment `promptforge-mcp` is a second process on the same file. WAL is therefore not an optimization here; it is a correctness precondition, and it is `## The SQLite backend`.
+Both comments are true of the Python deployment and both stop being true the moment `runvil-mcp` is a second process on the same file. WAL is therefore not an optimization here; it is a correctness precondition, and it is `## The SQLite backend`.
 
 ### Is there a Postgres backend
 
@@ -199,7 +199,7 @@ Not this crate's problem to fix, and worth recording because the next reader of 
 
 ```toml
 [dependencies]
-promptforge = { path = "../promptforge" }
+runvil = { path = "../runvil" }
 sqlx = { version = "=0.9.0", default-features = false, features = [
     "runtime-tokio",
     "tls-rustls-ring-webpki",
@@ -234,7 +234,7 @@ One more consequence of 0.9.0 to design around. The `query*` functions now take 
 
 ## The storage trait
 
-The trait lives here. `promptforge` declares no storage concept at all, so nothing in the core imports it, nothing in the core names a table, and an extension backed by a REST API, a file tree, or nothing persistent is equally valid.
+The trait lives here. `runvil` declares no storage concept at all, so nothing in the core imports it, nothing in the core names a table, and an extension backed by a REST API, a file tree, or nothing persistent is equally valid.
 
 ```rust
 /// A paper id in paperstore's canonical form. Constructed only through
@@ -333,7 +333,7 @@ Four notes on the shape.
 
 `markdown` is a windowed read returning `MdWindow { text, start_line, end_line, total_lines }` rather than a whole-document `String`. The Python `get_paper_md` returns the entire markdown, and its two agent-facing wrappers, `PaperstoreTools.read_file` and `cli.paper_tools.make_read_paper_tool`, both immediately window it and clamp at 200 and 500 lines. The window is the real interface and the full read is an implementation detail of it, so the trait exposes the interface. A paper is up to several thousand lines of untrusted text and an unwindowed read is a way to fill a context in one tool call.
 
-Tension: a second storage-shaped extension duplicates this trait rather than sharing it. This is a real cost and it is accepted deliberately. `promptforge` declares no storage concept, so there is no shared place for `Store` to live; a second extension that wanted a database would write its own `Store` and its own `Tx`, and the two would be structurally similar and formally unrelated. The alternative is a `promptforge-storage` crate that both depend on, and it is worse in a specific way rather than merely unnecessary: a shared trait acquires the union of two domains' needs, so paperstore's `PaperId` and the other extension's key type both end up in it, or it becomes generic over a key and stops being readable. The cost of duplication is one file of roughly sixty lines of trait declarations. The cost of premature sharing is a fourth crate in the workspace whose changes break two extensions at once. Duplicate.
+Tension: a second storage-shaped extension duplicates this trait rather than sharing it. This is a real cost and it is accepted deliberately. `runvil` declares no storage concept, so there is no shared place for `Store` to live; a second extension that wanted a database would write its own `Store` and its own `Tx`, and the two would be structurally similar and formally unrelated. The alternative is a `runvil-storage` crate that both depend on, and it is worse in a specific way rather than merely unnecessary: a shared trait acquires the union of two domains' needs, so paperstore's `PaperId` and the other extension's key type both end up in it, or it becomes generic over a key and stops being readable. The cost of duplication is one file of roughly sixty lines of trait declarations. The cost of premature sharing is a fourth crate in the workspace whose changes break two extensions at once. Duplicate.
 
 ## The SQLite backend
 
@@ -358,7 +358,7 @@ fn sqlite_options(path: &Path, busy_timeout: Duration) -> SqliteConnectOptions {
 }
 ```
 
-- `journal_mode = WAL` is **required**, not tuned. The Python backend runs in the default rollback journal, where a writer takes an exclusive lock over the whole database and every reader blocks for the length of the write. `promptforge-mcp` is a second process on the same file, alongside the Python CLI, the preview server, and any Django-side reader, so without WAL a single section-long write transaction stops the entire Python pipeline. WAL gives one writer concurrent with many readers, and each reader sees a stable snapshot from the moment its transaction began. `journal_mode` is persistent in the database header rather than per-connection, so the first connection this crate opens converts the file and every later process inherits it, including the Python one, which is a silent improvement to the existing stack and the reason this change is safe to make from here.
+- `journal_mode = WAL` is **required**, not tuned. The Python backend runs in the default rollback journal, where a writer takes an exclusive lock over the whole database and every reader blocks for the length of the write. `runvil-mcp` is a second process on the same file, alongside the Python CLI, the preview server, and any Django-side reader, so without WAL a single section-long write transaction stops the entire Python pipeline. WAL gives one writer concurrent with many readers, and each reader sees a stable snapshot from the moment its transaction began. `journal_mode` is persistent in the database header rather than per-connection, so the first connection this crate opens converts the file and every later process inherits it, including the Python one, which is a silent improvement to the existing stack and the reason this change is safe to make from here.
 - `synchronous = NORMAL` is the correct pairing with WAL. `FULL` fsyncs on every commit and buys durability across a power failure; `NORMAL` fsyncs at checkpoint and can lose the most recent commits in a power loss while never corrupting the database. Discard-and-rerun makes lost recent commits a re-run rather than a data loss, so the fsync is spent for nothing. Not `OFF`, which can corrupt.
 - `busy_timeout` defaults to **30000 milliseconds**, configurable, against the Python backend's 5000. See `## The single-writer constraint` for why even thirty seconds is the wrong shape for the real problem.
 - `foreign_keys = ON` even though the current schema declares none, so that the first foreign key anyone adds is enforced from the day it lands rather than from the day someone remembers this pragma.
@@ -425,7 +425,7 @@ fn pg_pool(cfg: &PgConfig) -> PgPoolOptions {
 
 Two session settings are set on every connection through `PgConnectOptions::options`, and one of them is a mitigation rather than a tuning knob:
 
-- `application_name = promptforge` so `pg_stat_activity` attributes a long transaction to this service rather than to an anonymous client. Note that 0.9.0 changed `PgConnectOptions::options()` to escape its input automatically, so a value with a space no longer needs hand-quoting.
+- `application_name = runvil` so `pg_stat_activity` attributes a long transaction to this service rather than to an anonymous client. Note that 0.9.0 changed `PgConnectOptions::options()` to escape its input automatically, so a value with a space no longer needs hand-quoting.
 - `idle_in_transaction_session_timeout` set above the longest expected section and below the run deadline. **This is what reaps a transaction that no client will ever close.** The in-process case is already covered: `SectionEvent::RunEnded` fires on every path out of `run`, so a failed run rolls back and returns its connection without help from the server. What no client-side signal covers is the process that dies before its drop guard runs, or a connection whose socket is lost, and this setting is the backstop for those. SQLite has no equivalent, so there the same case is cleared by restarting the process. See `## Verdict on the trait`.
 
 ### Schema ownership and migrations
@@ -435,7 +435,7 @@ Migrations are SQL files under `migrations/`, embedded by `sqlx::migrate!` so th
 ```toml
 [extensions.paperstore]
 backend = "postgres"
-url = "postgres://promptforge@10.0.0.11/paperstore"
+url = "postgres://runvil@10.0.0.11/paperstore"
 migrate = false
 max_connections = 16
 busy_timeout = "30s"
@@ -778,7 +778,7 @@ Not included, and each for a reason:
 
 - The whole ingestion surface: `put_source`, `write_paper_md`, `write_agora_json`, `write_paper_image`, `reconcile`, `advance_status`, `fail_paper`. Python owns the pipeline, and a prompt that could advance a pipeline stage would be a second scheduler.
 - `paper_clear`. Replace-all makes it redundant: `paper_rows` with an empty array is the clear, which is one function fewer and one fewer way for a clear and a write to disagree.
-- `paper_search`. Search is `promptforge-ext-search`, and a full-text search over paper bodies here would be a second search provider under a different name.
+- `paper_search`. Search is `runvil-ext-search`, and a full-text search over paper bodies here would be a second search provider under a different name.
 - Every path accessor. `get_paper_md_path`, `get_debug_md_path`, `get_source_path`: a prompt emits to a declared output name and never sees a path, so an extension handing one out is handing a prompt something `design.md` spent a non-goal removing.
 
 ## Surfaces
@@ -1010,12 +1010,12 @@ Every test below runs without a database server except the Postgres half of the 
 ## Open
 
 - The exact sqlx 0.9.0 API for opening a transaction with `BEGIN IMMEDIATE` rather than the default deferred begin. `## The SQLite backend` requires it and the requirement does not depend on the API: if no suitable entry point exists in the pinned version, `Store::begin` checks out a pooled connection, executes the statement directly, and drives `COMMIT` and `ROLLBACK` by hand, which is more code and the same semantics. This is the one place in this document where an implementation detail is unverified rather than undecided.
-- Whether a prompt naming a table absent from this deployment's allowlist should be catchable before the run. It is not, now that a table name lives in a prompt's Lua rather than in its frontmatter: nothing outside a running Lua block knows which tables a prompt will name, and the failure surfaces at the first `paper_rows` call as `UnknownTable`. Boot-time detection would need the core to hand this crate the text of every prompt's Lua for scanning, which is worse than the problem. A partial answer available cheaply is a lint in `promptforge-cli validate` that greps prompt sources for `paper.rows{ table = "..." }` string literals and warns on an unknown one, which catches the typo case and cannot catch a computed name.
+- Whether a prompt naming a table absent from this deployment's allowlist should be catchable before the run. It is not, now that a table name lives in a prompt's Lua rather than in its frontmatter: nothing outside a running Lua block knows which tables a prompt will name, and the failure surfaces at the first `paper_rows` call as `UnknownTable`. Boot-time detection would need the core to hand this crate the text of every prompt's Lua for scanning, which is worse than the problem. A partial answer available cheaply is a lint in `runvil-cli validate` that greps prompt sources for `paper.rows{ table = "..." }` string literals and warns on an unknown one, which catches the typo case and cannot catch a computed name.
 - Whether the write-buffering escape hatch replaces the section-long transaction on SQLite. Buffering a run's writes in memory and applying them in one short transaction at `Complete` would dissolve the single-writer constraint, the pooled-connection leak, and the fan-out savepoint problem at once, and it would cost read-your-writes routing through the buffer and unbounded memory on a large section. It is not proposed here because `design.md` specifies the transaction mapping and a change to it is a change to that document rather than to this one. It is the strongest argument available if concurrent writing runs on SQLite turn out to be needed.
 - Whether the eleven zero-or-one integer flag columns should become real booleans in Postgres. Keeping them integers preserves what the Django mirror reads and imports SQLite's type poverty into a database that has a boolean type. The answer depends on the mirror code, which is in `wg21-website` and unreadable from here.
 - Whether `paper_md` should also be reachable from Lua through a guarded accessor that returns a handle rather than text. It would let a prompt author window a paper deterministically without putting untrusted text where `{{ state.x }}` substitution can reach it, and it would add a fourth thing to the language for one use case.
 - Whether the twenty-eight tables should be reduced before the Postgres migration is written. Seven of them, `claims`, `evidence`, `external_citations`, `questions`, `rhetoric`, `caput_causae`, and `citation_audit`, are documented in `CLAUDE.md` as no longer written by any production pipeline, and two more, `candidates` and `signals`, have no primary key and no caller. Migrating nine dead tables to Postgres to keep parity with a SQLite schema nobody writes is work with no reader, and deleting them is a decision about the Python side that this crate does not own.
 - Whether the indexes the Python schema lacks should be added here. Nine `paper_id` prefixes with no index mean every replace-all `DELETE` is a full table scan, which is invisible at ten thousand papers and is not free. Adding them changes the SQLite schema for the Python side too, which is the same kind of cross-boundary change as the WAL conversion and wants the same deliberateness.
-- Whether `RunEnded` should also evict the run's entry from `Inner::counts`. Nothing evicts it today, so a long-lived process accumulates one small map per run forever, and the arm that ends a run is the obvious place to drop it. What makes it a question rather than an edit is ordering: `summarize` is what reads that map, `RunEnded` fires from a drop guard on the way out of `run`, and this document does not know whether the core asks for its summary before that guard runs. If it asks after, evicting there returns `None` for every run and the counts are silently lost. The alternatives are a retention window keyed on run end, matching what the run registry in `crates/promptforge-mcp-server/design-mcp-server.md` already does for its own records, or an explicit statement in `design-core-residue.md` that `summarize` is called before the guard. Unresolved because the cheap fix is the one that can silently drop a reported number.
+- Whether `RunEnded` should also evict the run's entry from `Inner::counts`. Nothing evicts it today, so a long-lived process accumulates one small map per run forever, and the arm that ends a run is the obvious place to drop it. What makes it a question rather than an edit is ordering: `summarize` is what reads that map, `RunEnded` fires from a drop guard on the way out of `run`, and this document does not know whether the core asks for its summary before that guard runs. If it asks after, evicting there returns `None` for every run and the counts are silently lost. The alternatives are a retention window keyed on run end, matching what the run registry in `crates/runvil-mcp-server/design-mcp-server.md` already does for its own records, or an explicit statement in `design-core-residue.md` that `summarize` is called before the guard. Unresolved because the cheap fix is the one that can silently drop a reported number.
 
 *2026-07-25 - design-paperstore*

@@ -6,7 +6,7 @@
 
 Plan: c:/Users/Vinnie/.cursor/plans/file-backed_store_2de81d2a.plan.md
 Step: dev-runner-wire
-Worktree: c:/Users/Vinnie/src/cursor/promptforge
+Worktree: c:/Users/Vinnie/src/cursor/runvil
 
 Read the plan. Implement step 2 only: wire the dev runner to use FileStore instead of memory + post-run dump.
 
@@ -18,7 +18,7 @@ Key requirements:
 - The `dump/` module simplifies or dies
 - Follow binding rules: no unwrap in library code, propagate errors, no new deps
 
-Run: cargo fmt --all --check && cargo clippy -p promptforge-dev --all-targets --all-features -- -D warnings && cargo test -p promptforge-dev
+Run: cargo fmt --all --check && cargo clippy -p runvil-dev --all-targets --all-features -- -D warnings && cargo test -p runvil-dev
 
 Do not commit. Leave changes in the worktree. Return under 500 tokens: done or blocked, files touched, test command.
 

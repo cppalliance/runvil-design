@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-use promptforge_api_types::capabilities::CapabilityId;
+use runvil_api_types::capabilities::CapabilityId;
 use serde_json::json;
 use shared_progress::{EventState, ProgressHub};
 

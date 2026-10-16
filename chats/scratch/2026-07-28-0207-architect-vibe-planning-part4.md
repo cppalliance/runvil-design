@@ -241,13 +241,13 @@ Todos:
 
 ### blur compression report
 
-*Write a research-type report in promptforge covering the measured prompt degradation, its mechanism, the plan-as-source maintenance architecture, the compression experiment, and the full prior-art survey for building a compressor.*
+*Write a research-type report in runvil covering the measured prompt degradation, its mechanism, the plan-as-source maintenance architecture, the compression experiment, and the full prior-art survey for building a compressor.*
 
 # Semantic Blur and Prompt Compression
 
 ## What gets written
 
-One file: `promptforge/semantic-blur-and-prompt-compression.md`. Promptforge is a permanent repo, so this is a direct write, not cabinet staging. It supersedes the working note `cabinet/_output/report-semantic-blur.md` and the rough draft `cabinet/_output/analysis-prompt-bloat.md`, both of which I will flag at the end rather than touch.
+One file: `runvil/semantic-blur-and-prompt-compression.md`. Runvil is a permanent repo, so this is a direct write, not cabinet staging. It supersedes the working note `cabinet/_output/report-semantic-blur.md` and the rough draft `cabinet/_output/analysis-prompt-bloat.md`, both of which I will flag at the end rather than touch.
 
 Report type is **Research / scientific** (rulebook section 2, type 3): abstract then IMRaD, results held separate from interpretation, method reproducible, question stated up front and answered exactly in the discussion.
 
@@ -451,11 +451,11 @@ Todos:
 
 ## What gets built
 
-A Rust CLI at `promptforge/study/make-dataset/blur-gen/` that reads a markdown file, splits it into sections, and generates blurred versions at multiple pass levels by calling the Anthropic Messages API. Output is a JSONL file of training pairs.
+A Rust CLI at `runvil/study/make-dataset/blur-gen/` that reads a markdown file, splits it into sections, and generates blurred versions at multiple pass levels by calling the Anthropic Messages API. Output is a JSONL file of training pairs.
 
 ## Input
 
-[promptforge/study/make-dataset/peter.md](c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\peter.md) - 29 lines of dense Peter Dimov prose about the Boost Software License. For this validation run, the whole file is one section (it has no headings to split on).
+[runvil/study/make-dataset/peter.md](c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\peter.md) - 29 lines of dense Peter Dimov prose about the Boost Software License. For this validation run, the whole file is one section (it has no headings to split on).
 
 ## Output
 
@@ -573,7 +573,7 @@ Match by **basename**, not path. `diligence.md` is `diligence.md` whether it sit
 
 ## What gets built
 
-A Rust crate `first-gen` in `promptforge/study/make-dataset/`, sibling to `blur-gen`. The two are one pipeline: first-gen produces the sharp targets, blur-gen blurs them.
+A Rust crate `first-gen` in `runvil/study/make-dataset/`, sibling to `blur-gen`. The two are one pipeline: first-gen produces the sharp targets, blur-gen blurs them.
 
 ```mermaid
 flowchart TD
@@ -599,7 +599,7 @@ flowchart TD
 
 4. **Find the global first generation.** For each current tool, union its match-set basenames, look up all birth records across all four repos, and select the one with the earliest author date. That record names the origin repo, commit, and birth path.
 
-5. **Extract v1.** `git -C <origin_repo> show <birth_commit>:<birth_path>` gives the first-generation content. Write it to `promptforge/study/make-dataset/first-gen/<basename>`.
+5. **Extract v1.** `git -C <origin_repo> show <birth_commit>:<birth_path>` gives the first-generation content. Write it to `runvil/study/make-dataset/first-gen/<basename>`.
 
 6. **Emit the manifest.** One JSONL line per tool: `{basename, current_repo, current_path, origin_repo, origin_path, birth_commit, birth_date, repos_seen, cross_repo, flags}`.
 
@@ -652,7 +652,7 @@ Prove the one untested link in the generation path: the two gates (execution-equ
 
 ## What gets built
 
-A `pairgen` Rust crate in `promptforge/study/make-dataset/`, plus two small fixes to existing tools. `pairgen` runs the full path for each input: sharpen, strip, gate, emit.
+A `pairgen` Rust crate in `runvil/study/make-dataset/`, plus two small fixes to existing tools. `pairgen` runs the full path for each input: sharpen, strip, gate, emit.
 
 ```mermaid
 flowchart TD
@@ -668,7 +668,7 @@ flowchart TD
 ## The two fixes, folded in as prerequisites
 
 1. **Em-dash strip** (in `pairgen`, applied to the sharpened target): outside code fences and inline backticks, replace U+2014 with " - ", U+2013 with "-", prose "--" with "-", and collapse doubled spaces. Code and CLI flags are protected. This is the one mechanical rule.
-2. **blur-gen degenerate-input guard** ([blur-gen/src/main.rs](c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\blur-gen\src\main.rs)): skip sections under a small word floor, and treat a pass whose output matches an assistant-boilerplate pattern ("your message came through empty", "I'd be glad to help") as a failed pass rather than writing it. This is the bug that produced the sec1 garbage.
+2. **blur-gen degenerate-input guard** ([blur-gen/src/main.rs](c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\blur-gen\src\main.rs)): skip sections under a small word floor, and treat a pass whose output matches an assistant-boilerplate pattern ("your message came through empty", "I'd be glad to help") as a failed pass rather than writing it. This is the bug that produced the sec1 garbage.
 
 ## The gates, direct API, no Cursor harness
 
@@ -702,7 +702,7 @@ Proves: the gates run, discriminate real meaning changes from safe tightening, a
 
 ## Crates and reuse
 
-`pairgen` reuses the Anthropic call pattern from [sharpen/src/main.rs](c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\sharpen\src\main.rs): `reqwest`, `serde`, `tokio`, `clap`, `anyhow`. Three API calls per input (sharpen, gate1, gate2), sequential, with the existing retry and backoff.
+`pairgen` reuses the Anthropic call pattern from [sharpen/src/main.rs](c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\sharpen\src\main.rs): `reqwest`, `serde`, `tokio`, `clap`, `anyhow`. Three API calls per input (sharpen, gate1, gate2), sequential, with the existing retry and backoff.
 
 Todos:
 
@@ -1431,7 +1431,7 @@ Prove the one untested link in the generation path: the two gates (execution-equ
 
 ## What gets built
 
-A `pairgen` Rust crate in `promptforge/study/make-dataset/`, plus two small fixes to existing tools. `pairgen` runs the full path for each input: sharpen, strip, gate, emit.
+A `pairgen` Rust crate in `runvil/study/make-dataset/`, plus two small fixes to existing tools. `pairgen` runs the full path for each input: sharpen, strip, gate, emit.
 
 ```mermaid
 flowchart TD
@@ -1498,14 +1498,14 @@ Todos:
 
 ## Context for a fresh session
 
-This plan picks up from the completed [Pair Pipeline Validation](promptforge/study/make-dataset/pairgen-validation.md). That run proved:
+This plan picks up from the completed [Pair Pipeline Validation](runvil/study/make-dataset/pairgen-validation.md). That run proved:
 
 - **Gate 1 (execution-equivalence) works**: caught 5/5 negative controls and 6 genuine sharpen-induced meaning changes
 - **Gate 2 (checklist compliance) is too strict**: only 2 of 13 gate1-passing targets survived; dominant killer is the "empty/missing/malformed case" item (10/11 failures)
 - **Smaller inputs yield more**: the two kept pairs were 57w and 71w bloated; gate1 failures clustered on larger sections
 - **Yield under both-gates-pass: 10%** (2/20)
 
-The pipeline lives at `promptforge/study/make-dataset/`. Key artifacts:
+The pipeline lives at `runvil/study/make-dataset/`. Key artifacts:
 
 - `pairgen/` - Rust crate: sharpen via instrument, em-dash strip, gate1, gate2, emit JSONL. CLI: `--input <jsonl> --out <jsonl> --model claude-opus-4-8 --effort high --instrument sharpen-instrument.md`
 - `blur-gen/` - Rust crate: blur sharp text through N chained API rewrites. CLI: `--input <md> --output <jsonl> --passes 10 --variants 2`
@@ -1529,7 +1529,7 @@ Input JSONL record format for pairgen:
 
 - **Subagent per experiment.** Main context dispatches each experiment to a subagent. The subagent receives: experiment spec, file paths, CLI commands, success criteria. It runs the experiment, writes results to files, returns a one-line summary. Main context reads result files, appends to the log, commits.
 - **Git commit at every checkpoint.** After each experiment completes, stage the new/changed files and commit with message `exp-N: <name> - <finding>`. This saves progress even if the session dies.
-- **Experiment log.** Append-only markdown file at `promptforge/study/make-dataset/experiment-log.md`. Each experiment gets a section with hypothesis, method, results, finding, and commit hash. This file is the reload point for a fresh context.
+- **Experiment log.** Append-only markdown file at `runvil/study/make-dataset/experiment-log.md`. Each experiment gets a section with hypothesis, method, results, finding, and commit hash. This file is the reload point for a fresh context.
 - **No edits to existing tools unless specified.** Only E2 requires a pairgen code change (add `--gate2-mode`).
 
 ## Pre-flight (Step 0)
@@ -1537,7 +1537,7 @@ Input JSONL record format for pairgen:
 Before any experiment:
 
 1. Read `experiment-log.md`. If it exists and has completed experiments, skip those.
-2. `cd promptforge/study/make-dataset && cargo build --release --manifest-path pairgen/Cargo.toml && cargo test --release --manifest-path pairgen/Cargo.toml` - confirm pairgen builds and tests pass.
+2. `cd runvil/study/make-dataset && cargo build --release --manifest-path pairgen/Cargo.toml && cargo test --release --manifest-path pairgen/Cargo.toml` - confirm pairgen builds and tests pass.
 3. Verify `ANTHROPIC_API_KEY` is set.
 4. Add to `.gitignore`: `experiments/` (for per-experiment scratch).
 5. Create `experiments/` dir if absent.
@@ -1665,8 +1665,8 @@ Each entry in `experiment-log.md`:
 
 If this plan is loaded into a fresh context:
 
-1. Read `promptforge/study/make-dataset/experiment-log.md` to see which experiments are done.
-2. Read `promptforge/study/make-dataset/pairgen-validation.md` for baseline context.
+1. Read `runvil/study/make-dataset/experiment-log.md` to see which experiments are done.
+2. Read `runvil/study/make-dataset/pairgen-validation.md` for baseline context.
 3. Skip completed experiments. Resume from the first incomplete one.
 4. The `experiments/` directory contains all scripts, inputs, and outputs.
 5. All tools are pre-built Rust crates in `pairgen/` and `blur-gen/`. Rebuild with `cargo build --release --manifest-path <crate>/Cargo.toml`.
@@ -1691,13 +1691,13 @@ Todos:
 
 ## Goal
 
-Produce the stage-1 "plain English" compression signal from the last discussion: take sharp human prose, blur it to manufacture a verbose input, and keep the (blurred -> original) pair only when the blur preserved all of the original's meaning. Two sources, two pilots of ~100 passages each, run concurrently in subagents, each with its own log, all kept distinct from the prompt dataset in [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiment-log.md) and [dataset-clean.jsonl](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/dataset-clean.jsonl).
+Produce the stage-1 "plain English" compression signal from the last discussion: take sharp human prose, blur it to manufacture a verbose input, and keep the (blurred -> original) pair only when the blur preserved all of the original's meaning. Two sources, two pilots of ~100 passages each, run concurrently in subagents, each with its own log, all kept distinct from the prompt dataset in [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiment-log.md) and [dataset-clean.jsonl](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/dataset-clean.jsonl).
 
 Decisions locked: pilot scale (~100 each); holistic directional gate (reuse gate1, no new code).
 
 ## Distinct layout
 
-New area under `promptforge/study/make-dataset/plain-english/`, separate from `experiments/`:
+New area under `runvil/study/make-dataset/plain-english/`, separate from `experiments/`:
 
 - `plain-english/arxiv/` -> `arxiv-log.md`, `dataset-arxiv.jsonl`, intermediates
 - `plain-english/wikipedia/` -> `wikipedia-log.md`, `dataset-wikipedia.jsonl`, intermediates
@@ -1731,10 +1731,10 @@ Why the gate is directional: input is the blur, target is the human original. If
 
 - `fetch-arxiv.py`: query the arXiv API (`export.arxiv.org/api/query`) across categories (cs, math, physics, q-bio, econ, stat) for vocabulary breadth; parse the Atom feed; take the abstract; filter to 80-250 words; dedupe; emit `{source, id, text}` JSONL (~100). Polite delay between queries.
 - `fetch-wikipedia.py`: hit the REST summary endpoint (`en.wikipedia.org/api/rest_v1/page/random/summary`) with a proper User-Agent; take the `extract`; filter to 60-200 words; dedupe; emit ~100. Small delay per request.
-- `blur-sharded.sh <passages.jsonl> <out-blur.jsonl> <shards>`: distribute passages round-robin into N markdown shard files, one passage per section under a synthetic `## pNNNN` heading; launch N [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/blur-gen/src/main.rs) processes (`--passes 3 --variants 1`); wait; concatenate. Mirrors the concurrency of [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/run-sharded.sh).
+- `blur-sharded.sh <passages.jsonl> <out-blur.jsonl> <shards>`: distribute passages round-robin into N markdown shard files, one passage per section under a synthetic `## pNNNN` heading; launch N [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/blur-gen/src/main.rs) processes (`--passes 3 --variants 1`); wait; concatenate. Mirrors the concurrency of [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/run-sharded.sh).
 - `assemble.py`: strip the leading `## pNNNN` heading from `original` and `blurred`; build pairgen control records `{kind:control, source, a:original, b:blurred}` for the gate; after gating, join verdicts back and emit `dataset-NAME.jsonl` of kept pairs `{type:"blur-to-original", source, input:blurred, target:original, input_words, target_words, pass}`; also dump 3-5 gate FAIL examples for the log.
 
-Reused as-is: [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/blur-gen/src/main.rs) (model IDs already fixed), [pairgen](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/pairgen/src/main.rs) control path runs gate1(a,b) directly (no new code), [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/run-sharded.sh) for the 4-shard gate stage.
+Reused as-is: [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/blur-gen/src/main.rs) (model IDs already fixed), [pairgen](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/pairgen/src/main.rs) control path runs gate1(a,b) directly (no new code), [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/run-sharded.sh) for the 4-shard gate stage.
 
 ## Concurrency and git safety
 
@@ -1742,11 +1742,11 @@ The two dataset pipelines run in two subagents launched in one message (concurre
 
 ## Logs (one per dataset, distinct)
 
-`arxiv-log.md` and `wikipedia-log.md`, same shape as [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiment-log.md): source and categories, count fetched, blur expansion (original->blurred), gate pass rate, kept-pair count, median input/target words, 3 sample kept pairs, 3 sample gate-FAIL drops (what "loss" looked like), commit. These are the reload points for each dataset.
+`arxiv-log.md` and `wikipedia-log.md`, same shape as [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiment-log.md): source and categories, count fetched, blur expansion (original->blurred), gate pass rate, kept-pair count, median input/target words, 3 sample kept pairs, 3 sample gate-FAIL drops (what "loss" looked like), commit. These are the reload points for each dataset.
 
 ## gitignore
 
-Add to [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/.gitignore): ignore intermediates under `plain-english/` (`*.shard*`, `*.plog`, `*.run.log`, `blur-*.jsonl`, `gate-*.jsonl`, `*.raw.jsonl`) but keep scripts (`.py`, `.sh`), logs (`.md`), and `dataset-*.jsonl` tracked.
+Add to [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/.gitignore): ignore intermediates under `plain-english/` (`*.shard*`, `*.plog`, `*.run.log`, `blur-*.jsonl`, `gate-*.jsonl`, `*.raw.jsonl`) but keep scripts (`.py`, `.sh`), logs (`.md`), and `dataset-*.jsonl` tracked.
 
 ## Estimated cost and time
 
@@ -1785,7 +1785,7 @@ Baseline to beat: aggressive instrument on web was gate1 23% at 0.86 ratio. Targ
 
 ## Key new artifacts
 
-- `relaxed/compression-instrument.md`: derived from [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/sharpen-instrument.md). KEEP the cut/clarify/voice/preserve rules (cut every line whose removal changes no behavior; delete hedges; one imperative per line; use one term per concept; preserve every existing number, name, condition, specific). REMOVE every add-rigor rule (quantify every quantity, define the empty/missing/malformed case, give every hard rule an escape hatch, ask for above-baseline effort, add self-verification, etc.). Add one binding rule: "Add nothing not present in the source; if a specific is absent, leave it absent." Strip the "## Checklist" (gate2 is off).
+- `relaxed/compression-instrument.md`: derived from [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/sharpen-instrument.md). KEEP the cut/clarify/voice/preserve rules (cut every line whose removal changes no behavior; delete hedges; one imperative per line; use one term per concept; preserve every existing number, name, condition, specific). REMOVE every add-rigor rule (quantify every quantity, define the empty/missing/malformed case, give every hard rule an escape hatch, ask for above-baseline effort, add self-verification, etc.). Add one binding rule: "Add nothing not present in the source; if a specific is absent, leave it absent." Strip the "## Checklist" (gate2 is off).
 - `relaxed/cut-tighten.txt`: the TIGHTEN override - "Apply the rules above to compress the text below. Remove filler, hedging, redundancy, restated context, meta-commentary, and rationale that does not carry a decision. Preserve every instruction, condition, number, name, and specific exactly. Add nothing not present. Output only the compressed text, no preamble."
 
 ## Pipeline (per source)
@@ -1810,16 +1810,16 @@ Note: pairgen's normal "pair" path already does sharpen then gate1 then (gate2 o
 
 ## Inputs
 
-- **Web**: reuse the downloaded CSV at `experiments/e3-shitprompts/awesome-prompts.csv` via [parse-csv.py](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/e3-shitprompts/parse-csv.py); take ~50 in the 50-500 word band. Emit `{kind:pair, source, bloated}`.
-- **Plans**: write `relaxed/sample-plans.py` - sample ~50 files from [plans/source](file:///c%3A/Users/Vinnie/src/cursor/plans/source) spread across size bands, strip the leading YAML frontmatter block, then slice into ~150-word chunks with [slicer.py](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/slicer.py) (gate is more reliable on shorter units). Expect ~100-150 chunk records.
+- **Web**: reuse the downloaded CSV at `experiments/e3-shitprompts/awesome-prompts.csv` via [parse-csv.py](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/e3-shitprompts/parse-csv.py); take ~50 in the 50-500 word band. Emit `{kind:pair, source, bloated}`.
+- **Plans**: write `relaxed/sample-plans.py` - sample ~50 files from [plans/source](file:///c%3A/Users/Vinnie/src/cursor/plans/source) spread across size bands, strip the leading YAML frontmatter block, then slice into ~150-word chunks with [slicer.py](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/slicer.py) (gate is more reliable on shorter units). Expect ~100-150 chunk records.
 
 ## One small shared-script change
 
-Parameterize the instrument in [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/run-sharded.sh): change `INSTR=sharpen-instrument.md` to `INSTR="${INSTR:-sharpen-instrument.md}"` so a caller can export `INSTR=relaxed/compression-instrument.md`. Backward compatible. Pass `--tighten-file relaxed/cut-tighten.txt --gate2-mode off` through the existing `$EXTRA`.
+Parameterize the instrument in [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/run-sharded.sh): change `INSTR=sharpen-instrument.md` to `INSTR="${INSTR:-sharpen-instrument.md}"` so a caller can export `INSTR=relaxed/compression-instrument.md`. Backward compatible. Pass `--tighten-file relaxed/cut-tighten.txt --gate2-mode off` through the existing `$EXTRA`.
 
 ## Concurrency and git
 
-Two subagents (web, plans) launched in one message, each running its pipeline from `promptforge/study/make-dataset/` and writing only under `relaxed/<source>/`. Subagents do no git and return one line. Main commits sequentially (web, then plans) to avoid an index race.
+Two subagents (web, plans) launched in one message, each running its pipeline from `runvil/study/make-dataset/` and writing only under `relaxed/<source>/`. Subagents do no git and return one line. Main commits sequentially (web, then plans) to avoid an index race.
 
 ## Metrics and logs
 
@@ -1827,7 +1827,7 @@ Per source, `relaxed/<source>/<source>-relaxed-log.md`: inputs, gate1 PASS rate,
 
 ## gitignore
 
-Add under [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/.gitignore): ignore `relaxed/**/*.shard*`, `*.plog`, `*.run.log`, `relaxed/**/in-*.jsonl`, `relaxed/**/out-*.jsonl`; keep `relaxed/**/*.py`, `*.md`, `*.txt`, and re-include `!relaxed/**/dataset-*.jsonl` (the top-level `dataset*.jsonl` rule otherwise catches them, the same trap hit last run).
+Add under [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/.gitignore): ignore `relaxed/**/*.shard*`, `*.plog`, `*.run.log`, `relaxed/**/in-*.jsonl`, `relaxed/**/out-*.jsonl`; keep `relaxed/**/*.py`, `*.md`, `*.txt`, and re-include `!relaxed/**/dataset-*.jsonl` (the top-level `dataset*.jsonl` rule otherwise catches them, the same trap hit last run).
 
 ## Estimated cost and time
 
@@ -1865,12 +1865,12 @@ Supersedes the cut-only compressor plan. That approach used the raw bloated plan
 
 ## Distinct layout
 
-- `promptforge/study/make-dataset/journal.md` - the discoveries journal (study-wide, new).
-- `promptforge/study/make-dataset/plans-deblur/` - `plans-deblur-log.md`, `dataset-plans-deblur.jsonl`, intermediates. Distinct from the prompt, arXiv, and Wikipedia datasets.
+- `runvil/study/make-dataset/journal.md` - the discoveries journal (study-wide, new).
+- `runvil/study/make-dataset/plans-deblur/` - `plans-deblur-log.md`, `dataset-plans-deblur.jsonl`, intermediates. Distinct from the prompt, arXiv, and Wikipedia datasets.
 
 ## Step 0: Seed the discoveries journal
 
-Create `journal.md` and seed it with the conceptual findings above plus the refuted levers (blur-harder: flat expansion, gate collapse; web prompts: instrument invents specifics; plain-prose blur: weak compression but valid deblur signal). Format: dated entries, one observation per bullet, each tagged with the evidence. This is distinct from [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiment-log.md) (per-run numbers) and [findings.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/findings.md) (chosen config). Every later step appends its conceptual takeaway here, not just numbers.
+Create `journal.md` and seed it with the conceptual findings above plus the refuted levers (blur-harder: flat expansion, gate collapse; web prompts: instrument invents specifics; plain-prose blur: weak compression but valid deblur signal). Format: dated entries, one observation per bullet, each tagged with the evidence. This is distinct from [experiment-log.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiment-log.md) (per-run numbers) and [findings.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/findings.md) (chosen config). Every later step appends its conceptual takeaway here, not just numbers.
 
 ## Step 1: Confirm the command-vs-description law on plans (the decisive measurement)
 
@@ -1885,8 +1885,8 @@ flowchart TD
 ```
 
 - Sample ~40 plan files from [plans/source](file:///c%3A/Users/Vinnie/src/cursor/plans/source), 300-1000w band (keeps whole-file gate reliable; large plans are a scale-time concern).
-- Sharpen each whole file with the full [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/sharpen-instrument.md) via [pairgen](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/pairgen/src/main.rs) sharpen path. This is the one-time relevance-and-tightening judgment; the small model will distill it.
-- Blur each target once with [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/blur-gen/src/main.rs) (plain "rewrite, preserve meaning," no steering).
+- Sharpen each whole file with the full [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/sharpen-instrument.md) via [pairgen](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/pairgen/src/main.rs) sharpen path. This is the one-time relevance-and-tightening judgment; the small model will distill it.
+- Blur each target once with [blur-gen](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/blur-gen/src/main.rs) (plain "rewrite, preserve meaning," no steering).
 - Run gate1(target, blurred) via pairgen control path; keep PASS.
 - **Success bar: PASS rate >= 70%** (predict 75%+), materially above arXiv's 45%. That confirms the law and that plans are a high-yield deblurring source.
 - **Spot-check 5 sharpened targets for invented content** (the full-instrument risk from E3). If invention shows up on plans, switch the target-sharpener to a relevance-aware cut-only variant and note it in the journal.
@@ -1899,13 +1899,13 @@ flowchart TD
 
 ## Reuse and mechanics
 
-- Tools reused as-is: pairgen (sharpen with `--instrument`, gate1 via control path, `--gate2-mode off`), blur-gen (natural pass), [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/experiments/run-sharded.sh) and `plain-english/blur-sharded.sh` for 4-shard concurrency.
+- Tools reused as-is: pairgen (sharpen with `--instrument`, gate1 via control path, `--gate2-mode off`), blur-gen (natural pass), [run-sharded.sh](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/experiments/run-sharded.sh) and `plain-english/blur-sharded.sh` for 4-shard concurrency.
 - Gate reliability: gate1 recall degrades on long inputs, so the pilot stays in the 300-1000w band. At scale, sharpen whole file but gate section-by-section on the target's H2 sections if files run large. Decide at scale from Step 1 evidence.
 - Concurrency: Step 1 runs sharpen, blur, and gate as sharded stages from `make-dataset/`. If parallelized across subagents later, subagents do data only and the main context commits.
 
 ## gitignore
 
-Add under [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/.gitignore): ignore `plans-deblur/**` intermediates (`*.shard*`, `*.plog`, `*.run.log`, `sharp-*.jsonl`, `blur-*.jsonl`, `gate-*.jsonl`), re-include `!plans-deblur/**/dataset-*.jsonl`; keep `plans-deblur/*.md` and `journal.md` tracked.
+Add under [.gitignore](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/.gitignore): ignore `plans-deblur/**` intermediates (`*.shard*`, `*.plog`, `*.run.log`, `sharp-*.jsonl`, `blur-*.jsonl`, `gate-*.jsonl`), re-include `!plans-deblur/**/dataset-*.jsonl`; keep `plans-deblur/*.md` and `journal.md` tracked.
 
 ## Estimated cost and time
 
@@ -1930,7 +1930,7 @@ Todos:
 
 ## Why rebuild rather than patch
 
-The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
+The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
 
 ```mermaid
 flowchart TD
@@ -3102,7 +3102,7 @@ Todos:
 
 ## Why rebuild rather than patch
 
-The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
+The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
 
 ```mermaid
 flowchart TD
@@ -4274,7 +4274,7 @@ Todos:
 
 ## Why rebuild rather than patch
 
-The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/promptforge/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
+The line-by-line audit found the current [sharpen-instrument.md](file:///c%3A/Users/Vinnie/src/cursor/runvil/study/make-dataset/sharpen-instrument.md) is not blurred in one place; the distillation introduced several defect types: a lexical blur (one-term), a reorder that split problem from remedy (hand-the-decision), stripped reasons (stated-reach), and scope-creep (a whole analytical-framework tier). The sources also differ in quality: [how-to-write-prompts.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/how-to/how-to-write-prompts.md) has a tight 2026-07-08 birth core but acquired slop in sections added 2026-07-25 (Opus 5); [german.md](file:///c%3A/Users/Vinnie/src/cursor/tools-public/tools/german.md) is lean but reasonless. Rebuilding from the sharp base is cleaner than un-blurring the accretion.
 
 ```mermaid
 flowchart TD
@@ -4345,7 +4345,7 @@ Rebuild the instrument first, then the deblurring dataset build uses the correct
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\sharpen-instrument.md
+### c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\sharpen-instrument.md
 
 # Sharpening Instrument
 
@@ -4543,7 +4543,7 @@ Run on the sharpened target; each answers yes or no, each no returns to its rule
 - The meaning an executing model would follow is unchanged from the original.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\experiment-log.md
+### c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\experiment-log.md
 
 # Pairgen Experiment Log
 
@@ -4575,7 +4575,7 @@ Each entry uses this format:
 ---
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\experiments\findings.md
+### c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\experiments\findings.md
 
 # Pairgen Experiment Battery: Findings
 
@@ -4625,7 +4625,7 @@ Schema per line: `type, source, input, target, input_words, target_words`.
 *2026-07-27 - claude-opus-4.8*
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\semantic-blur-report.md
+### c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\semantic-blur-report.md
 
 # Semantic Blur and Prompt Deblurring: Study Findings
 
@@ -4702,4 +4702,4 @@ The exit is not a cleaner lap. It is to ship the sharp-enough, stop regenerating
 *2026-07-28 - claude-opus-4.8*
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\experiment-log.md`, `c:\Users\Vinnie\src\cursor\promptforge\study\make-dataset\plain-english\wikipedia\wikipedia-log.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\experiment-log.md`, `c:\Users\Vinnie\src\cursor\runvil\study\make-dataset\plain-english\wikipedia\wikipedia-log.md`

@@ -1,8 +1,8 @@
-<!-- source: promptforge-design/research/2026-09-12-everruns-feature-survey.md (2026-09-12), analyzed against promptforge executor seams -->
+<!-- source: runvil-design/research/2026-09-12-everruns-feature-survey.md (2026-09-12), analyzed against runvil executor seams -->
 
-# Everruns Capabilities: Promptforge Integration Paths
+# Everruns Capabilities: Runvil Integration Paths
 
-Each numbered feature below carries its description from the Everruns feature survey, followed by its promptforge integration path. Integration classes:
+Each numbered feature below carries its description from the Everruns feature survey, followed by its runvil integration path. Integration classes:
 
 - **Prompt** - representable today with Lua + existing tools + store; no new machinery.
 - **Tool** - a new tool or capability crate registered in the catalog over existing seams (VFS, dispatch, broker); no executor changes.
@@ -25,13 +25,13 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 5. **Per-message controls** - model override, locale, reasoning effort per turn. *Integration: exists - `models.use` / explicit handles give per-call model selection; reasoning effort rides the model handle.*
 
-6. **Input/Reason/Act sans-IO kernel** - pure planner over a serializable TurnState shared by in-process and durable hosts. *Integration: exists in spirit - `models.loop` is the Rust-backed loop; promptforge's determinism comes from the claims model and the uniform yield protocol rather than a serializable turn state, which is a deferred (cold-restore) contract.*
+6. **Input/Reason/Act sans-IO kernel** - pure planner over a serializable TurnState shared by in-process and durable hosts. *Integration: exists in spirit - `models.loop` is the Rust-backed loop; runvil's determinism comes from the claims model and the uniform yield protocol rather than a serializable turn state, which is a deferred (cold-restore) contract.*
 
 7. **Offline simulator** - deterministic simulated model, no network. *Integration: Host - a simulated model is a host-supplied entry in the model catalog; the executor cannot tell the difference.*
 
 ## 2. Typed tools
 
-8. **`#[tool]` macro with schema derivation** - attribute macro turns an async fn into a schema-carrying tool. *Integration: Tool - promptforge tools are Rust `Tool` impls in the catalog today; a derive macro is author ergonomics, not a capability requirement.*
+8. **`#[tool]` macro with schema derivation** - attribute macro turns an async fn into a schema-carrying tool. *Integration: Tool - runvil tools are Rust `Tool` impls in the catalog today; a derive macro is author ergonomics, not a capability requirement.*
 
 9. **Manual FunctionTool with redacted internal errors** - name, schema, async handler; handler Err hidden from the model. *Integration: exists - the tool catalog and model-visible error vocabulary already do this.*
 
@@ -55,15 +55,15 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 18. **Bashkit shell** - in-process sandboxed bash over the session VFS with limits and default-deny networking. *Integration: Tool - the completed spike: bashkit's 142 commands behind `FsBackend`-over-`VfsRef`, registered as one capability crate; no executor involvement.*
 
-19. **Lua scripting capability with code mode** - sandboxed Lua VM with fs/json/tools bridges. *Integration: exists natively - promptforge's sections are Lua; `tools.call` from Lua is the code-mode pattern already.*
+19. **Lua scripting capability with code mode** - sandboxed Lua VM with fs/json/tools bridges. *Integration: exists natively - runvil's sections are Lua; `tools.call` from Lua is the code-mode pattern already.*
 
-20. **Web fetch with SSRF controls** - fetch/extract/crawl to markdown over governed egress. *Integration: exists - `promptforge-webfetch`; SSRF/egress policy is a host configuration concern.*
+20. **Web fetch with SSRF controls** - fetch/extract/crawl to markdown over governed egress. *Integration: exists - `runvil-webfetch`; SSRF/egress policy is a host configuration concern.*
 
 21. **Cloud/self-hosted sandboxes (Daytona, E2B, Docker, Deno, Sprites)** - remote exec and file I/O with per-session lifecycle. *Integration: Tool, with the exclusivity rule - each is an HTTP-API tool set, but per the 2026-09-12 decision, real-exec capabilities bind only in a dedicated terminal subagent prompt, never mixed with bashkit in one context.*
 
 22. **Headless browser (Browserless)** - navigate, screenshot, scrape, interact over CDP. *Integration: Tool - HTTP/WebSocket API tools; secret placeholders map to host-seeded store values.*
 
-23. **Search (Brave, DuckDuckGo, Parallel)** - web search and instant answers. *Integration: Tool - `promptforge-web-search` exists; additional providers are new tool crates over HTTP.*
+23. **Search (Brave, DuckDuckGo, Parallel)** - web search and instant answers. *Integration: Tool - `runvil-web-search` exists; additional providers are new tool crates over HTTP.*
 
 24. **Knowledge bases with hybrid retrieval and citations** - org-scoped indexes, ANN+BM25, claim-level citations. *Integration: Tool - query tools over whatever vector backend the host provides (the workspace already operates a Pinecone MCP server with exactly this shape); citation verification is prompt-level composition over `models.infer`.*
 
@@ -97,7 +97,7 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 ## 6. Events and observability
 
-37. **Event log as source of truth** - one append-only log; messages, streams, replay are projections. *Integration: exists as traits - `Observer` + `EventLog` in `promptforge-core-support` with the durable JSONL impl currently in Workshop; the planned harness move relocates it, no executor change.*
+37. **Event log as source of truth** - one append-only log; messages, streams, replay are projections. *Integration: exists as traits - `Observer` + `EventLog` in `runvil-core-support` with the durable JSONL impl currently in Workshop; the planned harness move relocates it, no executor change.*
 
 38. **Live event stream (bounded broadcast, lag reported)** - reviewed event kinds plus canonical JSON. *Integration: exists - the Observer stream; bounded broadcast is a host wrapper.*
 
@@ -135,7 +135,7 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 ## 9. Memory and persistence
 
-53. **Persistence tiers (volatile, local durable, platform durable)** - memory, SQLite, PostgreSQL. *Integration: Host - promptforge's tier story is event-log backend + VFS backend selection, both host-chosen; no executor change.*
+53. **Persistence tiers (volatile, local durable, platform durable)** - memory, SQLite, PostgreSQL. *Integration: Host - runvil's tier story is event-log backend + VFS backend selection, both host-chosen; no executor change.*
 
 54. **Bounded history API with cursors** - stable paged snapshots under concurrent append. *Integration: Host - a read API over the `EventLog` trait.*
 
@@ -183,7 +183,7 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 ## 12. Durable execution platform
 
-74. **Event-sourced workflows with replay recovery** - append-only workflow events, snapshot-assisted replay, crash reclaim. *Integration: Host/platform (large) - promptforge's determinism primitives (claims, uniform yields, journaled store) are the executor half; durable replay and cold restore are explicitly deferred unified-model contracts, not harness work.*
+74. **Event-sourced workflows with replay recovery** - append-only workflow events, snapshot-assisted replay, crash reclaim. *Integration: Host/platform (large) - runvil's determinism primitives (claims, uniform yields, journaled store) are the executor half; durable replay and cold restore are explicitly deferred unified-model contracts, not harness work.*
 
 75. **Checkpointed turn execution** - only engine-owned state checkpointed between phases. *Integration: Executor (deferred) - the incarnation/cold-restore contract; out of scope for the harness layer.*
 
@@ -203,7 +203,7 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 ## 14. Multi-tenancy and security
 
-82. **Organizations, roles, policy authorization, audit, encryption at rest** - platform tenancy. *Integration: Host/platform - none of it touches the executor; promptforge's equivalent boundary is the VFS policy plus host-seeded secrets.*
+82. **Organizations, roles, policy authorization, audit, encryption at rest** - platform tenancy. *Integration: Host/platform - none of it touches the executor; runvil's equivalent boundary is the VFS policy plus host-seeded secrets.*
 
 83. **Egress governance (SSRF controls, allow/block lists, default-deny)** - network policy. *Integration: Tool config - webfetch/web-search tools take egress policy at construction; bashkit networking is default-deny by its own design.*
 
@@ -217,9 +217,9 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 87. **Agent versions (immutable snapshots, pinning, rollback)** - versioned behavior definitions. *Integration: Host - prompt files plus git give immutable versions today; a registry is host storage.*
 
-88. **CLI and SDKs** - scriptable agent management. *Integration: Host - the `promptforge` facade is the library entry; a CLI is a thin host over it.*
+88. **CLI and SDKs** - scriptable agent management. *Integration: Host - the `runvil` facade is the library entry; a CLI is a thin host over it.*
 
-89. **File-defined agents** - agents authored as importable files. *Integration: exists natively - a promptforge prompt is a file-defined agent; this is the prompting language's core identity.*
+89. **File-defined agents** - agents authored as importable files. *Integration: exists natively - a runvil prompt is a file-defined agent; this is the prompting language's core identity.*
 
 ## 16. Harnesses
 
@@ -229,13 +229,13 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 92. **Two-level coding execution (VFS for light work, real exec for builds)** - prompt-steered tool choice. *Integration: Prompt - the exclusivity pattern: bashkit in the main context, terminal subagent for real work, store as the handoff channel.*
 
-93. **Sandbox abstraction (one logical sandbox, disposable incarnations, fencing)** - provider-neutral sandbox with checkpointed recovery. *Integration: mostly N/A - bashkit-over-VFS plus the terminal-subagent rule gives one filesystem reality per context without the provider-incarnation machinery; revisit only if promptforge ever adopts remote sandboxes.*
+93. **Sandbox abstraction (one logical sandbox, disposable incarnations, fencing)** - provider-neutral sandbox with checkpointed recovery. *Integration: mostly N/A - bashkit-over-VFS plus the terminal-subagent rule gives one filesystem reality per context without the provider-incarnation machinery; revisit only if runvil ever adopts remote sandboxes.*
 
 94. **Managed session sandboxes (auto-start, idle pause, recovery volumes)** - control-plane reconciled lifecycle. *Integration: Host/platform - only relevant alongside remote sandbox providers.*
 
 ## 17. Evaluation and quality
 
-95. **Evals (real sessions, scorers, durable runs)** - behavioral tests over real executions. *Integration: Host - an eval host runs prompts and scores outputs; promptforge's determinism (claims, journaled store) makes runs replayable, which is the hard part already done.*
+95. **Evals (real sessions, scorers, durable runs)** - behavioral tests over real executions. *Integration: Host - an eval host runs prompts and scores outputs; runvil's determinism (claims, journaled store) makes runs replayable, which is the hard part already done.*
 
 96. **SWE-bench harness** - benchmark on eval machinery. *Integration: Host - an eval target once bashkit and terminal subagents exist.*
 
@@ -245,7 +245,7 @@ Summary verdict: the large majority land as Prompt or Tool. The genuine Executor
 
 99. **External results import and ATIF dataset export** - interchange of eval outcomes. *Integration: Host - renderers over the event log.*
 
-100. **Failure injection (fail-rs style fault testing)** - deterministic fault seams. *Integration: exists as practice - promptforge already favors behavior tests with deterministic fault injection (cancel tokens, policy verdicts, and the yield protocol are the seams).*
+100. **Failure injection (fail-rs style fault testing)** - deterministic fault seams. *Integration: exists as practice - runvil already favors behavior tests with deterministic fault injection (cancel tokens, policy verdicts, and the yield protocol are the seams).*
 
 ---
 

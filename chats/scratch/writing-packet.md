@@ -1,4 +1,4 @@
-# Writing packet - PromptForge design principles
+# Writing packet - Runvil design principles
 
 
 
@@ -31,7 +31,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - The author removed tool frontmatter because the H1 block already declared tools.
   - `infer()` was kept strictly different from prose: if infer were "just another version of Prose" the language would inherit all the same questions (how do you set the tools, what happens if you jump) for both.
   - During the store redesign, "no parallel mechanisms" was stated verbatim as "a general principle."
-  - Author-verbatim: in 2026-08-09-1058-promptforge-core-large-part1.md [p26] the author states "design rule number one" (smallest facility, don't invent a new facility when an existing one handles it) and "design rule number two" (never two ways of doing the same thing) in one breath.
+  - Author-verbatim: in 2026-08-09-1058-runvil-core-large-part1.md [p26] the author states "design rule number one" (smallest facility, don't invent a new facility when an existing one handles it) and "design rule number two" (never two ways of doing the same thing) in one breath.
 - Merge/derivation notes:
   - Merged from purpose-cluster records 1 ("Do more with less"), 2 ("Never provide two ways of doing the same thing"), and 3 ("No parallel mechanisms") - one shared purpose: keep the core minimal by reusing existing facilities.
   - Record 4 ("A small set of flexible, multi-purpose primitives compose into maximum possibility while keeping the prompt author brief") is a borderline candidate for the group; it adds the distinct brevity purpose.
@@ -51,7 +51,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - Example of a constraint that should fall out on its own: "model locked after first Lua block."
 - Merge/derivation notes:
   - Single record (purpose-cluster record 5; grouped-draft "Minimal mechanism" group, fifth record). Kept separate from the minimal-mechanism group because its purpose is predictability of behavior, not minimality of features.
-  - Citations: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20-p21]; 2026-08-18-1126-promptforge-md-aug18-morning.md [p176-p178]. Endorsement n/a; source user-stated.
+  - Citations: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20-p21]; 2026-08-18-1126-runvil-md-aug18-morning.md [p176-p178]. Endorsement n/a; source user-stated.
 
 ## Principle 3: A prompt must be readable on its face
 
@@ -102,7 +102,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
 - Merge/derivation notes:
   - Merged from two records deliberately kept distinct in the purpose pass: record 8 (choosing names the model and reader understand) and record 9 (using one term consistently everywhere, enforced repo-wide). The final principle joins them: names come from owned vocabulary AND each term holds one meaning everywhere.
   - Grouped-draft sources: "Legibility and naming" group, third and fourth records; endorsements n/a; sources user-stated.
-  - Citations: 2026-07-30-0534-promptforge-design-context.md [p30-p31]; 2026-08-14-1613-promptforge-core-largest-part5.md [p473], [p393], [p395]; 2026-08-02-2331-mcp-client-evening.md [plans section]; 2026-08-09-1058-promptforge-core-large-part5.md [p393].
+  - Citations: 2026-07-30-0534-runvil-design-context.md [p30-p31]; 2026-08-14-1613-runvil-core-largest-part5.md [p473], [p393], [p395]; 2026-08-02-2331-mcp-client-evening.md [plans section]; 2026-08-09-1058-runvil-core-large-part5.md [p393].
 
 ## Principle 6: No defaults
 
@@ -113,14 +113,14 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - A prompt always knows its minimum context and whether it needs thinking, so it can always say what it needs.
   - Grouped-draft framing, verbatim: "implicit configuration is the enemy of precision."
 - Rejected alternatives and stated costs:
-  - `DEFAULT_MODEL` and `PROMPTFORGE_MODEL` environment-variable fallbacks - removed; cost: invisible settings that silently change behavior.
+  - `DEFAULT_MODEL` and `RUNVIL_MODEL` environment-variable fallbacks - removed; cost: invisible settings that silently change behavior.
   - A default recursion limit of 24 - rejected for the same reason.
 - Concrete incidents:
-  - The author removed the `DEFAULT_MODEL` and `PROMPTFORGE_MODEL` environment fallbacks.
+  - The author removed the `DEFAULT_MODEL` and `RUNVIL_MODEL` environment fallbacks.
   - Author-verbatim: a prompt that specifies nothing "doesn't make sense."
 - Merge/derivation notes:
   - Single record (purpose-cluster record 10; grouped-draft "Explicitness and consent" group, first record). Kept separate.
-  - Citations: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62]; 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p66]. Endorsement n/a; source user-corrective.
+  - Citations: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62]; 2026-08-16-1431-runvil-md-aug16-afternoon.md [p66]. Endorsement n/a; source user-corrective.
   - Open-questions note: the design document's Open Questions list records an unresolved tension between "No defaults, everything explicit" and "implement all features and let the caller decide, with sensible defaults."
 
 ## Principle 7: Every restriction has an explicit escape
@@ -139,7 +139,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
 - Merge/derivation notes:
   - Merged from two records deliberately kept distinct in the purpose pass: record 11 (the prompt author consenting to a capability by writing it) and record 12 (the embedder needing an off-switch for every protection). The final principle joins both directions of escape.
   - Grouped-draft sources: "Explicitness and consent" group, second and third records; endorsements n/a; sources user-stated.
-  - Citations: 2026-08-14-1613-promptforge-core-largest-part4.md [p372-p374]; 2026-08-02-1134-mcp-client-large-part5.md [p353-p354]; 2026-07-30-1046-compaction-algorithm-large-part5.md [p354].
+  - Citations: 2026-08-14-1613-runvil-core-largest-part4.md [p372-p374]; 2026-08-02-1134-mcp-client-large-part5.md [p353-p354]; 2026-07-30-1046-compaction-algorithm-large-part5.md [p354].
 
 ## Stanza facts (Section I as a whole)
 
@@ -298,8 +298,8 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Merged from purpose-cluster-3 Record 1 (fall-through, default advance, termination) and Record 2 (jump, explicit transfer, reply rule). Both records state the same root rule: every section transition starts a fresh context, because accumulation is what forces big models and compaction. Record 1 is the default form; Record 2 is the explicit form.
-- Record 1 citations: 2026-07-28-2238-orchestrator-design-continued.md [p75], [p121]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p75], [p121]; 2026-08-02-1134-mcp-client-large-part5.md [p363], [p414], [p415]; 2026-07-30-0534-promptforge-design-context.md [p9], [p10].
-- Record 2 citations: 2026-07-28-0925-orchestrator-design-document.md [p14], [p74], [p75]; 2026-07-28-2238-orchestrator-design-continued.md [p14], [p75], [p120]; 2026-07-30-0534-promptforge-design-context.md [p12]-[p18]; 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20], [p21], [p22]; 2026-08-14-1613-promptforge-core-largest-part5.md [p442], [p481].
+- Record 1 citations: 2026-07-28-2238-orchestrator-design-continued.md [p75], [p121]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p75], [p121]; 2026-08-02-1134-mcp-client-large-part5.md [p363], [p414], [p415]; 2026-07-30-0534-runvil-design-context.md [p9], [p10].
+- Record 2 citations: 2026-07-28-0925-orchestrator-design-document.md [p14], [p74], [p75]; 2026-07-28-2238-orchestrator-design-continued.md [p14], [p75], [p120]; 2026-07-30-0534-runvil-design-context.md [p12]-[p18]; 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20], [p21], [p22]; 2026-08-14-1613-runvil-core-largest-part5.md [p442], [p481].
 
 ## Principle 15: execute() runs a section as a subroutine; jump() transfers without returning
 
@@ -322,7 +322,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 3); no merge. Distinct purpose from jump: subroutine with return vs transfer without return.
-- Citations: 2026-08-14-1613-promptforge-core-largest-part5.md [p430], [p431], [p488], [p489]; 2026-08-09-1058-promptforge-core-large-part5.md [p430], [p432], [p433]; 2026-08-19-0048-promptforge-md-aug19.md [p55], [p58], [p60]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p242].
+- Citations: 2026-08-14-1613-runvil-core-largest-part5.md [p430], [p431], [p488], [p489]; 2026-08-09-1058-runvil-core-large-part5.md [p430], [p432], [p433]; 2026-08-19-0048-runvil-md-aug19.md [p55], [p58], [p60]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p242].
 
 ## Principle 16: A section ends when the model replies with text and no tool calls
 
@@ -346,7 +346,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 4); no merge. Source tagged ai-proposed; user-stated.
 - Open question 6 in the principles file notes the tension: "An empty model response is never acceptable" versus the conditional empty-turn clean exit; the later rule refines the earlier one, but the exact boundary of which empty turns fail closed deserves confirmation.
-- Citations: 2026-08-18-1639-promptforge-md-aug18-afternoon.md [p3], [p6], [plans section]; 2026-07-30-1046-compaction-algorithm-large-part5.md [STATUS.md decisions]; 2026-08-09-1058-promptforge-core-large-part5.md [p429]; grouped-draft also lists 2026-08-03-1827-two-repo-commit-review.md [design documents section].
+- Citations: 2026-08-18-1639-runvil-md-aug18-afternoon.md [p3], [p6], [plans section]; 2026-07-30-1046-compaction-algorithm-large-part5.md [STATUS.md decisions]; 2026-08-09-1058-runvil-core-large-part5.md [p429]; grouped-draft also lists 2026-08-03-1827-two-repo-commit-review.md [design documents section].
 
 ## Principle 17: Cycles are allowed
 
@@ -368,7 +368,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 5); no merge. Source tagged user-corrective; user-stated.
-- Citations: 2026-07-30-1046-compaction-algorithm-large-part5.md [p369]-[p372]; 2026-08-02-1134-mcp-client-large-part5.md [p369], [p371], [p372]; 2026-08-19-0048-promptforge-md-aug19.md [p60]; 2026-07-28-0925-orchestrator-design-document.md [p18]; 2026-07-30-0534-promptforge-design-context.md [p4].
+- Citations: 2026-07-30-1046-compaction-algorithm-large-part5.md [p369]-[p372]; 2026-08-02-1134-mcp-client-large-part5.md [p369], [p371], [p372]; 2026-08-19-0048-runvil-md-aug19.md [p60]; 2026-07-28-0925-orchestrator-design-document.md [p18]; 2026-07-30-0534-runvil-design-context.md [p4].
 
 ## Principle 18: A task is either synchronous or asynchronous
 
@@ -389,7 +389,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 6); no merge.
-- Citations: 2026-07-30-0534-promptforge-design-context.md [p22], [p23], [p25], [p26], [p27], [p28], [p34], [p35]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p247]; 2026-08-02-1134-mcp-client-large-part4.md [p245], [p246], [p247].
+- Citations: 2026-07-30-0534-runvil-design-context.md [p22], [p23], [p25], [p26], [p27], [p28], [p34], [p35]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p247]; 2026-08-02-1134-mcp-client-large-part4.md [p245], [p246], [p247].
 
 ## Stanza facts (Section III header)
 
@@ -610,7 +610,7 @@ Facts only. No prose.
 - "each subhead only needs a few of them" (p85); tool count 5-7 for small orchestrator models (p119)
 - Opt-in chosen "for isolation - a section can never hold a tool it did not ask for" (2026-07-30-1046-compaction-algorithm-large-part5.md plans)
 - Restricting call kinds "reduces pressure because the model doesnt have to pick" (2026-07-30-1046-compaction-algorithm-large-part3.md p222)
-- Only web_search on the first turn: "this locks the model to calling just one tool" (2026-08-09-1058-promptforge-core-large-part4.md p372)
+- Only web_search on the first turn: "this locks the model to calling just one tool" (2026-08-09-1058-runvil-core-large-part4.md p372)
 
 **Merge/derivation notes:**
 - Grouped-draft record (line 460) merged from ai-proposed (affirmed), user-stated, and user-corrective sources across 7 chat units; endorsement: affirmed.
@@ -634,11 +634,11 @@ Facts only. No prose.
 - Attaching max_turns to individual tools ("max_turns is not really on the tools its on the subagent itself").
 
 **Concrete incidents / author-verbatim phrases:**
-- The author hit tool-binding failures that did not fail hard and could not tell why nothing worked: a tools.add failure case that "is not failing hard" (2026-08-14-1613-promptforge-core-largest-part2.md p89).
+- The author hit tool-binding failures that did not fail hard and could not tell why nothing worked: a tools.add failure case that "is not failing hard" (2026-08-14-1613-runvil-core-largest-part2.md p89).
 - "my gut tells me there should only be one version of tools.add" (p90)
 - "we need to bake the limit into the tools.add call" (p170)
 - "this means we take ALL the tools away on exhaustion" (p176)
-- "unknown aliases are hard errors with clear diagnostics" (2026-08-09-1058-promptforge-core-large-part4.md p271)
+- "unknown aliases are hard errors with clear diagnostics" (2026-08-09-1058-runvil-core-large-part4.md p271)
 - "naming an unscoped yet global tool should hard-error" (p273)
 
 **Merge/derivation notes:**
@@ -659,7 +659,7 @@ Facts only. No prose.
 - Counting only successful tool calls (wrong target: the assertion measures the model, not the tool).
 
 **Concrete incidents / author-verbatim phrases:**
-- "The prompt needs to have a way to say that a tool has to be called" (2026-08-09-1058-promptforge-core-large-part4.md p265)
+- "The prompt needs to have a way to say that a tool has to be called" (2026-08-09-1058-runvil-core-large-part4.md p265)
 - "if it doesn't perform at least one web search, that's a problem" (purpose pass Record 3)
 - "no to require_called, it violates the design principle of do more with less" (p267)
 - "failed tool call counts as a call, we are measuring if the model is performing not if the tool is performing" (p271)
@@ -684,9 +684,9 @@ Facts only. No prose.
 - Allowing jump() from tool handlers (makes no sense - no section walk to transfer into).
 
 **Concrete incidents / author-verbatim phrases:**
-- "we don't wanna have to write a Rust function just for setting a variable... a front end to the real search tool... when the tool is called, it does a tools.add for fetch" (2026-08-09-1058-promptforge-core-large-part4.md p373)
+- "we don't wanna have to write a Rust function just for setting a variable... a front end to the real search tool... when the tool is called, it does a tools.add for fetch" (2026-08-09-1058-runvil-core-large-part4.md p373)
 - "the user is opting in to the behavior, so that makes it ok" (p374)
-- "invocable from any lua chunk in an H2 and it should just add the tool for the next prose call" (2026-08-18-1126-promptforge-md-aug18-morning.md p144)
+- "invocable from any lua chunk in an H2 and it should just add the tool for the next prose call" (2026-08-18-1126-runvil-md-aug18-morning.md p144)
 - "a Lua tool should have all the same capabilities as a regular tool, a native Rust tool" (p160)
 - "Lua needs to jump local tool handlers cannot" (p162-163)
 
@@ -716,9 +716,9 @@ Facts only. No prose.
 
 **Concrete incidents / author-verbatim phrases:**
 - "The prompt has to specify what the minimum context size is" (purpose pass Record 5).
-- "switching a model in the middle of a block has consequences for the KV cache... that's not visible to the programmer" (2026-08-18-1126-promptforge-md-aug18-morning.md p179)
+- "switching a model in the middle of a block has consequences for the KV cache... that's not visible to the programmer" (2026-08-18-1126-runvil-md-aug18-morning.md p179)
 - No model selected before first prose is an error (p66-67).
-- "H3 should inherit the H2's model unless it specifies otherwise" (2026-08-09-1058-promptforge-core-large-part2.md p142)
+- "H3 should inherit the H2's model unless it specifies otherwise" (2026-08-09-1058-runvil-core-large-part2.md p142)
 - models.use only in the first Lua block, then locked (p175, p177).
 
 **Merge/derivation notes:**
@@ -737,7 +737,7 @@ Facts only. No prose.
 - Strict model-name binding that fails hard on mismatch - fails hard on catalog drift for no benefit.
 
 **Concrete incidents / author-verbatim phrases:**
-- The author hit a hard "model binding failed" error and rejected strict binding: "this makes no sense. the models need to be way looser than the tools. Shouldn't this use the tool-picker?" (2026-08-14-1613-promptforge-core-largest-part2.md p132-133)
+- The author hit a hard "model binding failed" error and rejected strict binding: "this makes no sense. the models need to be way looser than the tools. Shouldn't this use the tool-picker?" (2026-08-14-1613-runvil-core-largest-part2.md p132-133)
 - "The reduce section stays ordinary markdown; only its model slot and a staircase-streaming aggregator change" (2026-07-30-0654-map-reduce-synthesis.md design documents section)
 
 **Merge/derivation notes:**
@@ -887,12 +887,12 @@ Facts only. No prose.
 
 **Concrete incidents / author-verbatim phrases:**
 - Reviewing the plan to collapse the duplicated arm engine: "an arm must be treated the same way as normal flow, preferably with the same functions... Why should arms be different?" (2026-08-19-0447-collapse-fanout-arm-review.md [p2])
-- On the child-heading restriction: "I dont see a point to restricting things like fanout() just beause a section has no child headings. this is try-hard. its pointless." (2026-08-18-1126-promptforge-md-aug18-morning.md [p138])
-- On arm capabilities: "arms can jump" ... "and execute, fanout, list_from_section, etc there is no reason for special cases" (2026-08-19-0048-promptforge-md-aug19.md [p78], [p79])
-- On run-time item sources: "You don't know ahead of time what you need to search for in the sub-agent... if you're calling it from the Lua and you just have some rigid rules... really the hard part is in the model" (2026-07-30-0534-promptforge-design-context.md [p50])
-- "Make this a general principle of the design, always explicit" (2026-08-08-0029-promptforge-context-planning.md [p35])
-- "the most fundamental operation of FanOut... executing a set of operations in parallel... we have to allow that second parameter to be an array" (2026-08-18-1126-promptforge-md-aug18-morning.md [p45])
-- "remember the preamble is shared. each subagent VM gets item and sys.taskid" (2026-08-08-0029-promptforge-context-planning.md [p47])
+- On the child-heading restriction: "I dont see a point to restricting things like fanout() just beause a section has no child headings. this is try-hard. its pointless." (2026-08-18-1126-runvil-md-aug18-morning.md [p138])
+- On arm capabilities: "arms can jump" ... "and execute, fanout, list_from_section, etc there is no reason for special cases" (2026-08-19-0048-runvil-md-aug19.md [p78], [p79])
+- On run-time item sources: "You don't know ahead of time what you need to search for in the sub-agent... if you're calling it from the Lua and you just have some rigid rules... really the hard part is in the model" (2026-07-30-0534-runvil-design-context.md [p50])
+- "Make this a general principle of the design, always explicit" (2026-08-08-0029-runvil-context-planning.md [p35])
+- "the most fundamental operation of FanOut... executing a set of operations in parallel... we have to allow that second parameter to be an array" (2026-08-18-1126-runvil-md-aug18-morning.md [p45])
+- "remember the preamble is shared. each subagent VM gets item and sys.taskid" (2026-08-08-0029-runvil-context-planning.md [p47])
 
 **Merge/derivation notes:**
 - Merged from grouped-draft Fanout records 1 ("Fanout is always invoked explicitly through a fanout() call...", endorsement: affirmed (ai-proposed legs); source: ai-proposed (affirmed); user-stated) and 2 ("The subagent section is the arm template...", endorsement: n/a; source: user-stated; user-corrective).
@@ -916,11 +916,11 @@ Facts only. No prose.
 - A wait-for-all barrier before the reduce step runs - rejected in favor of fail-fast sibling abort.
 
 **Concrete incidents / author-verbatim phrases:**
-- "my thinking is this, the invoking lua deals with the reduce step" (2026-08-08-0029-promptforge-context-planning.md [p33])
-- "max_fanout_items there should be no limit on the total, just a limit on concurrent fanout" (2026-08-19-0048-promptforge-md-aug19.md [p80])
+- "my thinking is this, the invoking lua deals with the reduce step" (2026-08-08-0029-runvil-context-planning.md [p33])
+- "max_fanout_items there should be no limit on the total, just a limit on concurrent fanout" (2026-08-19-0048-runvil-md-aug19.md [p80])
 - "I don't want the model to have to calculate the final name, we want to minimize the amount of inference" (2026-07-28-0925-orchestrator-design-document.md [p67])
 - "why should we waste inference having to figure that out?" (2026-07-28-0925-orchestrator-design-document.md [p69])
-- Plan language, repeated across two core plans: "core fires all arms at once, the gateway queue is the throttle; replies stay ordered by arm index; fail-fast aborts siblings... same invoker-visible behavior as sequential; the store stays shared and mutex-safe" (2026-08-14-1613-promptforge-core-largest-part5.md and 2026-08-09-1058-promptforge-core-large-part5.md, plans sections)
+- Plan language, repeated across two core plans: "core fires all arms at once, the gateway queue is the throttle; replies stay ordered by arm index; fail-fast aborts siblings... same invoker-visible behavior as sequential; the store stays shared and mutex-safe" (2026-08-14-1613-runvil-core-largest-part5.md and 2026-08-09-1058-runvil-core-large-part5.md, plans sections)
 
 **Merge/derivation notes:**
 - Derives from grouped-draft Fanout record 3 ("The invoking Lua owns the reduce step...", endorsement: unaddressed (ai-proposed legs); source: user-stated; user-corrective; ai-proposed).
@@ -1024,7 +1024,7 @@ Facts only. Sources: purpose-cluster-8.md (motivations), grouped-draft.md (full 
   - The tests were launching the gateway themselves and it was going wrong - stuck, failing - and he called it, verbatim, "all wrong."
   - Earlier he had regretted wiring the 9B model directly into core-tests when the gateway was needed anyway for web search.
 - Endorsement: n/a (user-corrective; user-stated).
-- Merge/derivation notes: Single grouped-draft record "Integration tests require an already-running, already-configured gateway..." The purpose notes observe that its second leg (tests supply only config, never wire models directly) is the test-side consequence of principle 44's model-download record, and its first leg (tests never launch the gateway) stands as the testing corollary. Citations: 2026-08-14-1613-promptforge-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part3.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part2.md [p140].
+- Merge/derivation notes: Single grouped-draft record "Integration tests require an already-running, already-configured gateway..." The purpose notes observe that its second leg (tests supply only config, never wire models directly) is the test-side consequence of principle 44's model-download record, and its first leg (tests never launch the gateway) stands as the testing corollary. Citations: 2026-08-14-1613-runvil-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part3.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part2.md [p140].
 
 ## Stanza facts - Section VIII as a whole
 

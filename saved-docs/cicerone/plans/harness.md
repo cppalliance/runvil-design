@@ -2,7 +2,7 @@
 
 <plan-reader>
 
-A Rust developer building a program that runs prompts through the Harness: a chat server, a desktop app, a command-line tool, or a batch job, often with a person at a screen. They know async Rust, traits, `Arc`, and `Result`. They have read what a PromptForge prompt is, but they have never run one from their own program.
+A Rust developer building a program that runs prompts through the Harness: a chat server, a desktop app, a command-line tool, or a batch job, often with a person at a screen. They know async Rust, traits, `Arc`, and `Result`. They have read what a Runvil prompt is, but they have never run one from their own program.
 
 </plan-reader>
 
@@ -31,13 +31,13 @@ A Rust developer building a program that runs prompts through the Harness: a cha
 
 <plan-links>
 
-- PromptForge language guide: https://cppalliance.github.io/promptforge/language/
+- Runvil language guide: https://cppalliance.github.io/runvil/language/
 
 </plan-links>
 
 <page-lib>
 
-Purpose: Teach a Rust developer to run PromptForge prompts through the Harness, one Harness per run.
+Purpose: Teach a Rust developer to run Runvil prompts through the Harness, one Harness per run.
 Core idea: Your program builds a Harness for each run from the objects it owns, awaits the run's one future, and steers it from outside.
 Need this when: always; start here.
 Builds on: none
@@ -52,7 +52,7 @@ Primer sources: guide/src/language/01-what-a-prompt-is.md, guide/src/language/04
 
 ### Tour: Answer the operator
 - How: How do I carry a run's question to the operator and send back their answer?
-- What if: What happens when a prompt requires `promptforge/user-input` and my program supplies no input broker?
+- What if: What happens when a prompt requires `runvil/user-input` and my program supplies no input broker?
 - Why: Why does the input broker travel with each run's services instead of being built into the Harness?
 - Example: implement an input broker that answers with canned operator text, register `UserInput`, provide the broker under `INPUT_BROKER`, run the `asks` prompt, and assert its final text.
 - Diagram: none
@@ -106,7 +106,7 @@ Primer sources: guide/src/language/12-tools.md, guide/src/language/13-web-fetch-
 ### Tour: Install capabilities and their services
 - How: How do I register the capabilities my prompts declare, and provide the services they read, for each run?
 - What if: What happens when a prompt requires a capability I never registered, or one whose service I did not provide?
-- Why: Why does the Harness add no capability of its own, not even the ones PromptForge ships?
+- Why: Why does the Harness add no capability of its own, not even the ones Runvil ships?
 - Example: declare a `u32` service key for `desk`'s word limit, implement a `Limits` capability that reads it into its prelude, register it beside `UserInput`, provide the limit and an input broker, and build a run's Harness with both.
 - Diagram: none
 

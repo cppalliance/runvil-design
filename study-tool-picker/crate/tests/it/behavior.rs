@@ -6,7 +6,7 @@
 
 use std::sync::OnceLock;
 
-use promptforge_tool_picker::{Catalog, Config, Outcome, ToolId, ToolPicker};
+use runvil_tool_picker::{Catalog, Config, Outcome, ToolId, ToolPicker};
 
 /// The fixture catalog, as it is committed.
 const MIXED_SERVERS: &str = include_str!("../fixtures/mixed-servers.json");

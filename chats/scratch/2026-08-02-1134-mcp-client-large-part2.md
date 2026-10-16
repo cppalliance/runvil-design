@@ -12,7 +12,7 @@
 
 
 
-**[p66]** So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-prompt forge executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
+**[p66]** So the model has to be able to route, because what we, we, we wanna let the model orchestrate sometimes, like when it really has to make a decision, we need to let it route. Like the, the model spawns the task. For example, if it's doing a guided web search, we can't do that in Lua. It has to do a web search, and then it has to pick, and then it has to choose the page, it has to look at the page, then it has to keep making decisions, the multi-turn decision making. And so we need both. We need call from Lua And we need call from the model, like that's where the power is. But also, I think we need a substitution syntax. Like there has to be some kind of syntax where that means that in the prompt, the, the harness, the, the, the pro-runvil executor has to perform a substitution from a Lua variable. So in Lua, there's a state, and every element, it's a, it's a table, and each element has a name, and then you can, you can quote the state as a substitution in the prompt And that gives you determinism.
 
 **[p67]** how do we handle all the corner cases and quoting rules to do the substitution of {{ }}
 
@@ -86,27 +86,27 @@ and do the same for @tools-public/tools/code/boost-review.md
 
 **[p101]** show me exactly the diligence dataflow
 
-**[p102]** make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @promptforge-design
+**[p102]** make up a promptgate diligence prompt. it doesn't have to be perfect just capture each idiom. not the whole tool. this is a simplified prompt to understand. write to @runvil-design
 
-**[p103]** @promptforge-design/example-diligence.md:62 wtf is this?
+**[p103]** @runvil-design/example-diligence.md:62 wtf is this?
 
 **[p104]** spawn a subagent update the plan for what we learned @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md
 
-**[p105]** link promptforge_orchestrator_only.plan.md. for me
+**[p105]** link runvil_orchestrator_only.plan.md. for me
 
 **[p106]** it won't open.
 
 **[p107]** what are the dates on those
 
-**[p108]** can you please link promptforge_orchestrator_only.plan.md  for me
+**[p108]** can you please link runvil_orchestrator_only.plan.md  for me
 
 **[p109]** its becaose of windows paths
 
 **[p110]** No I got it open finally.
 
-**[p111]** @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md
+**[p111]** @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md
 
-**[p112]** @promptforge-design make a markdown file with a working file:/// link to the plan in it - design-plans.md
+**[p112]** @runvil-design make a markdown file with a working file:/// link to the plan in it - design-plans.md
 
 **[p113]** what is relevant in here to the plan
 
@@ -118,16 +118,16 @@ and do the same for @tools-public/tools/code/boost-review.md
 The gateway is needed because vLLM lacks proper queuing, rate limiting, and 503 responses
 Rust is chosen because it compiles to a native binary that can be installed as a Windows service or Unix daemon - always running when the machine starts
 Loopback connections don't require API keys; remote intranet access uses whitelisted IPs or API keys
-PromptForge as a unit
+Runvil as a unit
 
-**[p117]** Every PromptForge prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
+**[p117]** Every Runvil prompt is a single markdown file and is one function - it takes well-defined parameters (declared in YAML front matter, machine-readable) and returns a string
 A prompt can produce side effects (create files via tools) beyond its return value
 The single-file-per-prompt model reflects the existing workflow and should be preserved - if you want to spread work across files, you decompose into individual functions (separate prompt files)
 Directories can serve as namespaces for organizing prompts
 Prompt-first inversion
 
-**[p118]** Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, PromptForge starts with the prompt and adds structured programming (Lua) into it
-You should be able to write a PromptForge prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
+**[p118]** Unlike other frameworks that start with the interpreted language (Python, Go) and bolt on prompts, Runvil starts with the prompt and adds structured programming (Lua) into it
+You should be able to write a Runvil prompt with zero Lua and it works like a Cursor orchestration - Lua is additive, not required
 Small-model friendliness (the core pressure-relief principle)
 
 **[p119]** Each design choice is evaluated by whether it relieves pressure on the context window, enabling smaller models
@@ -150,13 +150,13 @@ Between sections, the model's narration and throat-clearing should be trimmed ra
 Preferred mechanism: a tool call to advance to the next section where the model explicitly passes only the context it wants the next section to have - this is better than bare goto because it lets you pass a curated instruction string
 MCP integration
 
-**[p122]** PromptForge prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
+**[p122]** Runvil prompts can be exported as MCP tools via configuration - the YAML front matter (parameters + description) provides everything needed to define a tool
 The server monitors the prompt directory for file changes and refreshes its cache - no restart needed during development (developer convenience, not a production feature)
-The PromptForge MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
+The Runvil MCP server can itself be an MCP client, connecting to other MCP services (e.g., Pinecone) as configured
 
-**[p123]** What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the PromptForge executor, we have a lot of shit going on. What do you think?
+**[p123]** What do you think about this? How about if I shove everything into the plan, and then I tell you to just implement part of it, just like a subset, and then you subtract the subset that works from the plan, and then we do and then we keep planning, and then we do the next tranche, because we have multiple programs. We have the MCP service, we have the gateway, we have the Runvil executor, we have a lot of shit going on. What do you think?
 
-**[p124]** Okay, so I guess we need a minimal prompt forge? And then we need We need a A gateway. That's it. But don't, shouldn't we really I don't know. Really put it all in one plan? Look at this gate, look at what i have for the gateway.@promptforge-design/design/design-gateway.md
+**[p124]** Okay, so I guess we need a minimal runvil? And then we need We need a A gateway. That's it. But don't, shouldn't we really I don't know. Really put it all in one plan? Look at this gate, look at what i have for the gateway.@runvil-design/design/design-gateway.md
 
 **[p125]** what is pinning
 
@@ -172,6 +172,6 @@ The PromptForge MCP server can itself be an MCP client, connecting to other MCP 
 
 **[p131]** Like it, and then. Do you wanna make like an agents dot md or a cloud dot md at the root that says that any changes have to update this status file?
 
-**[p132]** I dont want no mdc. rather have AGENTS.md in the repo. start a new plan plan to build in@promptforge the executor. this will be a multi-crate repo
+**[p132]** I dont want no mdc. rather have AGENTS.md in the repo. start a new plan plan to build in@runvil the executor. this will be a multi-crate repo
 
 **[p133]** do not look at the python implementation

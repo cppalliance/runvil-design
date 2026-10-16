@@ -23,7 +23,7 @@
 //! clone the specific [`ToolId`] or descriptor you need to keep.
 //!
 //! ```no_run
-//! use promptforge_tool_picker::{Catalog, Config, Outcome, ToolDescriptor, ToolId, ToolPicker};
+//! use runvil_tool_picker::{Catalog, Config, Outcome, ToolDescriptor, ToolId, ToolPicker};
 //! use serde_json::json;
 //!
 //! let catalog = Catalog::new(vec![ToolDescriptor::new(

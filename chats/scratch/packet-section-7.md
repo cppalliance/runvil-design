@@ -28,12 +28,12 @@ Facts only. No prose.
 
 **Concrete incidents / author-verbatim phrases:**
 - Reviewing the plan to collapse the duplicated arm engine: "an arm must be treated the same way as normal flow, preferably with the same functions... Why should arms be different?" (2026-08-19-0447-collapse-fanout-arm-review.md [p2])
-- On the child-heading restriction: "I dont see a point to restricting things like fanout() just beause a section has no child headings. this is try-hard. its pointless." (2026-08-18-1126-promptforge-md-aug18-morning.md [p138])
-- On arm capabilities: "arms can jump" ... "and execute, fanout, list_from_section, etc there is no reason for special cases" (2026-08-19-0048-promptforge-md-aug19.md [p78], [p79])
-- On run-time item sources: "You don't know ahead of time what you need to search for in the sub-agent... if you're calling it from the Lua and you just have some rigid rules... really the hard part is in the model" (2026-07-30-0534-promptforge-design-context.md [p50])
-- "Make this a general principle of the design, always explicit" (2026-08-08-0029-promptforge-context-planning.md [p35])
-- "the most fundamental operation of FanOut... executing a set of operations in parallel... we have to allow that second parameter to be an array" (2026-08-18-1126-promptforge-md-aug18-morning.md [p45])
-- "remember the preamble is shared. each subagent VM gets item and sys.taskid" (2026-08-08-0029-promptforge-context-planning.md [p47])
+- On the child-heading restriction: "I dont see a point to restricting things like fanout() just beause a section has no child headings. this is try-hard. its pointless." (2026-08-18-1126-runvil-md-aug18-morning.md [p138])
+- On arm capabilities: "arms can jump" ... "and execute, fanout, list_from_section, etc there is no reason for special cases" (2026-08-19-0048-runvil-md-aug19.md [p78], [p79])
+- On run-time item sources: "You don't know ahead of time what you need to search for in the sub-agent... if you're calling it from the Lua and you just have some rigid rules... really the hard part is in the model" (2026-07-30-0534-runvil-design-context.md [p50])
+- "Make this a general principle of the design, always explicit" (2026-08-08-0029-runvil-context-planning.md [p35])
+- "the most fundamental operation of FanOut... executing a set of operations in parallel... we have to allow that second parameter to be an array" (2026-08-18-1126-runvil-md-aug18-morning.md [p45])
+- "remember the preamble is shared. each subagent VM gets item and sys.taskid" (2026-08-08-0029-runvil-context-planning.md [p47])
 
 **Merge/derivation notes:**
 - Merged from grouped-draft Fanout records 1 ("Fanout is always invoked explicitly through a fanout() call...", endorsement: affirmed (ai-proposed legs); source: ai-proposed (affirmed); user-stated) and 2 ("The subagent section is the arm template...", endorsement: n/a; source: user-stated; user-corrective).
@@ -57,11 +57,11 @@ Facts only. No prose.
 - A wait-for-all barrier before the reduce step runs - rejected in favor of fail-fast sibling abort.
 
 **Concrete incidents / author-verbatim phrases:**
-- "my thinking is this, the invoking lua deals with the reduce step" (2026-08-08-0029-promptforge-context-planning.md [p33])
-- "max_fanout_items there should be no limit on the total, just a limit on concurrent fanout" (2026-08-19-0048-promptforge-md-aug19.md [p80])
+- "my thinking is this, the invoking lua deals with the reduce step" (2026-08-08-0029-runvil-context-planning.md [p33])
+- "max_fanout_items there should be no limit on the total, just a limit on concurrent fanout" (2026-08-19-0048-runvil-md-aug19.md [p80])
 - "I don't want the model to have to calculate the final name, we want to minimize the amount of inference" (2026-07-28-0925-orchestrator-design-document.md [p67])
 - "why should we waste inference having to figure that out?" (2026-07-28-0925-orchestrator-design-document.md [p69])
-- Plan language, repeated across two core plans: "core fires all arms at once, the gateway queue is the throttle; replies stay ordered by arm index; fail-fast aborts siblings... same invoker-visible behavior as sequential; the store stays shared and mutex-safe" (2026-08-14-1613-promptforge-core-largest-part5.md and 2026-08-09-1058-promptforge-core-large-part5.md, plans sections)
+- Plan language, repeated across two core plans: "core fires all arms at once, the gateway queue is the throttle; replies stay ordered by arm index; fail-fast aborts siblings... same invoker-visible behavior as sequential; the store stays shared and mutex-safe" (2026-08-14-1613-runvil-core-largest-part5.md and 2026-08-09-1058-runvil-core-large-part5.md, plans sections)
 
 **Merge/derivation notes:**
 - Derives from grouped-draft Fanout record 3 ("The invoking Lua owns the reduce step...", endorsement: unaddressed (ai-proposed legs); source: user-stated; user-corrective; ai-proposed).

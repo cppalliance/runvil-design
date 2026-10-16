@@ -1,21 +1,21 @@
 ---
 produced: 2026-10-10
-title: How agent harnesses implement the subagent task tool - spawn, observe, steer, continue, cancel, thinking visibility (Claude Code, Codex, opencode, Crush, Pi, pi-subagents, Everruns, Zed, Goose, Gemini CLI, Cline, Roo Code, Deep Agents, OpenHands, Cursor) - PromptForge model task baseline, section-scoped task ids decision, ranked recommendations
+title: How agent harnesses implement the subagent task tool - spawn, observe, steer, continue, cancel, thinking visibility (Claude Code, Codex, opencode, Crush, Pi, pi-subagents, Everruns, Zed, Goose, Gemini CLI, Cline, Roo Code, Deep Agents, OpenHands, Cursor) - Runvil model task baseline, section-scoped task ids decision, ranked recommendations
 ---
 
-# PromptForge: How Agent Harnesses Let a Model Spawn, Watch, and Stop Subagents
+# Runvil: How Agent Harnesses Let a Model Spawn, Watch, and Stop Subagents
 
-Report type: analytical / recommendation. It surveys how 15 agent harnesses implement the model-facing subagent tool, with the most detail on what the parent model can see of a running child. It then records what PromptForge's own engine does today and the owner's decisions of 2026-10-10, and recommends what PromptForge's model task built-ins should change, in payoff order.
+Report type: analytical / recommendation. It surveys how 15 agent harnesses implement the model-facing subagent tool, with the most detail on what the parent model can see of a running child. It then records what Runvil's own engine does today and the owner's decisions of 2026-10-10, and recommends what Runvil's model task built-ins should change, in payoff order.
 
 ## Executive summary
 
 Every harness surveyed gives the parent model the same thing: the child's final text, delivered once. None of the 15 lets the parent model see the child's thinking, and none shows it the child's tool calls. The field tried to give the model more and backed off each time. Claude Code withdrew its transcript-reading tool after it flooded context, opencode deleted its status-polling tool 11 days after adding it, and Goose removed its progress peek after a model read the numbers as "stuck" and killed working children. While a child runs, the most any parent model gets is a status snapshot, a one-line liveness digest, or in two harnesses a bounded tail of the child's messages.
 
-PromptForge's four model built-ins (`task`, `task_status`, `task_cancel`, `await_tasks`) already match this converged core: a pushed completion notice, a blocking wait, a status line, and a cancel. They beat most of the field on three points: completed results are wrapped as untrusted text under a run nonce, a model can only name tasks it started, and every task ends in exactly one named state. The survey's gaps are around the core, not in it. The model cannot send a message to a running task or continue a finished one. The status line carries no time or activity signal. A notice is lost when the model ends its loop before a task finishes. And the notice arrives as a user message that does not say it came from the engine rather than the user.
+Runvil's four model built-ins (`task`, `task_status`, `task_cancel`, `await_tasks`) already match this converged core: a pushed completion notice, a blocking wait, a status line, and a cancel. They beat most of the field on three points: completed results are wrapped as untrusted text under a run nonce, a model can only name tasks it started, and every task ends in exactly one named state. The survey's gaps are around the core, not in it. The model cannot send a message to a running task or continue a finished one. The status line carries no time or activity signal. A notice is lost when the model ends its loop before a task finishes. And the notice arrives as a user message that does not say it came from the engine rather than the user.
 
-Reading PromptForge's engine turned up a defect the survey alone would not have found. The engine owns every task by chain, not by section, so a model task survives the section that started it. Its notice is delivered into whatever section runs the chain's next model round, even a section that never allowed tasks. PromptForge's guide claims the opposite, section scope, and the owner set the guide aside as a source. The owner decided that model task ids are scoped to the section that started them: when the section ends, its model tasks end, and any later mention of their ids gets the same answer as an id that never existed.
+Reading Runvil's engine turned up a defect the survey alone would not have found. The engine owns every task by chain, not by section, so a model task survives the section that started it. Its notice is delivered into whatever section runs the chain's next model round, even a section that never allowed tasks. Runvil's guide claims the opposite, section scope, and the owner set the guide aside as a source. The owner decided that model task ids are scoped to the section that started them: when the section ends, its model tasks end, and any later mention of their ids gets the same answer as an id that never existed.
 
-The first recommendation carries out that decision, which also fixes the defect. The largest new capability is one message built-in that queues a message into a running task's next model round and continues a finished task that opted in, with its conversation intact. The owner observed this continuation in Cursor's own harness; eight of the 15 harnesses steer running children, eight continue finished ones, and PromptForge does neither. The cheapest high-value changes are an engine label on notices and a loop option that keeps `models.loop` alive while the model's tasks are still running. The removal of the model-facing history read on 2026-10-01 should stand: the field's evidence says not to bring back a transcript read for the model.
+The first recommendation carries out that decision, which also fixes the defect. The largest new capability is one message built-in that queues a message into a running task's next model round and continues a finished task that opted in, with its conversation intact. The owner observed this continuation in Cursor's own harness; eight of the 15 harnesses steer running children, eight continue finished ones, and Runvil does neither. The cheapest high-value changes are an engine label on notices and a loop option that keeps `models.loop` alive while the model's tasks are still running. The removal of the model-facing history read on 2026-10-01 should stand: the field's evidence says not to bring back a transcript read for the model.
 
 ### Key findings
 
@@ -24,15 +24,15 @@ The first recommendation carries out that decision, which also fixes the defect.
 3. **"What is the child doing" is answered with status, never with the transcript, and every richer read was withdrawn or misfired.** Claude Code's `TaskOutput`, opencode's `task_status`, and Goose's `peek` were all removed, and Codex's `wait_agent` still promises a per-agent summary its code never built. Confidence: high.
 4. **Async harnesses push completion as a user-role message, and the user role causes real confusion.** Claude Code issue 44778 reports models treating a notification as user consent; Claude Code and Everruns now prefix the push with "not user input" text. Confidence: medium, because the failure evidence comes from one product's issues.
 5. **A completion that cannot wake the parent forces polling, at measured cost.** Codex never wakes an idle parent, and one user measured about 117,000 input tokens per `wait_agent` call; Claude Code, opencode, and Everruns start a new parent turn instead. Confidence: high.
-6. **Steering a running child and continuing a finished one are common, and they are PromptForge's largest missing capability.** Claude Code, Codex, opencode, Everruns, Cline, Deep Agents, pi-subagents, and Cursor can all send a running child a message, mostly queued for its next model round, and most of the same verbs continue a finished child with its history; two harnesses lose the follow-up's result because they notify only on the first finish. Confidence: medium, because the build cost is large and the value inside a prompt program is untested.
-7. **Cancellation is the least consistent part of the field, and PromptForge's ending states beat it.** Everruns' cancel ends the task as `succeeded`, Cline's cancel never stops the teammate, and opencode sends no notice for a cancelled background child; PromptForge names `cancelled` and `abandoned` separately and tells the model why. Confidence: high.
-8. **PromptForge's engine scopes model tasks to the chain, while the model's tools and messages belong to the section, so notices leak across sections.** Ownership, the ids `task_status` accepts, and the notice queue are all per chain (`scheduler/task_end.rs:10-14`, `scheduler/builtins.rs:294-304`), while the allowlist lives on the section's VM; the notice drain runs before the allowlist is read (`scheduler/chat.rs:123-127`). The owner's decision to scope model task ids to their section fixes it. Confidence: high, because every link in the chain is read from code at `abe218a`.
+6. **Steering a running child and continuing a finished one are common, and they are Runvil's largest missing capability.** Claude Code, Codex, opencode, Everruns, Cline, Deep Agents, pi-subagents, and Cursor can all send a running child a message, mostly queued for its next model round, and most of the same verbs continue a finished child with its history; two harnesses lose the follow-up's result because they notify only on the first finish. Confidence: medium, because the build cost is large and the value inside a prompt program is untested.
+7. **Cancellation is the least consistent part of the field, and Runvil's ending states beat it.** Everruns' cancel ends the task as `succeeded`, Cline's cancel never stops the teammate, and opencode sends no notice for a cancelled background child; Runvil names `cancelled` and `abandoned` separately and tells the model why. Confidence: high.
+8. **Runvil's engine scopes model tasks to the chain, while the model's tools and messages belong to the section, so notices leak across sections.** Ownership, the ids `task_status` accepts, and the notice queue are all per chain (`scheduler/task_end.rs:10-14`, `scheduler/builtins.rs:294-304`), while the allowlist lives on the section's VM; the notice drain runs before the allowlist is read (`scheduler/chat.rs:123-127`). The owner's decision to scope model task ids to their section fixes it. Confidence: high, because every link in the chain is read from code at `abe218a`.
 
 ## The parent model gets a final message, as a tool result or a pushed notice
 
 The field uses two delivery shapes. In the sync shape, the spawn call blocks until the child ends, and the child's final text becomes that call's tool result. Zed, Crush, Gemini CLI, OpenHands, Pi's example extension, and Deep Agents' `task` work this way, and so do the foreground modes of Claude Code, opencode, Cline, and Cursor. Goose belongs here too in effect: its tool returns at once, but the parent does not run another model round until every child in the batch has finished.
 
-In the async shape, the spawn call returns an id at once, the parent keeps working, and the harness later injects the child's final text as a new message. Claude Code, Codex, opencode's background mode, Everruns, pi-subagents, Cursor's background mode, and PromptForge work this way. Figure 1 shows the async exchange that most of these share, and Table 1 lists what each harness's parent model receives during and after a child's run.
+In the async shape, the spawn call returns an id at once, the parent keeps working, and the harness later injects the child's final text as a new message. Claude Code, Codex, opencode's background mode, Everruns, pi-subagents, Cursor's background mode, and Runvil work this way. Figure 1 shows the async exchange that most of these share, and Table 1 lists what each harness's parent model receives during and after a child's run.
 
 *Figure 1. The async exchange the field converged on. Only the final text crosses from child to parent; the status read is optional and returns a snapshot, not the child's conversation.*
 
@@ -69,7 +69,7 @@ sequenceDiagram
 | Deep Agents | sync; async opt-in for remote servers | async: `check_async_task` status | `.text` of the last non-empty AI message, or structured JSON | ToolMessage | none | no; its threat model says "Validation: None" |
 | OpenHands | sync | nothing | a "Task ID / Subagent / Status" header plus the final finish message | tool result | not verified | no; tool text calls results "authoritative" |
 | Cursor (observed in this run) | sync or background | background: a transcript path the parent may tail | the child's final message plus an "Agent ID" footer | foreground: tool result; background: delivered after the parent ends its turn | not verified | no; tool text says outputs "should generally be trusted" |
-| PromptForge today | async only | `task_status` line: state, section, what it is blocked on, turns, child tasks, note | the task section's return value | user record before the chain's next `models.loop` round, in any section, or the `await_tasks` result | none | result wrapped as untrusted under the run nonce; the head is bare |
+| Runvil today | async only | `task_status` line: state, section, what it is blocked on, turns, child tasks, note | the task section's return value | user record before the chain's next `models.loop` round, in any section, or the `await_tasks` result | none | result wrapped as untrusted under the run nonce; the head is bare |
 
 Three things in Table 1 matter for the design. First, the "at the end" column is a single message in every row; the variation is only in the header and counts around it. Second, the "during" column is empty for 8 of the 15 harnesses, and where it is filled, it holds a status or a bounded tail, never a live view of the child's conversation. Third, only Claude Code and Everruns mark child output as something other than the user's words, and four harnesses tell the model to trust it outright: Codex's explorer role, opencode, OpenHands, and Cursor.
 
@@ -90,13 +90,13 @@ No harness passes a child's thinking to its parent model. In 13 harnesses the co
 | Pi (example extension) | never | never; the renderer keeps text and tool calls only | `getFinalOutput` takes text parts; `getDisplayItems` (`index.ts:206-216`) |
 | Crush | never | never; the UI nests only the child's tool calls | the result is `Content.Text()` of the last text step |
 
-No harness states why it drops thinking. Zed's system prompt states the consequence instead, and it is the most useful sentence in the survey for tool text: "Because you only receive the sub-agent's final message, ask it to include relevant failing lines or diagnostics" (`system_prompt.hbs:114-129`). My inference is that three forces push the same way: thinking is large, it is often provider-signed and only valid inside its own conversation, and the parent needs the child's conclusion, not its deliberation. PromptForge already behaves this way, since a task's result is whatever its section returns.
+No harness states why it drops thinking. Zed's system prompt states the consequence instead, and it is the most useful sentence in the survey for tool text: "Because you only receive the sub-agent's final message, ask it to include relevant failing lines or diagnostics" (`system_prompt.hbs:114-129`). My inference is that three forces push the same way: thinking is large, it is often provider-signed and only valid inside its own conversation, and the parent needs the child's conclusion, not its deliberation. Runvil already behaves this way, since a task's result is whatever its section returns.
 
 ## The conversation the parent model sees, message by message
 
 The reconstructions below are built from each harness's own templates in code, or from the shipped bundle for Claude Code. Ids, paths, file names, and the child's findings are invented placeholders; every fixed string is quoted from the source. Long boilerplate is trimmed where marked with `[...]`. Roles are as the model provider receives them, with `tool` standing for whatever carries a tool result.
 
-### PromptForge today: a bare ack, an optional status line, and one wrapped notice
+### Runvil today: a bare ack, an optional status line, and one wrapped notice
 
 This is the baseline the rest compares against, built from `scheduler/builtins.rs` and `scheduler/notices.rs` at `abe218a`.
 
@@ -299,11 +299,11 @@ The five texts also pull in two directions. The parameter calls the path somethi
 
 ### One cross-conversation notice, observed
 
-Four notices for background shell commands arrived in the parent's turn, each `kind: shell`, `status: error`, with `detail: exit_code=4294967295`, which is -1 as an unsigned 32-bit number. Their titles are "Check InputMessage::user metadata and history", "Find when V2 wait text was introduced", "Check legacy Collab events at HEAD", and "Check agent_type exposure tests". Those match work the Everruns and Codex researchers did, and the parent ran no such commands. My inference is that a child's background shells notify the parent when they are killed at the child's end. This was observed once, and the mechanism is not verified. It is the same class of defect the baseline found in PromptForge (Table 9): a notice delivered to a conversation that never started the work.
+Four notices for background shell commands arrived in the parent's turn, each `kind: shell`, `status: error`, with `detail: exit_code=4294967295`, which is -1 as an unsigned 32-bit number. Their titles are "Check InputMessage::user metadata and history", "Find when V2 wait text was introduced", "Check legacy Collab events at HEAD", and "Check agent_type exposure tests". Those match work the Everruns and Codex researchers did, and the parent ran no such commands. My inference is that a child's background shells notify the parent when they are killed at the child's end. This was observed once, and the mechanism is not verified. It is the same class of defect the baseline found in Runvil (Table 9): a notice delivered to a conversation that never started the work.
 
-### What it means for PromptForge
+### What it means for Runvil
 
-Cursor's file is a middle ground between Claude Code's full transcript, which floods context, and no transcript at all. It records what the child said and did, not what it saw, which kept each file to a few hundred kilobytes in this run. PromptForge's model-facing history read stays removed. If one is ever redesigned, this shape is the smallest that still answers "what is the child doing": the child's own text and its tool calls with arguments, without tool results or thinking. Noted, not scheduled. Confidence: low, because the shape's value to a parent model is untested here.
+Cursor's file is a middle ground between Claude Code's full transcript, which floods context, and no transcript at all. It records what the child said and did, not what it saw, which kept each file to a few hundred kilobytes in this run. Runvil's model-facing history read stays removed. If one is ever redesigned, this shape is the smallest that still answers "what is the child doing": the child's own text and its tool calls with arguments, without tool results or thinking. Noted, not scheduled. Confidence: low, because the shape's value to a parent model is untested here.
 
 ## While a child runs, the parent gets a status, not the conversation
 
@@ -314,12 +314,12 @@ Asking "what is the child doing right now" gets one of five answers across the f
 | Channel | Harnesses | What the model reads |
 |---|---|---|
 | Nothing until the end | Zed, Crush, Gemini CLI, opencode, Pi example, Goose, OpenHands, Roo Code | no channel exists |
-| Status snapshot, pulled | Codex `list_agents`; Deep Agents `check_async_task`; PromptForge `task_status` | Codex: `{"agents":[{"agent_name":"/root/x","agent_status":"running"}]}`; Deep Agents: `{"status","thread_id","result"}`; PromptForge: state, section, what it is blocked on, turns, child tasks, note |
+| Status snapshot, pulled | Codex `list_agents`; Deep Agents `check_async_task`; Runvil `task_status` | Codex: `{"agents":[{"agent_name":"/root/x","agent_status":"running"}]}`; Deep Agents: `{"status","thread_id","result"}`; Runvil: state, section, what it is blocked on, turns, child tasks, note |
 | Liveness fields, pulled | Cline `team_list_runs` | `lastProgressAt`, `currentActivity`, `heartbeatAt`, a 240-character message preview, a 400-character result preview |
 | Liveness digest, pushed | Claude Code worker check-in (opt-in); Goose `<turn-context>` digest (removed 2026-10-07) | Claude: "Still running:\n- Audit auth tokens (23 tool calls, last tool call ~1 minutes ago: Reading src/auth/session.ts)"; Goose: "Background tasks:\n• {id}: \"{desc}\" - running {t}, {n} turns, idle {i}" |
 | Bounded tail of the child's messages, pulled | Everruns `get_task`; pi-subagents `status` | Everruns: the task snapshot plus the last 20 thread messages; pi-subagents: up to 500 lines of the transcript |
 | Raw transcript file | Claude Code (named, then forbidden); Cursor (offered) | a JSONL path; Claude's launch text says reading it "will overflow your context"; Cursor's file holds the child's text and tool calls but no tool results or thinking |
-| Progress the child writes itself | Everruns `report_task_progress` with an `on_activity` wake; PromptForge `tasks.note` (Lua only) | Everruns: a wake "... sent a message: <detail>"; PromptForge: the `note` field of the status line |
+| Progress the child writes itself | Everruns `report_task_progress` with an `on_activity` wake; Runvil `tasks.note` (Lua only) | Everruns: a wake "... sent a message: <detail>"; Runvil: the `note` field of the status line |
 
 ### Every richer model-facing read was withdrawn or never worked
 
@@ -334,11 +334,11 @@ The strongest evidence in the survey is a pattern of retreats. Table 4 lists six
 | `task_status` | opencode | added 2026-05-14, removed 2026-05-25 in favor of a push and "DO NOT sleep, poll for progress, ask the task for status" | [PR 27084](https://github.com/anomalyco/opencode/pull/27084), [PR 29179](https://github.com/anomalyco/opencode/pull/29179) |
 | `peek` and the background digest | Goose | a parent model read repeated peeks as "stuck" and killed working children; a cancel race returned "Task not found"; the whole background mode was removed on 2026-10-07 | [issue 11999](https://github.com/aaif-goose/goose/issues/11999), [issue 12056](https://github.com/aaif-goose/goose/issues/12056), [PR 12729](https://github.com/aaif-goose/goose/pull/12729) |
 | `wait_agent` summary | Codex V2 | the description promises "a summary of which agents have updates (if any)", but the code has only ever returned a wake reason | `multi_agents_spec.rs:306` against `multi_agents_v2/wait.rs:153-220` |
-| `task_events` | PromptForge | removed 2026-10-01, for an engineering reason (it forced the Harness log to be readable during a run), not for model behavior | PromptForge plan record of 2026-10-01 |
+| `task_events` | Runvil | removed 2026-10-01, for an engineering reason (it forced the Harness log to be readable during a run), not for model behavior | Runvil plan record of 2026-10-01 |
 
 Three different failures show up in Table 4. Transcript reads flood context, which is why Claude Code moved from a tool to a file and then forbade the file. Polling burns tokens and turns, which is why opencode deleted its poll within 11 days, and why Codex users who must poll measured about 117,000 input tokens per wait ([issue 35108](https://github.com/openai/codex/issues/35108)). And liveness numbers mislead, which is the Goose lesson: an "idle" figure without context made a model kill children that were working.
 
-It is very likely that a model-facing transcript or event read in PromptForge would meet the first two failures. Confidence: medium, because PromptForge's removed read was incremental by sequence number, which no withdrawn tool was, and the evidence concerns other designs. The Goose failure is the warning for any liveness field: pair a time figure with what the task is doing, as Claude Code's check-in does ("last tool call ~1 minutes ago: Reading src/auth/session.ts").
+It is very likely that a model-facing transcript or event read in Runvil would meet the first two failures. Confidence: medium, because Runvil's removed read was incremental by sequence number, which no withdrawn tool was, and the evidence concerns other designs. The Goose failure is the warning for any liveness field: pair a time figure with what the task is doing, as Claude Code's check-in does ("last tool call ~1 minutes ago: Reading src/auth/session.ts").
 
 ## Spawning: one tool, a prompt, and a fresh context
 
@@ -363,11 +363,11 @@ Every harness spawns through one model tool that takes a prompt-like string, and
 | Deep Agents | `task {description, subagent_type}`; `start_async_task {description, subagent_type}` | async: "Launched async subagent. task_id: <thread_id>" |
 | OpenHands | `task {prompt, subagent_type?, description?, resume?}` | nothing until the child ends |
 | Cursor | `Task {description, prompt, subagent_type?, model?, resume?, interrupt?, run_in_background?, ...}` | background: "Subagent is running in the background. [...]" |
-| PromptForge | `task {target, input?}` | `Task id=0.0 started` |
+| Runvil | `task {target, input?}` | `Task id=0.0 started` |
 
-The async acks differ in one way that matters: four of them carry behavior rules. Claude Code, opencode, pi-subagents, and Everruns each tell the model in the ack that it will be notified, that it must not poll, and in two cases that it must not duplicate the child's work. Deep Agents puts the rule in the tool description: "Report the task ID to the user and stop - do NOT immediately check status", and "Statuses shown earlier in the conversation are always stale" (`async_subagents.py:466-470`). PromptForge's ack, `Task id=0.0 started`, carries no rule.
+The async acks differ in one way that matters: four of them carry behavior rules. Claude Code, opencode, pi-subagents, and Everruns each tell the model in the ack that it will be notified, that it must not poll, and in two cases that it must not duplicate the child's work. Deep Agents puts the rule in the tool description: "Report the task ID to the user and stop - do NOT immediately check status", and "Statuses shown earlier in the conversation are always stale" (`async_subagents.py:466-470`). Runvil's ack, `Task id=0.0 started`, carries no rule.
 
-**Forked context is the one common alternative to a fresh start.** Claude Code's fork copies the parent's history and answers each pending tool call with "Fork started - processing in background", which keeps the provider's prompt cache. Codex V2 forks by default but filters the copy to system, developer, and user messages plus final answers, dropping reasoning and tool calls, and tags copied messages so they cannot authorize actions (`agent/control/spawn.rs:81-124`). PromptForge tasks start from a copy of `var` and an input string, never the conversation, which suits a prompt program whose sections are written to stand alone.
+**Forked context is the one common alternative to a fresh start.** Claude Code's fork copies the parent's history and answers each pending tool call with "Fork started - processing in background", which keeps the provider's prompt cache. Codex V2 forks by default but filters the copy to system, developer, and user messages plus final answers, dropping reasoning and tool calls, and tags copied messages so they cannot authorize actions (`agent/control/spawn.rs:81-124`). Runvil tasks start from a copy of `var` and an input string, never the conversation, which suits a prompt program whose sections are written to stand alone.
 
 **Depth and concurrency caps are small everywhere.** Table 6 lists them.
 
@@ -384,7 +384,7 @@ The async acks differ in one way that matters: four of them carry behavior rules
 | Pi example | no cap found | 8 tasks, 4 at a time |
 | Goose, Gemini CLI, Crush | no nesting | Goose: no cap; others: calls in one turn |
 | Cline SDK | no cap found for `spawn_agent` | 2 team runs, one per teammate |
-| PromptForge | 8, shared with `call` and `fanout` | 8 by default, with a queue; a waiting task gives back its slot |
+| Runvil | 8, shared with `call` and `fanout` | 8 by default, with a queue; a waiting task gives back its slot |
 
 Codex is the only harness that tells the model its slot count: "There are 4 available concurrency slots, meaning that up to 4 agents can be active at once, including you" (`prompts/src/multi_agent_instructions.rs:77-79`).
 
@@ -408,7 +408,7 @@ Eight of the 15 harnesses let the parent model send a message to a child that is
 
 Most of these verbs also continue a child that has finished, with its history intact: Claude Code's `SendMessage` answers "Resuming agent X", opencode's `task_id` call starts a new run of the stored child, and Cursor's `resume` on a finished agent "sends a follow-up message after the agent has completed, preserving existing context". Zed, OpenHands, and Codex V1's `resume_agent` can only continue a child that has finished. Crush, Gemini CLI, Goose, Roo Code, and Pi's example extension have no way to reach a child once it starts, though Gemini CLI injects a human's hints into running children as `User hints:\n<user_input>\n- ...\n</user_input>` (`fastAckHelper.ts:53-78`).
 
-Two details from Table 7 transfer directly. Claude Code's "at its next tool round" is the delivery rule PromptForge already uses for notices, applied in the other direction. And Codex V1 tells an interrupted child "The user interrupted" when the parent did, which is a labeling mistake to avoid: the message should name its sender.
+Two details from Table 7 transfer directly. Claude Code's "at its next tool round" is the delivery rule Runvil already uses for notices, applied in the other direction. And Codex V1 tells an interrupted child "The user interrupted" when the parent did, which is a labeling mistake to avoid: the message should name its sender.
 
 ## Cancellation: the least consistent part of the field
 
@@ -425,13 +425,13 @@ Cancellation varies more than any other mechanism, and three harnesses ship canc
 | Deep Agents | `cancel_async_task`: "Cancelled async subagent task: <id>" | local state only | no |
 | pi-subagents | `interrupt` and `stop` actions | "Interrupt requested for async run <id>." | not verified |
 | Zed, opencode, Goose, Gemini CLI, Crush | none; human only | Zed: `{"error":"User canceled"}`; opencode: "Task cancelled", or nothing for a background child; Goose: "Subagent {id} was cancelled before it finished and will not run again."; Gemini CLI: "[Operation Cancelled] Operation cancelled."; Crush: "Error: user cancelled assistant tool calling" | Zed and Gemini CLI drop it; Goose delivers finished siblings first |
-| PromptForge | `task_cancel {id}`: "Task id=0.0 cancelled" | its own cancel: no notice; an author cancel: "was canceled: the author cancelled it"; an owner's end: "was abandoned: <why>" | no |
+| Runvil | `task_cancel {id}`: "Task id=0.0 cancelled" | its own cancel: no notice; an author cancel: "was canceled: the author cancelled it"; an owner's end: "was abandoned: <why>" | no |
 
-The defects are worth naming because they are easy to repeat. Everruns' cancel is only a polite message, so a child that complies settles as `succeeded`, against its own spec (`caps/subagents.rs:1815-1821`). Cline's cancel updates a record and never aborts the teammate. opencode's launch text promises a notification, but a cancelled background child produces none. Two designs separate an interrupt, which stops the current turn and keeps the child, from a kill: Codex V2's `interrupt_agent` and pi-subagents' `interrupt` and `stop`. PromptForge has only the kill.
+The defects are worth naming because they are easy to repeat. Everruns' cancel is only a polite message, so a child that complies settles as `succeeded`, against its own spec (`caps/subagents.rs:1815-1821`). Cline's cancel updates a record and never aborts the teammate. opencode's launch text promises a notification, but a cancelled background child produces none. Two designs separate an interrupt, which stops the current turn and keeps the child, from a kill: Codex V2's `interrupt_agent` and pi-subagents' `interrupt` and `stop`. Runvil has only the kill.
 
-## Baseline: what PromptForge's code does today
+## Baseline: what Runvil's code does today
 
-This section records what PromptForge's engine does at `abe218a`, read from the source. Where the code and PromptForge's guide disagree, the report follows the code, and the owner set the guide aside on 2026-10-10. PromptForge paths in this report are relative to `crates/promptforge-internal/engine/src/execute/`, except those starting with `types/`, which are relative to `crates/promptforge-internal/`.
+This section records what Runvil's engine does at `abe218a`, read from the source. Where the code and Runvil's guide disagree, the report follows the code, and the owner set the guide aside on 2026-10-10. Runvil paths in this report are relative to `crates/runvil-internal/engine/src/execute/`, except those starting with `types/`, which are relative to `crates/runvil-internal/`.
 
 ### The model-facing surface, as built
 
@@ -468,7 +468,7 @@ The mismatch has three consequences, each read from the code above. First, a mod
 
 ### The guide disagrees with the code
 
-The guide in the `promptforge-docs` repository, chapter 15 "Tasks" (last changed in commit `c3e5714`, 2026-10-03), describes the section scope the owner expected. It says a notice goes to "the section whose model started the task", and that `task_status` and `task_cancel` "see only tasks the model started from the calling section". The code does neither. An older copy of the chapter in the `promptforge3` checkout has the same wording and still lists the removed `task_events`.
+The guide in the `runvil-docs` repository, chapter 15 "Tasks" (last changed in commit `c3e5714`, 2026-10-03), describes the section scope the owner expected. It says a notice goes to "the section whose model started the task", and that `task_status` and `task_cancel` "see only tasks the model started from the calling section". The code does neither. An older copy of the chapter in the `runvil3` checkout has the same wording and still lists the removed `task_events`.
 
 ## The owner's observations and decisions, 2026-10-10
 
@@ -483,7 +483,7 @@ The owner reviewed the first version of this report the same day. Two observatio
 
 1. **Model task ids are scoped to the section that started them.** A model task does not survive a section transition. When the section ends, its live model tasks end and their ids leave scope. Finding 1 carries this out.
 2. **An out-of-scope id behaves as if the task never existed.** Every built-in, `task_status` included, answers it exactly as it answers an unknown id, with no "pruned" or "out of scope" message. The existing refusal already makes unknown and unowned ids look the same (`scheduler/builtins.rs:303`), and the event log keeps the true record of how the task ended.
-3. **The guide is not a source for this work.** The engine code is authoritative. The owner is excluding the `promptforge-docs` repository from agent context with a workspace `.cursorignore` entry, `/promptforge-docs/`, added by hand because agent edits to ignore files are blocked.
+3. **The guide is not a source for this work.** The engine code is authoritative. The owner is excluding the `runvil-docs` repository from agent context with a workspace `.cursorignore` entry, `/runvil-docs/`, added by hand because agent edits to ignore files are blocked.
 
 The 2026-10-01 removal of the model-facing history read also stands, as the recommendations restate.
 
@@ -494,9 +494,9 @@ The 2026-10-01 removal of the model-facing history read also stands, as the reco
 - **Closing an idle task.** Should `task_cancel` on an idle, continued task count as a cancel or as a clean close? The recommendation is a close, since every run's result was already delivered.
 - **The loop hold's default.** Should `settle_tasks` stay opt-in? The recommendation is opt-in first, then a decision after measuring.
 
-## Where PromptForge already matches or beats the field
+## Where Runvil already matches or beats the field
 
-PromptForge's model task design already avoids the most common defects in the survey, in six places. Each claim below is checked against PromptForge at `abe218a` and the harness cited.
+Runvil's model task design already avoids the most common defects in the survey, in six places. Each claim below is checked against Runvil at `abe218a` and the harness cited.
 
 - **Exactly-once delivery.** A notice is taken once, by whichever comes first, a `models.loop` round or `await_tasks` (`scheduler/notices.rs:81-93`). Codex V1 delivers the same completion twice, through the push and through `wait_agent` ([issue 24225](https://github.com/openai/codex/issues/24225)), and pi-subagents users report missing and duplicated notices. Everruns' wake queue is the only equal (`wake_queue.rs:10-36`).
 - **Untrusted wrapping in one place.** Every notice is built in one function, and a completed result is nonce-wrapped there (`scheduler/notices.rs:59-68`). Twelve of the 15 harnesses do not mark child output at all, and Everruns, which labels it, misses the label on two delivery paths because the wake is built in more than one place (`host/runtime.rs:1390`).
@@ -509,15 +509,15 @@ PromptForge's model task design already avoids the most common defects in the su
 
 One decision sits under all of them: keep the model's view of a task push-only, and do not restore a model-facing history read. Table 4 shows three products retreating from that kind of read and a fourth that never built the one it promises, and the 2026-10-01 removal already matches where the field ended up. Confidence: high, because the retreats are documented in changelogs, merged PRs, and code.
 
-Doing nothing else is not an option any more, because the baseline found a defect: a model task's notice can reach a different section's conversation. Beyond that fix, the four built-ins already match the field's core, and the cost of stopping there is the silent loss of a model's unfinished tasks (Finding 3) and no way to redirect a task or continue one that has finished (Finding 2). The nine recommendations below are ranked by how serious the gap is first, by how many harnesses converge on the fix second, and by cost third. Each names the PromptForge code it changes and gives strings a plan can adopt as written. The owner of all nine is the PromptForge engine maintainer, and the next step is a plan for steps 1 to 3 of the execution order below.
+Doing nothing else is not an option any more, because the baseline found a defect: a model task's notice can reach a different section's conversation. Beyond that fix, the four built-ins already match the field's core, and the cost of stopping there is the silent loss of a model's unfinished tasks (Finding 3) and no way to redirect a task or continue one that has finished (Finding 2). The nine recommendations below are ranked by how serious the gap is first, by how many harnesses converge on the fix second, and by cost third. Each names the Runvil code it changes and gives strings a plan can adopt as written. The owner of all nine is the Runvil engine maintainer, and the next step is a plan for steps 1 to 3 of the execution order below.
 
 ### Finding 1: Scope model tasks to the section that started them
 
 **Decision and defect.** The owner decided that model task ids are scoped to their section and that an out-of-scope id behaves as if the task never existed. The same change fixes the defect the baseline found: today a model task belongs to the chain, survives fall-through and `jump`, and delivers its notice into whatever section runs the chain's next model round (Table 9).
 
-**Field mechanism.** Every harness surveyed ties a child to the conversation that spawned it. opencode stores the parent session id on each child session, and Zed stores a `parent_id` and deletes children with their parent. In PromptForge the conversation the model knows is the section: the section's Lua builds the message list, and the section's VM holds the task allowlist. Codex shows what happens when children outlive their parent's attention: results that arrive after the parent's turn ends sit unseen until the user's next turn ([issue 46120](https://github.com/openai/codex/issues/46120)).
+**Field mechanism.** Every harness surveyed ties a child to the conversation that spawned it. opencode stores the parent session id on each child session, and Zed stores a `parent_id` and deletes children with their parent. In Runvil the conversation the model knows is the section: the section's Lua builds the message list, and the section's VM holds the task allowlist. Codex shows what happens when children outlive their parent's attention: results that arrive after the parent's turn ends sit unseen until the user's next turn ([issue 46120](https://github.com/openai/codex/issues/46120)).
 
-**What it changes in PromptForge.**
+**What it changes in Runvil.**
 
 - **The slot records its section entry.** Each model-origin task records the section entry whose model started it. Use the entry, not the section's name, so a section the walk re-enters by `jump` counts as a new conversation.
 - **Section exit ends the section's model tasks.** On every exit (fall-through, `jump`, return, or failure), the engine abandons that entry's live model tasks and drops their undelivered notices. The existing reason `owner_returned`, worded "the section ended" (`types/src/ids.rs:320-322`), becomes accurate. The hook belongs where the section context ends (`section_context.rs`), and it must run on the failure path too, which does not report `section_finished`.
@@ -537,7 +537,7 @@ Confidence: high, because the leak is visible in the code, the allowlist and mes
 
 **The failure to avoid.** Two harnesses lose the result of a follow-up. Codex V1 pushes a completion only on a child's first final status (`codex-rs/core/src/agent/control.rs:450-564`), so a later run's result is never pushed unless `resume_agent` restarts the watcher. Everruns' `message_task` to a finished child starts a new turn but re-arms no wake. Claude Code avoids this by notifying on every stop, and its notice tells the model so: "the same task-id may notify more than once." Its SDK also gives each run a `run_id` separate from the `task_id`, so a resumed run's events can be told apart (`sdk.d.ts:6061`).
 
-**What it adds to PromptForge.** Today the model cannot reach a task after `task` returns; `scheduler/builtins.rs` serves only `task`, `task_status`, `task_cancel`, and `await_tasks`. A finished task has nothing to continue, either, because a task ends when its own section returns and its Lua state is torn down. Continuation therefore needs a new task state, `idle`: the task has delivered a result, its section has not returned, and it waits for a message. The alternative, re-running a finished section under the same id seeded with its last `var`, is set aside because the section never agreed to run twice and may repeat side effects. Under Finding 1, an idle task also ends when the section whose model started it ends, so a task can only be continued from its own conversation.
+**What it adds to Runvil.** Today the model cannot reach a task after `task` returns; `scheduler/builtins.rs` serves only `task`, `task_status`, `task_cancel`, and `await_tasks`. A finished task has nothing to continue, either, because a task ends when its own section returns and its Lua state is torn down. Continuation therefore needs a new task state, `idle`: the task has delivered a result, its section has not returned, and it waits for a message. The alternative, re-running a finished section under the same id seeded with its last `var`, is set aside because the section never agreed to run twice and may repeat side effects. Under Finding 1, an idle task also ends when the section whose model started it ends, so a task can only be continued from its own conversation.
 
 **The fix.** Add a fifth built-in, `task_send {id, message}`, scoped by `tools.allow_tasks` like the other four, whose answer depends on the task's state:
 
@@ -557,7 +557,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** When a child finishes after the parent has gone idle, Claude Code, opencode, Everruns, and pi-subagents start a new parent turn with the notice. Goose waits for every child in a batch before the parent's next round. Cline injects a guard as a user message when the lead tries to stop with work outstanding: "[SYSTEM] You still have team obligations. ... Do NOT stop until all tasks are completed." (`runtime-builder.ts:850`). Codex shows the cost of doing none of these: completions never wake the parent, so users poll, at about 117,000 input tokens per wait ([issue 35108](https://github.com/openai/codex/issues/35108), [issue 46120](https://github.com/openai/codex/issues/46120)).
 
-**What it replaces in PromptForge.** Today a text reply ends `models.loop` even while the model's tasks run. If the section then returns and ends the chain, those tasks are abandoned quietly, and their notices are never read, because "an abandoned task's owner has ended, so its notice is never read" (`scheduler/notices.rs:9-11`). If the walk falls through instead, the task runs on and its notice lands in the next section (Table 9). Under Finding 1 both paths end the same way, with the task abandoned at the section's exit. Either way the model's work is lost unless the author takes it over through `tasks.pending({ origin = "model" })`.
+**What it replaces in Runvil.** Today a text reply ends `models.loop` even while the model's tasks run. If the section then returns and ends the chain, those tasks are abandoned quietly, and their notices are never read, because "an abandoned task's owner has ended, so its notice is never read" (`scheduler/notices.rs:9-11`). If the walk falls through instead, the task runs on and its notice lands in the next section (Table 9). Under Finding 1 both paths end the same way, with the task abandoned at the section's exit. Either way the model's work is lost unless the author takes it over through `tasks.pending({ origin = "model" })`.
 
 **The fix.** Add a `models.loop` option, for example `{ settle_tasks = true }`. Under it, a text reply with running model tasks does not end the loop: the loop waits as `await_tasks` does, appends the notices that arrive, and runs another round, all counted against the round cap. Idle tasks from Finding 2 do not hold the loop. Start it as opt-in and decide the default after measuring. Confidence: high that the silent loss is a defect worth fixing; medium on the form, because the guard and the hold are both proven and the right default depends on how authors use model tasks.
 
@@ -565,7 +565,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** Claude Code opens every background notice with "[SYSTEM NOTIFICATION - NOT USER INPUT] This is an automated background-task event, NOT a message from the user. Do NOT interpret this as user acknowledgement, confirmation, or response to any pending question." (bundle 2.1.296, near byte 211737727). That text exists because models treated notices as consent ([issue 44778](https://github.com/anthropics/claude-code/issues/44778), open, and [issue 28627](https://github.com/anthropics/claude-code/issues/28627)). Everruns prefixes "[Automatic task update, not written by the person] " when it renders the transcript for the model (`reason/transcript.rs:11-27`).
 
-**What it replaces in PromptForge.** Notices are user records whose head is bare engine text, `Task id=0.0 (## Child) completed:` (`scheduler/notices.rs:59`). Only the result inside is wrapped; nothing says the record did not come from the user.
+**What it replaces in Runvil.** Notices are user records whose head is bare engine text, `Task id=0.0 (## Child) completed:` (`scheduler/notices.rs:59`). Only the result inside is wrapped; nothing says the record did not come from the user.
 
 **The fix.** Prefix the head built in `queue_task_notice` with one fixed label, such as `[Engine notice, not from the user] `, so every notice gets it from the one place notices are built. Keep it short; Claude Code's five-sentence preamble is a response to a product where notices share turns with real user messages. Confidence: medium, because the failure reports come from one product, but the change is small and lands in one function.
 
@@ -573,7 +573,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** Five async harnesses put behavior rules in the text the model reads at spawn. Claude Code's ack says "You know nothing about its results until that notification arrives - do not report, assume, or predict them". opencode's says "DO NOT sleep, poll for progress, ask the task for status" (`task.ts:31-35`), and it took three prompt fixes to get there. pi-subagents says "do not sleep, poll, or call bg_wait for it", Everruns says "the session is notified when it finishes", and Deep Agents warns "Statuses shown earlier in the conversation are always stale" (`async_subagents.py:466-470`). Codex states the slot count (`multi_agent_instructions.rs:77-79`), and Zed tells the parent it receives only the final message, so it should ask for what it needs (`system_prompt.hbs:114-129`).
 
-**What it replaces in PromptForge.** The ack is `Task id=0.0 started` (`scheduler/builtins.rs:278`), and the `task` description names only the allowed targets.
+**What it replaces in Runvil.** The ack is `Task id=0.0 started` (`scheduler/builtins.rs:278`), and the `task` description names only the allowed targets.
 
 **The fix.** Make the ack `Task id=0.0 started. A notice arrives when it ends; call await_tasks to wait for it rather than calling task_status repeatedly.` In the `task` description, add four sentences: only the section's returned result comes back, so ask the task to include what you need; at most N tasks run at once and the rest queue; a status line describes one moment and goes stale; and a task belongs to this section, so finish with it before replying. Confidence: high, because seven harnesses converge on this kind of text and it costs only wording and test updates.
 
@@ -581,7 +581,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** Claude Code's check-in reads "23 tool calls, last tool call ~1 minutes ago: Reading src/auth/session.ts", and its notices carry `subagent_tokens`, `tool_uses`, and `duration_ms`. Cline's run records carry `lastProgressAt` and `currentActivity` (`team-tools.ts:98-146`). Gemini CLI heads every result with a termination reason, and OpenHands with a status line. Goose's removed `peek` is the warning: a bare "idle" figure made a model kill working children ([issue 11999](https://github.com/aaif-goose/goose/issues/11999)).
 
-**What it adds to PromptForge.** The status line already carries `state`, `section`, `blocked`, `turns`, `tasks`, and `note` (`scheduler/builtins.rs:121`). It has no count of tool calls and no hint of the last action, and notices carry no counts at all. A model running inside a task cannot publish a progress note either, because `tasks.note` is Lua only.
+**What it adds to Runvil.** The status line already carries `state`, `section`, `blocked`, `turns`, `tasks`, and `note` (`scheduler/builtins.rs:121`). It has no count of tool calls and no hint of the last action, and notices carry no counts at all. A model running inside a task cannot publish a progress note either, because `tasks.note` is Lua only.
 
 **The fix.** Add `tool calls {n}` and `last tool {name}` to the status line, and append `(turns {n}, tool calls {n})` to the completed and failed notice heads. Take wall-clock figures only from answers the Host already records, or leave them out, so replay stays exact. Optionally put a `task_note {text}` built-in in scope for model rounds inside a model-started task, the role Everruns gives its child-only `report_task_progress`. Confidence: medium, because four harnesses report activity this way, but the counts' value to a model is unmeasured.
 
@@ -589,7 +589,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** When a Zed child fails or runs out of context, the error carries "Partial subagent output (last 3 messages, up to 4096 characters each)" (string at `agent.rs:3693`, tail built at `thread.rs:4697-4739`). Claude Code's `killed` notification includes the partial text in `<result>`, and OpenHands appends "Partial result:" to a run that ended without finishing.
 
-**What it adds to PromptForge.** A failed notice carries only the error message, and a cancel carries nothing, so the model loses whatever the task had found (`scheduler/notices.rs:64-67`).
+**What it adds to Runvil.** A failed notice carries only the error message, and a cancel carries nothing, so the model loses whatever the task had found (`scheduler/notices.rs:64-67`).
 
 **The fix.** For a model-started task that fails or is cancelled by the author, append the task's last assistant reply text, capped at about 4,000 characters and nonce-wrapped like a result, under a fixed lead such as `last reply before it ended:`. Confidence: low to medium, because only three harnesses do this and Zed deliberately drops the tail on a user cancel.
 
@@ -597,7 +597,7 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** Claude Code's notification carries `<tool-use-id>`, and the Claude Agent SDK puts `tool_use_id` on `task_started`. Codex users asked for the same link ([issue 44095](https://github.com/openai/codex/issues/44095)) because hooks and traces could not join a spawn call to its child. Crush builds the child id from the parent message id and tool call id.
 
-**What it adds to PromptForge.** `Event::TaskStarted` carries the task, target, origin, and seeds, but not the model's `tool_call_id` for a model-started task (`types/src/event.rs:290-307`).
+**What it adds to Runvil.** `Event::TaskStarted` carries the task, target, origin, and seeds, but not the model's `tool_call_id` for a model-started task (`types/src/event.rs:290-307`).
 
 **The fix.** Add an optional `tool_call_id` to `TaskStarted`, set only when the origin is `model`. With Finding 1 in place, consider also recording the section entry there, so a Host can see which conversation owned the task. Confidence: high that it is cheap and useful to Hosts; it changes no model-facing text.
 
@@ -605,13 +605,13 @@ Three choices need deciding in the plan, and the first two are open questions ab
 
 **Field mechanism.** Inline caps range from 400 characters in Cline's async preview, through 2,000 in pi-subagents and 2,048 in Everruns, to 100,000 characters in Claude Code. The harnesses with small caps point to a full copy: Everruns gives a `result_path` and pi-subagents a "Full output: <path>" line. Claude Code's 4,000-character teammate cut shows the wrong way, because its "ask the agent for the rest via SendMessage" hint re-runs the agent, which truncates again ([issue 90544](https://github.com/anthropics/claude-code/issues/90544)).
 
-**What it adds to PromptForge.** A completed notice embeds the whole result (`scheduler/notices.rs:61-62`). The author already controls what a section returns, so the risk is smaller here than in harnesses whose child is a free model.
+**What it adds to Runvil.** A completed notice embeds the whole result (`scheduler/notices.rs:61-62`). The author already controls what a section returns, so the risk is smaller here than in harnesses whose child is a free model.
 
 **The fix.** Accept an optional cap where the section opts in, for example `tools.allow_tasks(targets, { notice_limit = 8000 })`, and when it applies, end the notice with a line saying the result was cut and how many characters remain. Keep the full result where the author can still take it with `tasks.join`. Confidence: low, because the need depends on how authors write task sections.
 
 ### Noted, not scheduled
 
-Four field mechanisms map to no PromptForge gap. Forked context (Claude Code's fork, Codex V2's filtered fork) suits free-form agents, while PromptForge sections are written to stand alone. Schema-checked results (Everruns' `report_result`, Gemini CLI's `complete_task`, Goose's `final_output`) are already covered, because a task's result is whatever its section returns. Everruns' `awaiting_input` state is covered by `input.ask()` inside a task. And durable spawn handles (Everruns' claim keyed by tool call id, Goose's conversation ledger) solve crash recovery that PromptForge's recorded Host answers already handle by replay.
+Four field mechanisms map to no Runvil gap. Forked context (Claude Code's fork, Codex V2's filtered fork) suits free-form agents, while Runvil sections are written to stand alone. Schema-checked results (Everruns' `report_result`, Gemini CLI's `complete_task`, Goose's `final_output`) are already covered, because a task's result is whatever its section returns. Everruns' `awaiting_input` state is covered by `input.ask()` inside a task. And durable spawn handles (Everruns' claim keyed by tool call id, Goose's conversation ledger) solve crash recovery that Runvil's recorded Host answers already handle by replay.
 
 ## Messes we should explicitly not copy
 
@@ -654,14 +654,14 @@ These are constraints for the plan that wraps this report.
 - **Replay.** Everything the model reads must come out the same on replay. Counts do; wall-clock figures may appear only if they come from Host answers the engine already records.
 - **Trust.** A parent's message delivered into a task (Finding 2) and a failure tail (Finding 7) are cross-chain model text, so wrap both under the run nonce exactly as `scheduler/notices.rs` wraps results.
 - **Do not touch.** Event emission, the `Event` variants other than the `TaskStarted` fields in Finding 8, and `provenance.seq`. Do not reintroduce `tasks.events` or `task_events`; the 2026-10-01 plan says any return must be a redesign.
-- **The guide is out of scope.** Plans built on this report cite the engine's code and tests, not the `promptforge-docs` guide, and schedule no guide edits; the owner set the guide aside on 2026-10-10.
+- **The guide is out of scope.** Plans built on this report cite the engine's code and tests, not the `runvil-docs` guide, and schedule no guide edits; the owner set the guide aside on 2026-10-10.
 - **Per step.** Verify and commit each step on its own. Two consecutive failures on one step stop the run for a re-plan.
 
 ## Method and limitations
 
-Six researchers ran in parallel, each a Cursor subagent on the same model, each covering one to four harnesses against one shared contract of ten questions, with the most weight on what the parent model observes. They cloned every open repository with partial history, pinned each analysis to a recorded commit, cited code as file and line at that commit, and quoted tool descriptions and templates verbatim. Claude Code is closed source, so its evidence is the shipped bundle of version 2.1.296, a third-party tracker of its prompts, its public changelog, and its issues. Cursor is covered from its tool text, the results it returned during this run, and this session's own transcript files, parsed line by line. A separate checker then re-opened the pinned clones and checked 41 load-bearing citations. Thirty-seven held as written. The other four pointed at the right mechanism, but the quoted string sat in a nearby file or byte range, and this report cites the corrected locations. The Claude Code bundle has no commit to pin, so its citations give the package version and an approximate byte offset. The survey extends an earlier PromptForge study of 2026-09-30, "Introspecting spawned subagents", which covered history reads only.
+Six researchers ran in parallel, each a Cursor subagent on the same model, each covering one to four harnesses against one shared contract of ten questions, with the most weight on what the parent model observes. They cloned every open repository with partial history, pinned each analysis to a recorded commit, cited code as file and line at that commit, and quoted tool descriptions and templates verbatim. Claude Code is closed source, so its evidence is the shipped bundle of version 2.1.296, a third-party tracker of its prompts, its public changelog, and its issues. Cursor is covered from its tool text, the results it returned during this run, and this session's own transcript files, parsed line by line. A separate checker then re-opened the pinned clones and checked 41 load-bearing citations. Thirty-seven held as written. The other four pointed at the right mechanism, but the quoted string sat in a nearby file or byte range, and this report cites the corrected locations. The Claude Code bundle has no commit to pin, so its citations give the package version and an approximate byte offset. The survey extends an earlier Runvil study of 2026-09-30, "Introspecting spawned subagents", which covered history reads only.
 
-PromptForge itself was read directly for the baseline, at `abe218a`: the scheduler's task, notice, built-in, and chat code, the section context, the event and id types, and the tests that pin task lifetimes and ids. The owner reviewed the first version of the report on 2026-10-10. The section on the owner's observations and decisions records that review, and Findings 1 and 2 were written or revised from it.
+Runvil itself was read directly for the baseline, at `abe218a`: the scheduler's task, notice, built-in, and chat code, the section context, the event and id types, and the tests that pin task lifetimes and ids. The owner reviewed the first version of the report on 2026-10-10. The section on the owner's observations and decisions records that review, and Findings 1 and 2 were written or revised from it.
 
 The method has four limits. No harness was run, so behavior comes from code and documentation; the reconstructed conversations are assembled from templates, and only Cursor's are captured from a live session. Harness code moves fast: Goose removed its background mode on 2026-10-07, three days before this analysis, and Cline removed two tools in June, so every statement holds as of its pinned commit. The selection follows the owner's named targets (Pi, Zed, Everruns) plus the most widely used coding harnesses that have a subagent feature; it is not a popularity ranking. And user-interface claims about thinking display were not all verified, as marked in Table 2.
 
@@ -683,7 +683,7 @@ Reference repositories, each analyzed on 2026-10-10 at the commit shown:
 - Cline: https://github.com/cline/cline at `bf71bf7cd9fe6816972d7ae5ca5ff0e04e63f87d`, Apache-2.0; Roo Code https://github.com/RooCodeInc/Roo-Code at `b867ec9145750d0ae1ff7f02d35406e9bf2a0b16`.
 - Deep Agents: https://github.com/langchain-ai/deepagents at `9f0e39d55a5f31003b206b31b955154f2f1bc49a`, MIT.
 - OpenHands: https://github.com/OpenHands/software-agent-sdk at `e2bac66be26e94f571f27b71f507e7192720f825`, MIT.
-- PromptForge: the local repository at `abe218a368d6ace193a494d552e9571d1f86d4c8`, read directly for the baseline, and its plan record "Remove task event reads" of 2026-10-01. The guide in the `promptforge-docs` repository (chapter 15, "Tasks", commit `c3e5714`) was read only to record where it disagrees with the code; it is not cited as a source.
+- Runvil: the local repository at `abe218a368d6ace193a494d552e9571d1f86d4c8`, read directly for the baseline, and its plan record "Remove task event reads" of 2026-10-01. The guide in the `runvil-docs` repository (chapter 15, "Tasks", commit `c3e5714`) was read only to record where it disagrees with the code; it is not cited as a source.
 
 Documentation fetched: Claude Code [subagents](https://code.claude.com/docs/en/sub-agents) and [Agent SDK subagents](https://code.claude.com/docs/en/agent-sdk/subagents). Issues and pull requests are linked where they are cited.
 
@@ -696,4 +696,4 @@ Supporting research, each produced 2026-10-10 and holding the full per-question 
 - "Zed native agent spawn_agent and Goose summon delegate - subagent task tool spawn cancel observe"
 - "Gemini CLI invoke_agent, Cline SDK team tools, Roo Code new_task, Deep Agents, OpenHands task tool - subagent task tool spawn cancel observe mechanics"
 
-*2026-10-10 06:50 - Claude Opus 5.5 (Cursor agent). Revised 2026-10-10 07:30 with the PromptForge code baseline and the owner's observations and decisions, and 07:35 with the section on Cursor's transcript file.*
+*2026-10-10 06:50 - Claude Opus 5.5 (Cursor agent). Revised 2026-10-10 07:30 with the Runvil code baseline and the owner's observations and decisions, and 07:35 with the section on Cursor's transcript file.*

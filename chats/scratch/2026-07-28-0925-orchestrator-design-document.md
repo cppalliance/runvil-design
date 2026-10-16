@@ -128,7 +128,7 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p54]** okay thanks. none of that detour should affect the plan. Update the plan for what we know
 
-**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/promptforge.md
+**[p55]** when the plan runs I want every idea to be enriched with subagent web search, look for prior art, look for related work, look for anything that would be a subcomponent to build the idea, look for information about performance, metrics, model tier, and so on. don't write before researching and think deeply I want a fantastic report. write the report to @wg21-paperflow/runvil.md
 
 **[p56]** I want the transcript of this design discussion to be written to a markdown file. Leave out chain of thought. I only want the user prompts and the LLM replies and the subagent reports. Show me a one-page sample including 1 of each of thoese ellements before we commit
 
@@ -144,13 +144,13 @@ so 1,000 lines becomes 750 lines. and when the 750 grows to 1,000 we compress ag
 
 **[p62]** where's the chat transcript where we designed the talktron
 
-**[p63]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @promptforge-design as promptforge-design.md
+**[p63]** @c:\Users\Vinnie\.cursor\plans\orchestrator_design_document_165f20dc.plan.md reset this plan so we can work on it and run it again, and the output will go to @runvil-design as runvil-design.md
 
 **[p64]** now create a new plan which is a duplicate of this plan but without any of the talktron or context compaction
 
-**[p65]** go through this design doc @promptforge-design/design/design-promptforge.md and give me a numbered list of features
+**[p65]** go through this design doc @runvil-design/design/design-runvil.md and give me a numbered list of features
 
-**[p66]** Okay, I wanna talk about this whole Promptforge thing. So. What do I do with, should I have like subheadings? Should subheadings inherit the parent? And how should the flow, what should, what should the flow look like? When you finish with one subheading, should it just go to the next?
+**[p66]** Okay, I wanna talk about this whole Runvil thing. So. What do I do with, should I have like subheadings? Should subheadings inherit the parent? And how should the flow, what should, what should the flow look like? When you finish with one subheading, should it just go to the next?
 
 **[p67]** So my thinking is that it's like a stack. You inherit the parent. And for the fan out, I mean, that's a good question. I'm not sure what to do about the fan out. The fan-out has another problem, like what if I wanna give the same instruction five times, but I want each of them to have like an ID, like one, two, three, four, five. Like, for example, let's say I have a variable number of steps, let's say I wanna do a fan-out of N steps, and I want each of them to write a, a unique file name. How do I assign the file index? Like, how do I give each of them a unique file name? I don't know the file name ahead of time, so I can't embed it. Like, this is a real problem. I don't want the model to have to calculate the final name, we want to minimize the amount of inference.
 
@@ -245,13 +245,13 @@ Todos:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md
 
-# PromptForge: A Markdown-Driven Pipeline Runtime
+# Runvil: A Markdown-Driven Pipeline Runtime
 
 ## Bottom line up front
 
-PromptForge is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
+Runvil is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing `goto`, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped" - Assay, PaperGate, Briefer, Diligence - so a new pipeline is a new markdown file, not hundreds of lines of new Python.
 
 The payoff is threefold. First, iteration speed: a new analysis tool goes from idea to running in an hour, edited in one file, with no orchestration code to write or debug. Second, model sovereignty: every design decision (context clearing, flat tool calls, per-section scoping, fan-out to small models) is chosen to make mid-size open-weight models reliable, so the whole stack runs on your own hardware at roughly 1/100th of frontier API cost. Third, integrity: because subagent prompts are shipped verbatim from named sections rather than paraphrased by the model, what you test is what runs.
 
@@ -307,7 +307,7 @@ The model reads a section's prose as its instructions, calls tools to read and w
 
 ## The four primitives
 
-Everything in PromptForge reduces to four mechanisms. Every feature named later in this document - `goto`, `Task`, `fanout`, virtual files, `ask_user`, model tiering, postconditions, self-extending pipelines - is a composition of these four. A reader should finish the document thinking "that is all it is," which is the point.
+Everything in Runvil reduces to four mechanisms. Every feature named later in this document - `goto`, `Task`, `fanout`, virtual files, `ask_user`, model tiering, postconditions, self-extending pipelines - is a composition of these four. A reader should finish the document thinking "that is all it is," which is the point.
 
 1. **Parse.** Read a markdown file into a section map. H2 headings (`## Name`) are the primary addressable sections; H3 headings (`### Name`) are children of their H2, individually addressable for fan-out. `## Main` is the entry point.
 2. **Configure.** Run a section's optional Lua block, exposing five host objects: `state` (read-only view of accumulated state), `store` (query/count interface to the state store), `tools` (the tool-set builder: add/remove), `params` (arguments passed into the section), and `context` (a handle to inject assembled text into the model's initial prompt). Preconditions run before the model launches; postconditions run after the model calls `done()`.
@@ -319,9 +319,9 @@ The runtime is these four things plus an inference client and a state store. Est
 <!-- FORGE-END -->
 
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md
 
-# PromptForge Design Transcript
+# Runvil Design Transcript
 
 Design session, July 23-24, 2026. Vinnie Falco and Claude Opus 4.8.
 
@@ -424,9 +424,9 @@ The data sovereignty point is probably the strongest argument. You're collecting
 <!-- CHECKPOINT -->
 
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md
 
-# PromptForge Design Transcript
+# Runvil Design Transcript
 
 Design session, July 23-24, 2026. Vinnie Falco and Claude Opus 4.8.
 
@@ -707,4 +707,4 @@ Exactly. You don't debug a three-level-deep task chain by tracing through three 
 <!-- CHECKPOINT -->
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md`, `c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md`

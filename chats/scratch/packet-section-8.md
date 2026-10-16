@@ -90,7 +90,7 @@ Facts only. Sources: purpose-cluster-8.md (motivations), grouped-draft.md (full 
   - The tests were launching the gateway themselves and it was going wrong - stuck, failing - and he called it, verbatim, "all wrong."
   - Earlier he had regretted wiring the 9B model directly into core-tests when the gateway was needed anyway for web search.
 - Endorsement: n/a (user-corrective; user-stated).
-- Merge/derivation notes: Single grouped-draft record "Integration tests require an already-running, already-configured gateway..." The purpose notes observe that its second leg (tests supply only config, never wire models directly) is the test-side consequence of principle 44's model-download record, and its first leg (tests never launch the gateway) stands as the testing corollary. Citations: 2026-08-14-1613-promptforge-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part3.md [p201], [p202]; 2026-08-09-1058-promptforge-core-large-part2.md [p140].
+- Merge/derivation notes: Single grouped-draft record "Integration tests require an already-running, already-configured gateway..." The purpose notes observe that its second leg (tests supply only config, never wire models directly) is the test-side consequence of principle 44's model-download record, and its first leg (tests never launch the gateway) stands as the testing corollary. Citations: 2026-08-14-1613-runvil-core-largest-part2.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part3.md [p201], [p202]; 2026-08-09-1058-runvil-core-large-part2.md [p140].
 
 ## Stanza facts - Section VIII as a whole
 

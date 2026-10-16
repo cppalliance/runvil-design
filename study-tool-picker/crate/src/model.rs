@@ -22,12 +22,12 @@ use crate::error::{ModelLoadError, QueryError};
 /// # Examples
 ///
 /// ```no_run
-/// use promptforge_tool_picker::Model;
+/// use runvil_tool_picker::Model;
 ///
 /// let model = Model::load()?;
 /// let reused = model.clone();
 /// # let _ = reused;
-/// # Ok::<(), promptforge_tool_picker::ModelLoadError>(())
+/// # Ok::<(), runvil_tool_picker::ModelLoadError>(())
 /// ```
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -61,10 +61,10 @@ impl Model {
     /// # Examples
     ///
     /// ```no_run
-    /// use promptforge_tool_picker::Model;
+    /// use runvil_tool_picker::Model;
     ///
     /// let model = Model::load_with_progress(None)?;
-    /// # Ok::<(), promptforge_tool_picker::ModelLoadError>(())
+    /// # Ok::<(), runvil_tool_picker::ModelLoadError>(())
     /// ```
     #[must_use = "loading the model is the expensive step; keep the handle to reuse it"]
     pub fn load_with_progress(progress: Option<&ProgressHandle>) -> Result<Self, ModelLoadError> {

@@ -74,7 +74,7 @@
 
 **[p90]** fuck no, you took forever
 
-**[p91]** I want a beautiful report in @promptforge explaining all the findings in this entire chat which are related to prompt compression, the tool planning iteration loop, blurring, all of it. use @tools-public/how-to/how-to-write-reports.md
+**[p91]** I want a beautiful report in @runvil explaining all the findings in this entire chat which are related to prompt compression, the tool planning iteration loop, blurring, all of it. use @tools-public/how-to/how-to-write-reports.md
 
 **[p92]** call it prompt-compression-research.md
 

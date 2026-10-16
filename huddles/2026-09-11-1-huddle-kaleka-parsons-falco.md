@@ -9,7 +9,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [1:17]: OK
 
-@Sean Parsons [1:18]: No, just prompt forge itself, not the des, is there a design repo?
+@Sean Parsons [1:18]: No, just runvil itself, not the des, is there a design repo?
 
 @Vinnie [1:18]: Too. Oh. Yeah, so I, oh, I think maybe I did I show that to you, Greg?
 
@@ -133,7 +133,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [7:45]: Like that.
 
-@Vinnie [7:47]: Then we have the next problem, which is, yeah, once you try to do that, then you realize, but wait a minute, what if you have two different repositories? How do you combine all their skills? Oh, now you gotta make a script. So, This is just another reason why we need the prompt forged workshop.
+@Vinnie [7:47]: Then we have the next problem, which is, yeah, once you try to do that, then you realize, but wait a minute, what if you have two different repositories? How do you combine all their skills? Oh, now you gotta make a script. So, This is just another reason why we need the runvild workshop.
 
 @Vinnie [8:04]: Right? This is why we need our own harness. We need a programmable harness that lets us work the way that we want, not the way the cursor thinks that we should work. And there there's a very real risk because now that Elon Musk owns Cursor, now Cursor gonna care more about satisfying Elon Musk than us.
 
@@ -171,7 +171,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [10:51]: Right.
 
-@Vinnie [10:53]: So like, If you If you use PromptForge, and you use the the right model, you'll see like, you'll see all this shit appearing like all these little Jason lines, and they're like, what the hell is this? That's what the model is returning, but an an IDE like cursor, like what it'll do is, it'll take all those little consecutive thinking blocks and reports, and it consolidates them, right? Like you see this, this is a consolidated, because you don't want to flood the user with a bunch of spam, right? So the, the IDE consolidates this for you, but this is an assistant message that has a hierarchy. There's like an array in there, and then there's a tool tool call results and all this other shit. So,
+@Vinnie [10:53]: So like, If you If you use Runvil, and you use the the right model, you'll see like, you'll see all this shit appearing like all these little Jason lines, and they're like, what the hell is this? That's what the model is returning, but an an IDE like cursor, like what it'll do is, it'll take all those little consecutive thinking blocks and reports, and it consolidates them, right? Like you see this, this is a consolidated, because you don't want to flood the user with a bunch of spam, right? So the, the IDE consolidates this for you, but this is an assistant message that has a hierarchy. There's like an array in there, and then there's a tool tool call results and all this other shit. So,
 
 @Sean Parsons [11:22]: Mhm.
 
@@ -187,7 +187,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [12:29]: So, So, do you understand what a tool call is?
 
-@Sean Parsons [12:35]: Well, based off of like the prompt forge, the prompt forge stuff in this conversation, it seems like it's a dedicated.
+@Sean Parsons [12:35]: Well, based off of like the runvil, the runvil stuff in this conversation, it seems like it's a dedicated.
 
 @Vinnie [12:35]: Oh, this is great.
 
@@ -309,7 +309,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [21:59]: And then look, if you want to create a new file, use the right tool instead. See alternatives. So this is like a package. This is a package of editing tools that cursor provides. OK, so when you do, when you, when you invoke the model, You offer it a set of tools.
 
-@Vinnie [22:18]: And that's why in PromptForge, you notice that like, It you're, it's it's being offered tools. See that?
+@Vinnie [22:18]: And that's why in Runvil, you notice that like, It you're, it's it's being offered tools. See that?
 
 @Vinnie [22:35]: Wait, what is this? Paper gate. I really do need to fix that.
 
@@ -351,7 +351,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [23:35]: Whereas.
 
-@Vinnie [23:37]: Prompt Forge, when it creates a VM, it imports some of Lua's default modules. It imports the system module, which gives you like, the time.
+@Vinnie [23:37]: Runvil, when it creates a VM, it imports some of Lua's default modules. It imports the system module, which gives you like, the time.
 
 @Sean Parsons [23:42]: Yeah. Mhm.
 
@@ -379,7 +379,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [25:56]: The really tiny models can handle like 5 to 9. The less, the fewer the tools that you offer, the better the chances it'll pick the right one. If you offer only one tool, well, guess what? It's like every, every nail every nail is gonna want the hammer.
 
-@Vinnie [26:12]: Right? So, One of the principles of prompt forge is to give the prompt author very tight control over the tools that are offered. Instead of just offering everything all at once, You have to opt in to every tool that the model gets.
+@Vinnie [26:12]: Right? So, One of the principles of runvil is to give the prompt author very tight control over the tools that are offered. Instead of just offering everything all at once, You have to opt in to every tool that the model gets.
 
 @Vinnie [26:29]: And that allows you to use smaller and smaller models. Right? Because the smaller models can only handle a fewer number of tools. And then being able to Write these little tiny bespoke tools lets you do things like Like, OK, look at the pedantic way, right, here's what pedantic would do. Greg, you, you know this, pedantic would have the model build adjacent object that has an entry for every section.
 
@@ -411,13 +411,13 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [29:39]: Great question. So, In the H1 section is where you have to import all the tools that you could possibly use. So, it has to know what tools it can possibly use. And then in each H2, then you then you add the tools that you want to allow the model to use.
 
-@Vinnie [29:58]: Which could be nothing. Right, like over here. There's no tools allowed here that like this evaluate has no tools. It's pure inference. Right, this is the cool part. This is what, this is why we like prompt forge cause this gets rendered as markdown.
+@Vinnie [29:58]: Which could be nothing. Right, like over here. There's no tools allowed here that like this evaluate has no tools. It's pure inference. Right, this is the cool part. This is what, this is why we like runvil cause this gets rendered as markdown.
 
-@Vinnie [30:19]: The whole, the whole payload, the whole payoff of PromptForge is that instead of looking at like a giant file that consists of lua and a bunch of shitty looking embedded strings. Here you get this beautiful markdown with bullets and right? Headings, and that looks a lot nicer. I mean, this is what we're used to, right? Is markdown.
+@Vinnie [30:19]: The whole, the whole payload, the whole payoff of Runvil is that instead of looking at like a giant file that consists of lua and a bunch of shitty looking embedded strings. Here you get this beautiful markdown with bullets and right? Headings, and that looks a lot nicer. I mean, this is what we're used to, right? Is markdown.
 
 @Sean Parsons [30:38]: Yeah, for sure.
 
-@Vinnie [30:41]: So, in theory, you could add tools, like, for example, You could offer, like we could offer the Add section tool. We can run some inference, and then We could add another tool to it, but you would, you can't take away the ad section one in that context. Now, when you in in prompt forge, when you go to a new section, like when when control flows.
+@Vinnie [30:41]: So, in theory, you could add tools, like, for example, You could offer, like we could offer the Add section tool. We can run some inference, and then We could add another tool to it, but you would, you can't take away the ad section one in that context. Now, when you in in runvil, when you go to a new section, like when when control flows.
 
 @Vinnie [31:04]: To hear, to analyze. Now everything is reset, it's a fresh VM. All the messages are gone, by the way, like when you, every time you transfer sections, that's it. The whole context is cleared. Get it?
 
@@ -461,11 +461,11 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [33:22]: And it's But in order to, what you need to use, you need to use this thing called model turn. And which I don't really actually know how to use.
 
-@Sean Parsons [33:39]: Yeah, cause I would imagine you want to do something similar with Prompt Forge. So I was just kind of curious.
+@Sean Parsons [33:39]: Yeah, cause I would imagine you want to do something similar with Runvil. So I was just kind of curious.
 
 @Vinnie [34:09]: This is a really great question which dovetails right into one of my objectives. The Tolkien is glowing. The fuck? So, We, I wanted, I do want to set up some skills or con context files or something.
 
-@Vinnie [34:31]: Hand-authored by humans. That Informs the model of what the fuck prompt forge is and how it works so that it doesn't have to do this every time, because right now it's like discovering, right? So these are tools, these are tool calls.
+@Vinnie [34:31]: Hand-authored by humans. That Informs the model of what the fuck runvil is and how it works so that it doesn't have to do this every time, because right now it's like discovering, right? So these are tools, these are tool calls.
 
 @Greg [34:43]: Right. Explore, yeah, and thinking.
 
@@ -473,7 +473,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [34:50]: Thinking is not a tool, but
 
-@Vinnie [34:51]: Ma'am. No, it's not. I'm, I'm very excited because I'm My next set of changes, I'm gonna enable this loop. Now, now we have the model loop, that was my last bunch of commits. And then promptForge will be able to do this. OK. There's no heading level syntax.
+@Vinnie [34:51]: Ma'am. No, it's not. I'm, I'm very excited because I'm My next set of changes, I'm gonna enable this loop. Now, now we have the model loop, that was my last bunch of commits. And then runvil will be able to do this. OK. There's no heading level syntax.
 
 @Vinnie [35:10]: OK. The way to give a section a system prompt is message is new. OK, so we create messages new. And then we do, we appendis, this is a sugar for a pending assistance. Well,
 
@@ -489,7 +489,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [36:03]: That's something Great question. And Messages is one of the lua globals that the run time, by the way, we are the run time.
 
-@Vinnie [36:23]: Prompt forge runtime seeds into every section sandbox. It's a builder factory for chat message lists. Oh shit, there's a guide? What? Whoa.
+@Vinnie [36:23]: Runvil runtime seeds into every section sandbox. It's a builder factory for chat message lists. Oh shit, there's a guide? What? Whoa.
 
 @Sean Parsons [36:39]: So you have a guide for this already. You didn't know that, did you?
 
@@ -523,7 +523,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [38:19]: And it, when you, when you type something in, Cursor, when you, when you submit your prompt, it doesn't go to Kimmi, it goes to cursor's server, where they have their own endpoint, and they proxy the call to kimmi for you. That's why when you look in their models, like you, you can see there's only a certain list. That's why they can't, that's why you can't use astra. So cursor's server takes takes what what you wrote here, and it adds additional context, like it'll look up the rag index, and it puts little pointers. It says,
 
-@Vinnie [38:53]: It like, it knows it, it like it'll, like before it submits this to Kimmy, it'll say, Here's a list of all the files that mention prompt forge and messages. It adds that. And that's why it knows right away. It's like from 06 models MD. Like, how the fuck did it know that? There was no tool call here. Where's the tool call?
+@Vinnie [38:53]: It like, it knows it, it like it'll, like before it submits this to Kimmy, it'll say, Here's a list of all the files that mention runvil and messages. It adds that. And that's why it knows right away. It's like from 06 models MD. Like, how the fuck did it know that? There was no tool call here. Where's the tool call?
 
 @Vinnie [39:16]: What's the tool called? Where is it? There's no tool call. It never did a grip. How'd you get that file name? There's only one way, came from the rag index. Well, then why don't we see it? Because it didn't happen on Kimmy, it happens on their server, and they don't reveal it.
 
@@ -551,7 +551,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [41:43]: So, one of the rules of the UI, one of the invariants of the UI is that we have to make sure that the user can see everything. Now, they did it with the pop-up, and I, I, I, I don't, I don't know that that's wrong. Another an alternative would have been it to give it like a little carrot, right, to unroll.
 
-@Vinnie [42:01]: Mhm But if you do that, then The JavaScript starts getting, the JavaScript and the HTML starts getting pretty big, right? Cause that's what this control is. It's an HTML control. And it's the same in PromptForge. It's HTML. It's served the promptForge interface is served by an HTTP server, and then it's shown in a browser panel.
+@Vinnie [42:01]: Mhm But if you do that, then The JavaScript starts getting, the JavaScript and the HTML starts getting pretty big, right? Cause that's what this control is. It's an HTML control. And it's the same in Runvil. It's HTML. It's served the runvil interface is served by an HTTP server, and then it's shown in a browser panel.
 
 @Vinnie [42:26]: Thought briefly.
 
@@ -573,7 +573,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [43:05]: Mhm
 
-@Vinnie [43:09]: Yeah, so on the skill side, it's kind of a mess. I don't know what to do, but one thing is that we could do is we could just have a file in here. That has all the rules, that has, that explains how prompt forge works and just loaded into a context, right? Like, like how I've got like the reports rulebook.
+@Vinnie [43:09]: Yeah, so on the skill side, it's kind of a mess. I don't know what to do, but one thing is that we could do is we could just have a file in here. That has all the rules, that has, that explains how runvil works and just loaded into a context, right? Like, like how I've got like the reports rulebook.
 
 @Vinnie [43:30]: You know, just load it in. OK, so I was gonna show you how I was gonna fix the Talktron updates. Fuck. Oh,
 
@@ -769,7 +769,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:00:53]: That's the observer. The observer can see the the data as it's streaming in. The observer can see like when there's a tool call, the model can't see the tool calls. It knows that they happened, but it can't observe them as they're happening. The observer is how we're gonna implement, you know, all this bullshit that happens in the chat, like when it makes a mock, when it does a tool call and
 
-@Vinnie [1:01:17]: That's what the observer's for. And then the observers also for like recording, making, making a keeping a log of everything that ever happened during the run of that prompt. So when we implement debugging, Like what, like when we implement the ability to like, to put a prompt in the prompt forge debugger, it's gonna be a custom observer that sees all the events.
+@Vinnie [1:01:17]: That's what the observer's for. And then the observers also for like recording, making, making a keeping a log of everything that ever happened during the run of that prompt. So when we implement debugging, Like what, like when we implement the ability to like, to put a prompt in the runvil debugger, it's gonna be a custom observer that sees all the events.
 
 @Vinnie [1:01:38]: And then the debugger will have like a little window with a lot with the list that you could click on and you could say, oh, I wrote this file, oh, what's in it? And then you can expand it and say, oh, there, there it is, and you could like see it, you could see what happened in the run. You see why that would be useful, right?
 
@@ -779,7 +779,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:02:14]: So, like, if you press stop, Right, you know, we need to stop it. There's we could set resource limits. Oh, the host policy behind user input. Oh, that's interesting. So, the user input to command, the user input function in lia.
 
-@Vinnie [1:02:35]: It it will it calls this object. Because prompt forge executor can't depend on workshop. So the way the workshop works is when it installs a handler. The when so and then it knows when it knows when the When the prompt calls user input, so now the prompt is suspended. It's an asynchronous object, it's suspended, and then the workshop gets the message, and then it, now it unfreezes the edit box.
+@Vinnie [1:02:35]: It it will it calls this object. Because runvil executor can't depend on workshop. So the way the workshop works is when it installs a handler. The when so and then it knows when it knows when the When the prompt calls user input, so now the prompt is suspended. It's an asynchronous object, it's suspended, and then the workshop gets the message, and then it, now it unfreezes the edit box.
 
 @Vinnie [1:03:03]: Right? Hm. Like when you submit, when you submit the prompt, Like the The voice input box gets disabled and it gets replaced with like a stop button. See the stop button?
 
@@ -819,9 +819,9 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:06:41]: Now you know what I'm gonna do. I'm gonna use a virtual file system. And So, and then I'm gonna put, I'm gonna inject the harness my harness will inject into the prompt. It'll say, the terminals are here, and then we'll have like
 
-@Vinnie [1:06:59]: Backslash Slash prompt forge, terminals. You know, like, some number. And then output. MD or TXT, right? So that'll be like, you know what that is, but that file won't exist, it'll just be in the database.
+@Vinnie [1:06:59]: Backslash Slash runvil, terminals. You know, like, some number. And then output. MD or TXT, right? So that'll be like, you know what that is, but that file won't exist, it'll just be in the database.
 
-@Vinnie [1:07:17]: And then, now and then we're using bash kit, right? The it's a like a ver it's a sandbox shell, and Bashkit lets you map virtual files, so I can give bash kit and a configuration that routes everything that's in that starts with prompt forge, route it to my own handler, and then my handler.
+@Vinnie [1:07:17]: And then, now and then we're using bash kit, right? The it's a like a ver it's a sandbox shell, and Bashkit lets you map virtual files, so I can give bash kit and a configuration that routes everything that's in that starts with runvil, route it to my own handler, and then my handler.
 
 @Vinnie [1:07:38]: It like parses the path, and it knows that with its terminals, that this is the terminal ID and that this stem means the terminal output, and I can map it, and I can return it. So, the model thinks it's exploring a real file system, and it'll do exactly this, but using bash commands, and it'll all this will work, and I get that all for free by just mapping it.
 
@@ -843,7 +843,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:08:44]: Creating a file system. But it doesn't map to the real file system. And In our file system, There's gonna be an extra field, like in addition to file name, size, last modification, creation date.
 
-@Vinnie [1:09:02]: Read only versus write only permissions. We're going to have one more field, we're going to have. Description So, we're gonna be able to attach a description of what the file is. So then with the model, when the model does like LS like when it does like, you know, like Ellis prompt forge.
+@Vinnie [1:09:02]: Read only versus write only permissions. We're going to have one more field, we're going to have. Description So, we're gonna be able to attach a description of what the file is. So then with the model, when the model does like LS like when it does like, you know, like Ellis runvil.
 
 @Vinnie [1:09:21]: It's gonna see It's gonna see, oh, you know, like, For Or terminal, and then this will be like
 
@@ -885,11 +885,11 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Sean Parsons [1:11:34]: Got it.
 
-@Vinnie [1:11:36]: So, but now you say, now I want to overlay. Now I want to make a directory called_promptForge. And I wanna, and I wanna map that. So that any time any commands are run that have this at the beginning of the path, instead of going to the real file system. I want to just call my functions and I want to put some art, I want to synthesize, I wanna put artificial stuff there.
+@Vinnie [1:11:36]: So, but now you say, now I want to overlay. Now I want to make a directory called_runvil. And I wanna, and I wanna map that. So that any time any commands are run that have this at the beginning of the path, instead of going to the real file system. I want to just call my functions and I want to put some art, I want to synthesize, I wanna put artificial stuff there.
 
 @Sean Parsons [1:12:02]: That is actually Not stored anywhere, whereas Where's that information?
 
-@Vinnie [1:12:10]: It's however I want, I can make it up however I want. For example, let's say I make a directory called prompt for slash help. And then I can have a catalog of of files, like, you know, like using prompt forge.
+@Vinnie [1:12:10]: It's however I want, I can make it up however I want. For example, let's say I make a directory called prompt for slash help. And then I can have a catalog of of files, like, you know, like using runvil.
 
 @Sean Parsons [1:12:19]: Mhm.
 
@@ -909,7 +909,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:13:13]: Bash kit comes with grip. Hm.
 
-@Sean Parsons [1:13:19]: But it would work even if it's embedded into the PromptForge application.
+@Sean Parsons [1:13:19]: But it would work even if it's embedded into the Runvil application.
 
 @Vinnie [1:13:26]: Yes, because we've implemented the virtual interface. So from Bashkit's perspective, Bashkit doesn't care where the data is, it calls your API to find it. So, if your API passes it through to the regular file system. Normally, or it when if it matches the overlay, then it then it calls your other function, then Bashkit doesn't care. You've abstracted access to the file system. In other words, you've made it virtual.
 
@@ -949,7 +949,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Greg [1:16:19]: Yeah.
 
-@Vinnie [1:16:21]: Look at that. In memory file system, that's the store, overlay file system, that's the prompt forge, mountable file system. You can mount network drives, you can, you can mount a a local directory anywhere into the virtual file system. It comes with the real FS back end.
+@Vinnie [1:16:21]: Look at that. In memory file system, that's the store, overlay file system, that's the runvil, mountable file system. You can mount network drives, you can, you can mount a a local directory anywhere into the virtual file system. It comes with the real FS back end.
 
 @Vinnie [1:16:40]: Resource limits. Remember what I was telling you about like if you do it, if you show the contents of a directory and it has, there's 10,000 items in it, you don't want to just dump all that into the context. It has, it has resource limits for every one of those 166 7 commands built in. And look, you see that parser fuel? That means that when a limit is reached, it outputs useful text to the model. It says, sorry, I truncated. If you want more, here's how you do it.
 
@@ -961,7 +961,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:17:27]: Sean, do you understand everything that's being said here? You need to understand this. To read it and.
 
-@Sean Parsons [1:17:33]: I understand. I understand most of the conversation that we had, I think this has been a helpful. Introductory call. I understand PromptForge and AI in general more across the board. I'm taking a look at Bashkit.
+@Sean Parsons [1:17:33]: I understand. I understand most of the conversation that we had, I think this has been a helpful. Introductory call. I understand Runvil and AI in general more across the board. I'm taking a look at Bashkit.
 
 @Vinnie [1:17:48]: I.
 
@@ -1239,7 +1239,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:37:55]: Yeah Yeah. Because, again, models are are good at planning, and the models are trained to be efficient, like, they're trained to be token efficient. And, you know, always to do the easier thing that that doesn't require as much work. Well, that cuts both ways.
 
-@Vinnie [1:38:14]: If, if it's under context pressure, it's gonna start looking for shortcuts. And the shortcut will be, I'll just do it myself. Right? So, That's what we have. By the way, this, you say what's, why do we, why are we doing prompt forge? This is why.
+@Vinnie [1:38:14]: If, if it's under context pressure, it's gonna start looking for shortcuts. And the shortcut will be, I'll just do it myself. Right? So, That's what we have. By the way, this, you say what's, why do we, why are we doing runvil? This is why.
 
 @Vinnie [1:38:32]: Is because the model cannot be trusted to orchestrate, because we need determinism. Like, can you imagine if we're reviewing a paper and it takes a fucking shortcut, like, and then this is what I said yesterday, in our WG 21 work, we cannot afford a single mistake, because all it takes is, cause we're criticizing other people. Think about what we're doing. We're criticizing the institution, we're using AI to generate papers and work outputs that critique other people's work. If there is so much as one mistake, then that's gonna be the
 
@@ -1265,7 +1265,7 @@ This transcript is auto-generated, so some information may be inaccurate. It won
 
 @Vinnie [1:41:15]: Oh hold on, hold on, hold on, I gotta, I gotta delete this stupid thing. Dot agents, OK, bye-bye. All right, now we're back here. OK, sorry, what now?
 
-@Sean Parsons [1:41:27]: I was saying with this, with this intro and getting a little bit more familiar with prompt forge and things of that nature. Like what do you, what do you think the next steps? Greg and I could do. To maybe help you or like what are some areas that you feel.
+@Sean Parsons [1:41:27]: I was saying with this, with this intro and getting a little bit more familiar with runvil and things of that nature. Like what do you, what do you think the next steps? Greg and I could do. To maybe help you or like what are some areas that you feel.
 
 @Sean Parsons [1:41:44]: Need some.
 

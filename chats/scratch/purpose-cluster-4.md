@@ -4,7 +4,7 @@
 
 Purpose: If too much logic goes into the Lua, the author ends up re-implementing the orchestrator inside the markdown file, which defeats the point of the system ("if we start putting too much into the Lua, then it kinda defeats the purpose"). The sandbox exists because prompts are runnable artifacts with a fixed host surface, and a runaway Lua block (an infinite loop) must not hang the run - hence the instruction-count hook. The file-access leg is a correction: the team had confused the model's file tools with the author's Lua API and sandboxed Lua away from files; the fix is that access control applies to the model through per-section tool injection, while the author's own Lua code can read and write both real and memory files.
 
-Citations: 2026-07-28-0925-orchestrator-design-document.md [p68]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p71], [p92]; 2026-08-02-1134-mcp-client-large-part5.md [p349]; 2026-08-09-1058-promptforge-core-large-part4.md [p368]; 2026-08-14-1613-promptforge-core-largest-part4.md [p368]
+Citations: 2026-07-28-0925-orchestrator-design-document.md [p68]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p71], [p92]; 2026-08-02-1134-mcp-client-large-part5.md [p349]; 2026-08-09-1058-runvil-core-large-part4.md [p368]; 2026-08-14-1613-runvil-core-largest-part4.md [p368]
 
 Merge: stands alone.
 
@@ -22,7 +22,7 @@ These two records are one decision and share one purpose; they should merge.
 
 Purpose: The preamble needs to run inference and tool calls (to parse the argument string and take control before any section runs), and replaying such a preamble into every section VM would multiply inference cost and corrupt store state - so the H1 runs exactly once, live. But sections still need the author's helper functions ("not having shared functions is a disaster"), and generic VM serialization/cloning was rejected as fragile, so the solution is a separate ```lua shared chunk: pure code, compiled once so syntax errors surface before anything runs, then replayed as bytecode into each section's fresh VM. The replay gate (blocking tools/models/var/reply/jump at the shared top level) exists because replaying with the full environment leaves footguns - a shared chunk that calls tools.add at top level would bind at the wrong time. The empty-chunk substitution exists so the section-startup code path is unconditional instead of branching on whether the author wrote a shared chunk.
 
-Citations: 2026-08-19-0048-promptforge-md-aug19.md [p6], [p7], [p9], [plans: untrusted global and VM reorder]; 2026-08-14-1613-promptforge-core-largest-part5.md [p446], [p450], [p453], [p461], [p462], [p470], [p474], [plans: H1 once no replay]; 2026-08-09-1058-promptforge-core-large-part5.md [p397], [p448-p450]
+Citations: 2026-08-19-0048-runvil-md-aug19.md [p6], [p7], [p9], [plans: untrusted global and VM reorder]; 2026-08-14-1613-runvil-core-largest-part5.md [p446], [p450], [p453], [p461], [p462], [p470], [p474], [plans: H1 once no replay]; 2026-08-09-1058-runvil-core-large-part5.md [p397], [p448-p450]
 
 Merge: merge records 3 and 4 into one principle (live-once preamble plus pure replayable shared library).
 
@@ -30,7 +30,7 @@ Merge: merge records 3 and 4 into one principle (live-once preamble plus pure re
 
 Purpose: The author discovered the engine was re-installing closures and mutating the environment between Lua chunks of the same section, which broke the natural pattern of one chunk stashing a table and a later chunk reading it - plain globals in one VM is simply how Lua is supposed to work ("they're all just globals to the VM"). Installing the environment once and leaving it alone also removes a whole class of scope open/close machinery the author called "tryhard." The cross-section half is about fanout: sections and fanout arms run concurrently, so mutable run-global Lua is excluded and the store is the only intentional mutable channel - otherwise arms would share mutable state. An error in any chunk stops the run because continuing past a failed chunk leaves the section in a state the author never wrote.
 
-Citations: 2026-08-18-1126-promptforge-md-aug18-morning.md [p102], [p103], [p124], [p125], [p127], [p149], [p154]; 2026-08-02-1134-mcp-client-large-part4.md [p234], [p235]; 2026-08-09-1058-promptforge-core-large-part1.md [p15-p21]; 2026-08-14-1613-promptforge-core-largest-part5.md [plans: section-lua-lifecycle]
+Citations: 2026-08-18-1126-runvil-md-aug18-morning.md [p102], [p103], [p124], [p125], [p127], [p149], [p154]; 2026-08-02-1134-mcp-client-large-part4.md [p234], [p235]; 2026-08-09-1058-runvil-core-large-part1.md [p15-p21]; 2026-08-14-1613-runvil-core-largest-part5.md [plans: section-lua-lifecycle]
 
 Merge: stands alone.
 
@@ -38,7 +38,7 @@ Merge: stands alone.
 
 Purpose: Two concrete drivers. First, testability: with a Tool or Model as an inspectable, invocable table, a unit test can substitute a mock - "we can put in the mock, and we can test it" - which opaque registrations do not allow. Second, the preamble needs to declare globals such as a list of tools that any section can pass to tools.need, which only works if a tool is a value. The unsealed-toolset leg exists because sealing at first infer breaks the working pattern of adding search, running one inference, then adding fetch.
 
-Citations: 2026-08-14-1613-promptforge-core-largest-part5.md [p398], [p400], [p401], [p409]; 2026-08-09-1058-promptforge-core-large-part5.md [p398-p401], [p409]
+Citations: 2026-08-14-1613-runvil-core-largest-part5.md [p398], [p400], [p401], [p409]; 2026-08-09-1058-runvil-core-large-part5.md [p398-p401], [p409]
 
 Merge: stands alone.
 
@@ -46,7 +46,7 @@ Merge: stands alone.
 
 Purpose: The language rule is no two ways to do the same thing: if infer had tools and conversation history it would just be prose again, with all the same questions (how do you set the tools, what happens on jump). infer exists for a quick one-shot inference inline inside a calculation - string in, string out - when prose would be overkill; "if you want Prose, use Prose." The two-argument form that picked a model per call was dropped so infer always uses the model already selected for the H2.
 
-Citations: 2026-08-18-1126-promptforge-md-aug18-morning.md [p164], [p165], [p182]
+Citations: 2026-08-18-1126-runvil-md-aug18-morning.md [p164], [p165], [p182]
 
 Merge: stands alone.
 
@@ -62,7 +62,7 @@ Merge: stands alone. Related to record 9 (same store) but a different pain - thi
 
 Purpose: Building an analytical pipeline requires re-running the prompt from any step during development and inspecting what each step produced after the run, so intermediate values must exist as files that can be read back in and skipped via store.exists. It is deliberately not a general-purpose filesystem - string replacement and delta application for agentic coding are a different, future class - and it must not be literally the filesystem, because then intermediate artifacts like evidence.md would show up as useless stray files in the user's directory. Real and virtual files must be readable at the same time because prompts need to read author-supplied input files alongside run-produced memory files.
 
-Citations: 2026-08-14-1613-promptforge-core-largest-part5.md [p377], [p504], [p505]; 2026-08-14-1613-promptforge-core-largest-part4.md [p367]; 2026-08-09-1058-promptforge-core-large-part3.md [p162]
+Citations: 2026-08-14-1613-runvil-core-largest-part5.md [p377], [p504], [p505]; 2026-08-14-1613-runvil-core-largest-part4.md [p367]; 2026-08-09-1058-runvil-core-large-part3.md [p162]
 
 Merge: stands alone (see record 8 note).
 
@@ -78,6 +78,6 @@ Merge: stands alone.
 
 Purpose: Prompts need facts only the engine knows: the launch time as a fixed constant, the current time so a model can detect time passing and compute elapsed time, and a unique incrementing id per context so Lua can compute unique filenames in the store. sys.model exists because the author wanted to print the producing model at the bottom of a generated report; it is unavailable during the prologue because no model is bound until the section's model scope closes. Unknown sys names fail loud because a silent empty value would hide a typo'd field name from the prompt author.
 
-Citations: 2026-08-02-1134-mcp-client-large-part4.md [p284], [p285], [p286]; 2026-08-02-1134-mcp-client-large-part5.md [p419], [p420]; 2026-08-08-0029-promptforge-context-planning.md [p14], [p15]; 2026-08-08-1223-gateway-local-inference.md [p54], [p55]
+Citations: 2026-08-02-1134-mcp-client-large-part4.md [p284], [p285], [p286]; 2026-08-02-1134-mcp-client-large-part5.md [p419], [p420]; 2026-08-08-0029-runvil-context-planning.md [p14], [p15]; 2026-08-08-1223-gateway-local-inference.md [p54], [p55]
 
 Merge: stands alone. Shares the fail-loud-on-unknown-name posture with other records but the purpose (engine-known facts) is its own.

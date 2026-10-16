@@ -1,6 +1,6 @@
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from Brave web search tools planning chat
+title: Runvil design principles mined from Brave web search tools planning chat
 ---
 
 # 2026-07-29-0937-brave-web-search-tools.md
@@ -101,7 +101,7 @@ title: PromptForge design principles mined from Brave web search tools planning 
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from compaction-algorithm session part 3 (call syntax, per-section tool surface, gateway topology, model mapping)
+title: Runvil design-principle candidates mined from compaction-algorithm session part 3 (call syntax, per-section tool surface, gateway topology, model mapping)
 ---
 
 # 2026-07-30-1046-compaction-algorithm-large-part3
@@ -243,7 +243,7 @@ title: PromptForge design-principle candidates mined from compaction-algorithm s
 ---
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from MCP client continued chat (tool picker, need strings, choose_mcp_tool, context rewrite)
+title: Runvil design principles mined from MCP client continued chat (tool picker, need strings, choose_mcp_tool, context rewrite)
 ---
 
 # 2026-08-02-1419-mcp-client-continued
@@ -385,7 +385,7 @@ title: PromptForge design principles mined from MCP client continued chat (tool 
 
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from MCP client large session part 5 (vfs access, fall-through protection, context clearing, subhead naming, MCP service shape)
+title: Runvil design-principle candidates mined from MCP client large session part 5 (vfs access, fall-through protection, context clearing, subhead naming, MCP service shape)
 ---
 
 # 2026-08-02-1134-mcp-client-large-part5
@@ -412,14 +412,14 @@ title: PromptForge design-principle candidates mined from MCP client large sessi
   rejected-alternative: fall-through that appends each section into a growing shared context
   endorsement: n/a
 
-- statement: A PromptForge file requires YAML frontmatter carrying a promptforge version number; major versions are incompatible changes, a file without the version is not a PromptForge prompt and runs the traditional full-file way, and the engine offers a detection function rather than running plain prompts itself.
+- statement: A Runvil file requires YAML frontmatter carrying a runvil version number; major versions are incompatible changes, a file without the version is not a Runvil prompt and runs the traditional full-file way, and the engine offers a detection function rather than running plain prompts itself.
   scope: core
   source: user-stated
   citation: 2026-08-02-1134-mcp-client-large-part5.md [p402], [p403], [p407], [p427]
   rejected-alternative: a fallback mode for files without YAML, or the engine running plain prompts
   endorsement: n/a
 
-- statement: A PromptForge prompt is best thought of as a function - parameters in, string out, side effects possible - a linear pipeline that can have forks and fanouts, with a natural size limit on the program it can represent; deeper recursive structure is what separate files are for.
+- statement: A Runvil prompt is best thought of as a function - parameters in, string out, side effects possible - a linear pipeline that can have forks and fanouts, with a natural size limit on the program it can represent; deeper recursive structure is what separate files are for.
   scope: global
   source: user-stated
   citation: 2026-08-02-1134-mcp-client-large-part5.md [p410]
@@ -489,7 +489,7 @@ title: PromptForge design-principle candidates mined from MCP client large sessi
   rejected-alternative: a stdio service the editor launches and tears down on every call
   endorsement: n/a
 
-- statement: The MCP service exposes exactly two tools - enumerate the runnable prompts and run a prompt - because client context degrades when too many tools are installed; prompt-to-prompt calls inside a run never round-trip through MCP, and editor routing lives in a Cursor rule that sends files bearing promptforge frontmatter to the service.
+- statement: The MCP service exposes exactly two tools - enumerate the runnable prompts and run a prompt - because client context degrades when too many tools are installed; prompt-to-prompt calls inside a run never round-trip through MCP, and editor routing lives in a Cursor rule that sends files bearing runvil frontmatter to the service.
   scope: mcp
   source: user-stated
   citation: 2026-08-02-1134-mcp-client-large-part5.md [p435], [p441]
@@ -539,107 +539,107 @@ title: PromptForge design-principle candidates mined from MCP client large sessi
 ---
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from promptforge-core large session part 1 (tool needs, H1 structure, fanout, tracing, logging, testing, CLI dev loop)
+title: Runvil design principles mined from runvil-core large session part 1 (tool needs, H1 structure, fanout, tracing, logging, testing, CLI dev loop)
 ---
 
-# 2026-08-09-1058-promptforge-core-large-part1.md
+# 2026-08-09-1058-runvil-core-large-part1.md
 
 ```yaml
 - statement: Never provide two ways of doing the same thing, unless there is a really good documented reason.
   scope: global
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p26], 2026-08-14-1613-promptforge-core-largest-part1.md [p26]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p26], 2026-08-14-1613-runvil-core-largest-part1.md [p26]
   rejected-alternative: duplicate facilities for the same capability
   endorsement: n/a
 
 - statement: Prefer the smallest facility that covers the most use; do not invent a new facility when an existing one can handle the case.
   scope: global
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p26], 2026-08-14-1613-promptforge-core-largest-part1.md [p26]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p26], 2026-08-14-1613-runvil-core-largest-part1.md [p26]
   rejected-alternative: a dedicated new facility duplicating an existing one
   endorsement: n/a
 
 - statement: Tool declarations live in the H1 preamble of the prompt, not in YAML front matter.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p26], 2026-08-14-1613-promptforge-core-largest-part1.md [p26]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p26], 2026-08-14-1613-runvil-core-largest-part1.md [p26]
   rejected-alternative: tool front matter
   endorsement: n/a
 
 - statement: A prompt declares the tool capabilities it needs as descriptive need strings rather than hard-coded tool names; the harness resolves each need to a tool by semantic match (embedding and reranking) and binds it to a local symbol the prose can reference precisely, and a need that resolves to no tool or to an ambiguous tool is an error.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p27-p31], 2026-08-14-1613-promptforge-core-largest-part1.md [p27], [p28]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p27-p31], 2026-08-14-1613-runvil-core-largest-part1.md [p27], [p28]
   rejected-alternative: hard-coded tool names in prompts
   endorsement: n/a
 
 - statement: Ambiguity or duplication in tool binding is an error; mapping the same tool to two different ids is rejected.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p35], 2026-08-14-1613-promptforge-core-largest-part1.md [p35]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p35], 2026-08-14-1613-runvil-core-largest-part1.md [p35]
   rejected-alternative: silently allowing duplicate tool bindings
   endorsement: n/a
 
 - statement: After the H1 preamble runs, the harness compares all bound tools pairwise and fails the prompt if any two are too similar to disambiguate.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p36-p37], 2026-08-14-1613-promptforge-core-largest-part1.md [p36]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p36-p37], 2026-08-14-1613-runvil-core-largest-part1.md [p36]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: A prompt file is an H1 section containing a lua preamble fence, prose, and a lua epilogue fence, followed by H2 sections.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p6-p12], 2026-08-14-1613-promptforge-core-largest-part1.md [p7]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p6-p12], 2026-08-14-1613-runvil-core-largest-part1.md [p7]
   rejected-alternative: a trailing lua code fence after the section body
   endorsement: n/a
 
 - statement: The H1 is required; anything between the YAML front matter and the H1 is ignored.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p23], 2026-08-14-1613-promptforge-core-largest-part1.md [p23]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p23], 2026-08-14-1613-runvil-core-largest-part1.md [p23]
   rejected-alternative: meaningful content between front matter and H1
   endorsement: n/a
 
 - statement: After the H1 preamble executes, the prompt-global Lua state becomes read-only, and each fanout arm receives its own copy of shared functions rather than sharing mutable state.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p15-p21], 2026-08-14-1613-promptforge-core-largest-part1.md [p15]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p15-p21], 2026-08-14-1613-runvil-core-largest-part1.md [p15]
   rejected-alternative: shared mutable global state across fanout arms
   endorsement: n/a
 
 - statement: Every harness operation reports its activity to an optional caller-installed observer; trace events are reduced to a Section string and a Detail string.
   scope: core
   source: user-corrective
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p39-p40], 2026-08-14-1613-promptforge-core-largest-part1.md [p39], [p40]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p39-p40], 2026-08-14-1613-runvil-core-largest-part1.md [p39], [p40]
   rejected-alternative: a taxonomy of typed trace event structures
   endorsement: n/a
 
 - statement: Prompts have a log() facility whose output is concurrency-safe and tagged with a per-execution id.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p53-p56], 2026-08-14-1613-promptforge-core-largest-part1.md [p56]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p53-p56], 2026-08-14-1613-runvil-core-largest-part1.md [p56]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Prompt behavior is tested with standalone prompt files, not inline strings in test code.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p46-p47], 2026-08-14-1613-promptforge-core-largest-part1.md [p46]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p46-p47], 2026-08-14-1613-runvil-core-largest-part1.md [p46]
   rejected-alternative: inline prompt strings in test code
   endorsement: n/a
 
 - statement: Integration tests exercise real inference and tool calling end to end, using a locally cached model so repeated runs are cheap and offline.
   scope: core
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p61-p70]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p61-p70]
   rejected-alternative: integration tests without a real model
   endorsement: n/a
 
 - statement: There is a command-line runner that executes a prompt file with real inference, picks up what it needs from the prompt's directory, and shows debug logging, so prompts can be iterated quickly without extra infrastructure.
   scope: cli
   source: user-stated
-  citation: 2026-08-09-1058-promptforge-core-large-part1.md [p76-p77], 2026-08-14-1613-promptforge-core-largest-part1.md [p76], [p77]
+  citation: 2026-08-09-1058-runvil-core-large-part1.md [p76-p77], 2026-08-14-1613-runvil-core-largest-part1.md [p76], [p77]
   rejected-alternative: none
   endorsement: n/a
 ```
@@ -649,39 +649,39 @@ title: PromptForge design principles mined from promptforge-core large session p
 - p13: design documents should explain rationale and features, not just instructions (documentation practice, not engine behavior).
 - p24: nothing has shipped yet, so backward breakage is not a concern (project-stage note).
 - p41: idea of a fine-tuned small open-weight model that summarizes a prompt into a short label (open question, undecided).
-- p42-p45: break work into per-step commits with review before continuing, never stop to ask (workflow temperament, not PromptForge design).
-- p48-p50: whether the "version" key should be required and how it differs from "promptforge" (unresolved questions).
+- p42-p45: break work into per-step commits with review before continuing, never stop to ask (workflow temperament, not Runvil design).
+- p48-p50: whether the "version" key should be required and how it differs from "runvil" (unresolved questions).
 - p54: whether Lua print should be disabled or remapped (unresolved question).
-- p65-p68: whether an OpenAI-shaped llama-server endpoint duplicates promptforge-gateway (unresolved question).
+- p65-p68: whether an OpenAI-shaped llama-server endpoint duplicates runvil-gateway (unresolved question).
 
 ---
 
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from promptforge-core largest session part 1 (tool needs, observer, lua environment, CLI dev loop)
+title: Runvil design principles mined from runvil-core largest session part 1 (tool needs, observer, lua environment, CLI dev loop)
 ---
 
-# 2026-08-14-1613-promptforge-core-largest-part1
+# 2026-08-14-1613-runvil-core-largest-part1
 
 ```yaml
 - statement: Within a section the lua fence comes before the prose, so a preamble can never be confused with an epilogue.
   scope: core
   source: user-stated
-  citation: 2026-08-14-1613-promptforge-core-largest-part1.md [p22]
+  citation: 2026-08-14-1613-runvil-core-largest-part1.md [p22]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Functions shared by many sections are defined once in the prompt's global lua rather than duplicated per section.
   scope: core
   source: user-stated
-  citation: 2026-08-14-1613-promptforge-core-largest-part1.md [p14]
+  citation: 2026-08-14-1613-runvil-core-largest-part1.md [p14]
   rejected-alternative: duplicating shared functions in each section that uses them
   endorsement: n/a
 
 - statement: The lua environment provides a log() facility, useful in tests to confirm execution reached a certain point; print is disabled or remapped to it.
   scope: core
   source: user-stated
-  citation: 2026-08-14-1613-promptforge-core-largest-part1.md [p55]
+  citation: 2026-08-14-1613-runvil-core-largest-part1.md [p55]
   rejected-alternative: none
   endorsement: n/a
 ```
@@ -697,86 +697,86 @@ title: PromptForge design principles mined from promptforge-core largest session
 ---
 ---
 produced: 2026-08-19
-title: PromptForge design-principle candidates mined from promptforge.md session Aug 15 (env resolution, secrets hygiene, mention-to-run, minimal core instructions)
+title: Runvil design-principle candidates mined from runvil.md session Aug 15 (env resolution, secrets hygiene, mention-to-run, minimal core instructions)
 ---
 
-# 2026-08-15-2006-promptforge-md-aug15
+# 2026-08-15-2006-runvil-md-aug15
 
 ```yaml
-- statement: A PromptForge program is activated by mentioning its file in any model context; the model loads it, builds it if necessary, and runs it, with no manual terminal steps.
+- statement: A Runvil program is activated by mentioning its file in any model context; the model loads it, builds it if necessary, and runs it, with no manual terminal steps.
   scope: global
   source: user-stated
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p5]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p5]
   rejected-alternative: running the program from a terminal by hand
   endorsement: n/a
 
 - statement: The gateway resolves environment variables from the operating system environment directly, never through a shell, because it runs as a system service on production machines where no shell inheritance exists.
   scope: gateway
   source: user-corrective
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p4], [p5], [p13]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p4], [p5], [p13]
   rejected-alternative: resolving variables through shell inheritance
   endorsement: n/a
 
 - statement: Secrets such as API keys must never enter the model's context.
   scope: boundary: gateway<->model
   source: user-stated
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p6]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p6]
   rejected-alternative: passing the API key through the prompt or the core instruction file
   endorsement: n/a
 
-- statement: The core instruction file (promptforge.md) stays minimal; new features and operational details must not bloat it.
+- statement: The core instruction file (runvil.md) stays minimal; new features and operational details must not bloat it.
   scope: global
   source: user-stated
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p6], [plans section]
-  rejected-alternative: documenting environment-variable handling inside promptforge.md
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p6], [plans section]
+  rejected-alternative: documenting environment-variable handling inside runvil.md
   endorsement: n/a
 
 - statement: When engine behavior changes, the core instruction file is updated in the same pass; stale instructions are treated as defects.
   scope: global
   source: user-corrective
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p21]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p21]
   rejected-alternative: leaving outdated instructions in place after a behavior change
   endorsement: n/a
 
 - statement: Env file resolution walks the config inheritance chain from the specified TOML all the way to the end, combining every .env file encountered along the way.
   scope: core
   source: user-corrective
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p11], [p12]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p11], [p12]
   rejected-alternative: stopping at the first encountered .env file, or taking the env file co-located with the specified config
   endorsement: n/a
 
 - statement: The language's instructions explicitly forbid the model from reading any .env file into its context.
   scope: global
   source: user-stated
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p22]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p22]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The repository provides a top-level gitignored directory for local prompts and configuration that remains indexed and readable by the IDE.
   scope: global
   source: user-stated
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [p28], [p29]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [p28], [p29]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Every user-facing binary loads its .env file at startup, before config interpolation resolves ${VAR} references.
   scope: global
   source: ai-proposed
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [plans section]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [plans section]
   rejected-alternative: none
   endorsement: affirmed
 
 - statement: A missing .env file is not an error; binaries start and run normally without one, so production environments with no .env keep working.
   scope: global
   source: ai-proposed
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [plans section]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [plans section]
   rejected-alternative: failing startup when no .env file is present
   endorsement: unaddressed
 
 - statement: .env files are gitignored so secrets never enter version control.
   scope: global
   source: ai-proposed
-  citation: 2026-08-15-2006-promptforge-md-aug15.md [plans section], [p18], [p19]
+  citation: 2026-08-15-2006-runvil-md-aug15.md [plans section], [p18], [p19]
   rejected-alternative: none
   endorsement: affirmed
 ```
@@ -794,149 +794,149 @@ title: PromptForge design-principle candidates mined from promptforge.md session
 
 ---
 produced: 2026-08-19
-title: PromptForge design principles mined from the promptforge.md session of Aug 18 morning (fanout arrays, tools.local, model selection, infer semantics)
+title: Runvil design principles mined from the runvil.md session of Aug 18 morning (fanout arrays, tools.local, model selection, infer semantics)
 ---
 
-# Design principles mined from 2026-08-18-1126-promptforge-md-aug18-morning.md
+# Design principles mined from 2026-08-18-1126-runvil-md-aug18-morning.md
 
 ```yaml
 - statement: When a prompt has one output file and the invocation does not map it to a real path, the MCP server returns exactly that file's contents for display in chat, with no separator line and no filename label.
   scope: mcp
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p29] [p30] [p31] [p39]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p29] [p30] [p31] [p39]
   rejected-alternative: appending a decorated copy of the output after the chat reply, with a separator line and the filename
   endorsement: n/a
 
 - statement: Fanout's fundamental operation is executing a set of sections in parallel; fanout() takes a worker section plus either a list-section name or an array of items, and items() returns a section's parsed list as an array for that purpose.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p45] [p108] [p109]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p45] [p108] [p109]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Every error reported to the prompt author carries the file and line number in the prompt that produced it.
   scope: global
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p54]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p54]
   rejected-alternative: errors that lack the prompt's file and line location
   endorsement: n/a
 
 - statement: Declarations freeze before the epilogue: once a Lua block has no following prose block, the model and tools tables are made immutable before that block runs, since further mutation would be useless.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p56] [p59] [p60]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p56] [p59] [p60]
   rejected-alternative: an open/closed tool-scope lifecycle tracked across every block
   endorsement: n/a
 
 - statement: Inline inference is referentially transparent: model::infer inside a Lua block is always equivalent to ending the block, interpolating the result as prose, and continuing in a new block; the epilogue is defined as the Lua code followed by no inference call and no prose.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p71] [p72] [p73] [p74] [p75]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p71] [p72] [p73] [p74] [p75]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: A section's model is chosen exactly once, in the section's first Lua block, and locks for the rest of the section; any prose or inference before a model has been selected is an error.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p62] [p67] [p175] [p177]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p62] [p67] [p175] [p177]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: All Lua chunks in one H2 section share a single VM, so state passes between chunks through plain globals.
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p103] [p125] [p127]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p103] [p125] [p127]
   rejected-alternative: per-chunk environments with closures re-installed between blocks
   endorsement: n/a
 
 - statement: The Lua environment is installed once on entry to an H2 and then left alone; the tool schema sent to the model is computed fresh just before each prose call instead of being maintained by scope open/close machinery.
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p124] [p154]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p124] [p154]
   rejected-alternative: a tool loop that mutates the environment between blocks and a closed-scope schema path
   endorsement: n/a
 
 - statement: Engine capabilities are not gated on document structure; fanout() is allowed whether or not a section has child headings.
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p138]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p138]
   rejected-alternative: restricting fanout() to sections with child headings
   endorsement: n/a
 
 - statement: An error in any Lua chunk stops the entire prompt run.
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p149]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p149]
   rejected-alternative: continuing the run past a chunk error
   endorsement: n/a
 
 - statement: A prompt can declare a model-callable tool backed by a Lua function, registered from any Lua chunk in the H2 and effective for the next prose call; Lua-backed tools have the same capabilities as native tools.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p99] [p144] [p160]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p99] [p144] [p160]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: A Lua-backed tool declares a parameter schema derived from its function declaration; the model is not left to infer argument shapes from prose context.
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p117] [p120]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p117] [p120]
   rejected-alternative: schema-less local tools presenting only name and description (ai-proposed in the tools-local plan, corrected)
   endorsement: n/a
 
 - statement: Lua tool handlers cannot jump; ordinary section Lua can jump, including Lua reached through execute().
   scope: core
   source: user-corrective
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p162] [p163]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p162] [p163]
   rejected-alternative: allowing jump() from tool handlers
   endorsement: n/a
 
 - statement: The language never offers two features that do the same thing a different way; each primitive has one distinct job, so prose is prose and infer is something else.
   scope: global
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p165]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p165]
   rejected-alternative: infer as an alternate spelling of prose
   endorsement: n/a
 
 - statement: infer() is a blocking call with a fresh context: a string goes in and a string comes out, with no tools, no shared conversation history, and no reply side effects, using the model selected for the H2.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p165] [p182]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p165] [p182]
   rejected-alternative: infer with tools and history, and a two-argument infer that picks a model per call
   endorsement: n/a
 
 - statement: Model selection is a default plus per-section override: models.default sets the prompt-wide model, a section may override it once, and switching models means starting a new H2 with context carried forward explicitly through reply.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p168] [p179]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p168] [p179]
   rejected-alternative: models.only, an all-or-nothing lock that forecloses per-section overrides
   endorsement: n/a
 
 - statement: A small set of flexible, multi-purpose primitives should compose into maximum possibility while keeping the prompt author brief; verbosity is a design failure.
   scope: global
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p168]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p168]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: Constraints should fall out of the existing rules naturally rather than being coded as explicit special-case checks.
   scope: global
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p176] [p177] [p178]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p176] [p177] [p178]
   rejected-alternative: hand-coded guard checks for each constraint
   endorsement: n/a
 
 - statement: Data arriving from external sources is untrusted and injection-prone; the design of data passing to tools and fanout arms must account for that.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p110]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p110]
   rejected-alternative: none
   endorsement: n/a
 
 - statement: The model may emit many tool calls in a single response; the engine collects them, executes them, and rendezvous the results before continuing.
   scope: core
   source: user-stated
-  citation: 2026-08-18-1126-promptforge-md-aug18-morning.md [p96]
+  citation: 2026-08-18-1126-runvil-md-aug18-morning.md [p96]
   rejected-alternative: one completion round-trip per tool call
   endorsement: n/a
 ```

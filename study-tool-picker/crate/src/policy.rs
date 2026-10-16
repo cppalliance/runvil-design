@@ -40,7 +40,7 @@ use crate::rank::{Candidate, Vectors, comparable};
 /// # Examples
 ///
 /// ```no_run
-/// use promptforge_tool_picker::{Catalog, Config, Outcome, ToolPicker};
+/// use runvil_tool_picker::{Catalog, Config, Outcome, ToolPicker};
 ///
 /// let picker = ToolPicker::build(Catalog::default(), Config::default())?;
 /// match picker.resolve("read a file from disk")? {

@@ -1,10 +1,10 @@
-# Tool Offering in promptforge: Three States per Plugin, a Built-in Discovery Facade, and a Frozen Tools Array
+# Tool Offering in runvil: Three States per Plugin, a Built-in Discovery Facade, and a Frozen Tools Array
 
-Report type: analytical and recommendation. It serves the decision on how promptforge's prompt-facing Lua API offers tools to a section, and how the engine presents those tools to the model in each chat-completions request. Readers: Vinnie Falco, Greg, Jason, and Andrew Wheeler.
+Report type: analytical and recommendation. It serves the decision on how runvil's prompt-facing Lua API offers tools to a section, and how the engine presents those tools to the model in each chat-completions request. Readers: Vinnie Falco, Greg, Jason, and Andrew Wheeler.
 
 ## Executive summary
 
-promptforge should give every Plugin offered to a section one of three states: ignored, dynamic, or direct. It should build the tool-discovery facade into the engine instead of shipping it inside the MCP Plugin. And it should freeze the model-facing `tools` array for the life of a message list. The October 14 huddle converged on the first two, and stated the third as a constraint. This report's measurements support all three. Confidence: high on the direction, because Anthropic and OpenAI both document the cache rule and both ship a discovery mechanism; medium on the details, because the Lua spelling is undecided and nobody has measured what discovered tools cost in model accuracy.
+runvil should give every Plugin offered to a section one of three states: ignored, dynamic, or direct. It should build the tool-discovery facade into the engine instead of shipping it inside the MCP Plugin. And it should freeze the model-facing `tools` array for the life of a message list. The October 14 huddle converged on the first two, and stated the third as a constraint. This report's measurements support all three. Confidence: high on the direction, because Anthropic and OpenAI both document the cache rule and both ship a discovery mechanism; medium on the details, because the Lua spelling is undecided and nobody has measured what discovered tools cost in model accuracy.
 
 Two pressures drive the design. First, any change to the `tools` array invalidates the provider's prompt cache for the whole conversation. Anthropic's documentation says modifying tool definitions "invalidates the entire cache". Second, tool schemas are large. This Cursor session spends about 6,600 tokens on tools: 3,673 on the 9 tools it offers directly, and the rest on a list naming the others. Offering all 115 tools the session can reach would cost about 32,500 tokens, five times as much.
 
@@ -13,7 +13,7 @@ The three states map onto today's code with one new concept. "Ignored" is what h
 ### Key findings
 
 1. Cursor's fresh context offers 9 direct tools and names the rest. It lists 108 more tools across 7 namespaces by name only, and the model fetches a schema when it needs one. Cursor's own built-in tools, including `WebSearch`, `WebFetch`, and `Task`, sit behind the same facade as the user's MCP servers. Confidence: high, because this was measured in a live session.
-2. promptforge today rebuilds the `tools` array before every model call and orders it by first offer. A section that offers a tool between two `models.loop` calls therefore changes the prompt prefix mid-conversation, and no code guards against it. Confidence: high, because the code says so in a doc comment.
+2. runvil today rebuilds the `tools` array before every model call and orders it by first offer. A section that offers a tool between two `models.loop` calls therefore changes the prompt prefix mid-conversation, and no code guards against it. Confidence: high, because the code says so in a doc comment.
 3. The current chat agent offers every extra tool directly. With the four MCP servers configured in this Cursor session, that would put 43 tools and about 11,500 tokens in the `tools` array, 35 percent of the chat agent's declared 32,768-token minimum context. The compactor's overflow estimate does not count tool schemas at all. Confidence: medium, because the Workshop's real MCP configuration may differ.
 4. Namespace descriptions are a hidden fixed cost. Cursor withholds per-tool descriptions until fetched, but it always shows each namespace's instructions. The browser namespace's instructions alone cost 1,088 tokens, more than any single browser tool. Confidence: high, because this was measured.
 5. Some schemas serve the product, not the model. Cursor's `Task` tool costs 1,946 tokens, and about 526 of them (27 percent) serve the cloud feature or the user interface. A headless pipeline such as paperweight should never pay for that. Confidence: high, because this was measured.
@@ -24,7 +24,7 @@ The three states map onto today's code with one new concept. "Ignored" is what h
 
 - Vinnie: choose the Lua spelling for the dynamic state, and the default states for the chat agent and for pipelines (section 5.1). Confidence: medium, because the huddle left the spelling open.
 - Greg: prototype the engine-built-in facade and the frozen-array rule (sections 5.2 and 5.3). Confidence: high, because both rest on documented provider behavior.
-- An owner to be named: benchmark direct calls against facade calls on the local models promptforge targets, before making the facade the default for pipelines. Confidence: high, because the accuracy question is the largest unknown.
+- An owner to be named: benchmark direct calls against facade calls on the local models runvil targets, before making the facade the default for pipelines. Confidence: high, because the accuracy question is the largest unknown.
 - Whoever next touches the compactor: count tool schemas in the overflow estimate. Confidence: high, because the measured sizes are a large share of small context windows.
 
 ## Contents
@@ -43,12 +43,12 @@ The three states map onto today's code with one new concept. "Ignored" is what h
 
 ## 1. The decision is how a section exposes tools to the model
 
-promptforge has two API surfaces for tools, and the huddle was about the seam between them. The prompt-facing surface is the frontmatter `plugins:` list plus the Lua `tools.*` and `plugins.*` tables that a section's code calls. The model-facing surface is the chat-completions request, which holds the message history, the `tools` array of tool schemas, and `tool_choice`. The design question is which tools a section can put in front of the model, in what form, and when.
+runvil has two API surfaces for tools, and the huddle was about the seam between them. The prompt-facing surface is the frontmatter `plugins:` list plus the Lua `tools.*` and `plugins.*` tables that a section's code calls. The model-facing surface is the chat-completions request, which holds the message history, the `tools` array of tool schemas, and `tool_choice`. The design question is which tools a section can put in front of the model, in what form, and when.
 
 This report uses one term per concept:
 
 - **The `tools` array** is the list of tool schemas sent with each chat-completions request. The huddle called it "the tool catalog".
-- **The run's catalog** is promptforge's set of every tool a run could offer, held in the engine's `ToolSet`. It is larger than any `tools` array.
+- **The run's catalog** is runvil's set of every tool a run could offer, held in the engine's `ToolSet`. It is larger than any `tools` array.
 - **The Host's Plugin bag** is every Plugin a Host installs at startup. Vinnie's phrase was "a bag of plug-ins".
 - **A direct tool** has its full schema in the `tools` array.
 - **A dynamic tool** is reachable only through the discovery facade.
@@ -60,11 +60,11 @@ This report uses one term per concept:
 
 The Host builds its Plugin bag once. The Workshop installs `web`, `user-input`, and a native `subagents` Plugin that has no tools yet. It then installs one MCP Plugin per entry in the configured `mcp.json` file, named after the server (`crates/workshop/server/src/agents.rs`, lines 80-191). Every usable installed Plugin's tools enter every run's catalog, declared or not, but none reach the model until the section's Lua offers them.
 
-The frontmatter `plugins:` list declares which Plugins a prompt requires. If a required Plugin is missing or unavailable, the run is refused before it starts, with a notice that begins "the environment cannot satisfy this prompt:" (`crates/promptforge-internal/engine/src/execute/requirements.rs`, lines 104-118). Everything installed but not declared is an extra. Lua reads the two groups through `plugins.required()` and `plugins.extras()`, and the matching tool lists through `tools.required()` and `tools.extras()`.
+The frontmatter `plugins:` list declares which Plugins a prompt requires. If a required Plugin is missing or unavailable, the run is refused before it starts, with a notice that begins "the environment cannot satisfy this prompt:" (`crates/runvil-internal/engine/src/execute/requirements.rs`, lines 104-118). Everything installed but not declared is an extra. Lua reads the two groups through `plugins.required()` and `plugins.extras()`, and the matching tool lists through `tools.required()` and `tools.extras()`.
 
 A section scopes tools with four calls. `tools.offer` adds tools by id, `plugins.offer` adds every tool of a Plugin, `tools.offer_local` registers a Lua function as a tool, and `tools.allow_tasks` adds the four engine-injected task built-ins. Before each model call, the engine assembles the `tools` array in a fixed order. The `tools.offer` tools come first in first-offer order, then each offered Plugin's tools in id order, then local tools, then task built-ins. The doc comment on the assembly function states the timing rule:
 
-> "Rebuilt at each model operation so `tools.offer`, `plugins.offer`, and `tools.offer_local` calls between blocks reach the next model turn." (`crates/promptforge-internal/lua/src/vm/state.rs`, lines 166-167)
+> "Rebuilt at each model operation so `tools.offer`, `plugins.offer`, and `tools.offer_local` calls between blocks reach the next model turn." (`crates/runvil-internal/lua/src/vm/state.rs`, lines 166-167)
 
 The request sets `tool_choice` to `"auto"` whenever the array is non-empty (`crates/harness-gateway-client/src/wire/request.rs`, lines 19 and 59). Each tool's wire name is its id with `/` and `.` replaced by `_`, so `web/fetch` becomes `web_fetch`.
 
@@ -100,13 +100,13 @@ The huddle never listed criteria, but each argument it made appeals to one. Each
 
 ### 3.1 Any change to the `tools` array discards the cached prefix
 
-Both major providers document Vinnie's cache claim. Anthropic builds its cache prefix in the order `tools`, then `system`, then `messages`, and its invalidation table says: "Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache." The same page says a change to `tool_choice` also invalidates the cache [R1]. OpenAI says "cache reuse requires the entire rendered prefix to match", and lists the `tools` setting as one that changes the prefix through "tool names, descriptions, schemas, ordering, or tool-specific instructions" [R3]. Both are primary vendor documents, read on October 14, 2026. The same logic applies to any local server that reuses a cached prefix, wherever its chat template renders the tools ahead of the history. This report did not check the templates promptforge's gateway uses.
+Both major providers document Vinnie's cache claim. Anthropic builds its cache prefix in the order `tools`, then `system`, then `messages`, and its invalidation table says: "Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache." The same page says a change to `tool_choice` also invalidates the cache [R1]. OpenAI says "cache reuse requires the entire rendered prefix to match", and lists the `tools` setting as one that changes the prefix through "tool names, descriptions, schemas, ordering, or tool-specific instructions" [R3]. Both are primary vendor documents, read on October 14, 2026. The same logic applies to any local server that reuses a cached prefix, wherever its chat template renders the tools ahead of the history. This report did not check the templates runvil's gateway uses.
 
-OpenAI's guide also prescribes a remedy the huddle did not mention. Under "Manage tools with append-only updates", it says to keep tool definitions and ordering stable, to set `tool_choice` to `"none"` instead of removing tools, and to "use `allowed_tools` to restrict which tools are callable while keeping the supplied `tools` list stable" [R3]. That separates two things promptforge currently couples: which tools the model can see, and which it may call this turn.
+OpenAI's guide also prescribes a remedy the huddle did not mention. Under "Manage tools with append-only updates", it says to keep tool definitions and ordering stable, to set `tool_choice` to `"none"` instead of removing tools, and to "use `allowed_tools` to restrict which tools are callable while keeping the supplied `tools` list stable" [R3]. That separates two things runvil currently couples: which tools the model can see, and which it may call this turn.
 
-promptforge today guards none of this. The `tools` array is rebuilt before every model call, so a section that offers a tool between two `models.loop` calls changes the prefix under an existing conversation. The array is ordered by first offer, so two sections offering the same tools in different orders produce different prefixes, and OpenAI lists ordering as a prefix change. The exposure is narrower than it sounds, because each section starts with a fresh Lua state and no offers, and a message list persists across sections only when the author passes it along. The risk lives inside one section's loop, and in authors who reuse one message list across sections.
+runvil today guards none of this. The `tools` array is rebuilt before every model call, so a section that offers a tool between two `models.loop` calls changes the prefix under an existing conversation. The array is ordered by first offer, so two sections offering the same tools in different orders produce different prefixes, and OpenAI lists ordering as a prefix change. The exposure is narrower than it sounds, because each section starts with a fresh Lua state and no offers, and a message list persists across sections only when the author passes it along. The risk lives inside one section's loop, and in authors who reuse one message list across sections.
 
-The team already has the matching rule for messages, but not for tools. The October 9 messages refactor recorded Vinnie's words: "Because of prefix cache invalidation, changes to the prefix of the messages should be visible and explicit" (`promptforge/vibe/2026-10-09-2-messages-userdata-refactor.md`, line 523). No equivalent rule covers the `tools` array.
+The team already has the matching rule for messages, but not for tools. The October 9 messages refactor recorded Vinnie's words: "Because of prefix cache invalidation, changes to the prefix of the messages should be visible and explicit" (`runvil/vibe/2026-10-09-2-messages-userdata-refactor.md`, line 523). No equivalent rule covers the `tools` array.
 
 Vinnie's specific MCP worry at [1:53], that a server changing its tools would invalidate the cache, cannot happen inside a run today. The MCP Plugin freezes a server's list once it is ready, and the run's catalog is fixed at run start. The live risk is the prompt's own offering, not the server.
 
@@ -133,13 +133,13 @@ The direct set is `Shell`, `Glob`, `Grep`, `Read`, `StrReplace`, `Write`, `AskQu
 
 Offering every one of the 115 tools directly would cost about 32,495 tokens, 5.0 times as much. Cursor's approach saves 80 percent here. Anthropic reports that a typical five-server setup "can consume ~55k tokens in definitions" and that its tool search "typically reduces this by over 85 percent" [R2]. That is a vendor claim about its own product, but it agrees with the measurement.
 
-Tool count matters for accuracy as well as tokens. Anthropic states that "Claude's ability to pick the right tool degrades once you exceed 30-50 available tools" [R2]. Cursor's 9 sit far below that range. The current promptforge chat agent, with the four MCP servers of this session installed as extras, would offer 43 MCP tools plus its own, and land inside it.
+Tool count matters for accuracy as well as tokens. Anthropic states that "Claude's ability to pick the right tool degrades once you exceed 30-50 available tools" [R2]. Cursor's 9 sit far below that range. The current runvil chat agent, with the four MCP servers of this session installed as extras, would offer 43 MCP tools plus its own, and land inside it.
 
 ### 3.3 Per-tool descriptions wait, but namespace text is always paid
 
 Cursor withholds every per-tool description until the model asks, but it always shows each namespace's instructions. Vinnie read this correctly at [8:03]: the up-front list has "no description", so Cursor relies on "tool names that are suggestive of what the tool does". The cost he did not mention is the namespace text. The browser namespace's instructions cost 1,088 tokens, more than its largest tool, and the Pinecone namespace's cost 811. Together they are about two thirds of the 2,884-token name list.
 
-Anthropic recommends the same shape for its own tool search: "Add a system prompt section describing available tool categories" [R2]. A promptforge facade will need a one-line summary per Plugin, and a budget for it, or one verbose Plugin will cost every run that lists it.
+Anthropic recommends the same shape for its own tool search: "Add a system prompt section describing available tool categories" [R2]. A runvil facade will need a one-line summary per Plugin, and a budget for it, or one verbose Plugin will cost every run that lists it.
 
 ### 3.4 A few tools hold most of the weight, and some of it serves the product
 
@@ -167,7 +167,7 @@ This report checked each claim the huddle made about Cursor against this session
 - **The lookup takes `namespace`, `toolName`, and `pattern`.** At [8:30] Vinnie named "the server, the name space, and then the tool". All three parameters are optional, as he said, but none is called `server`; that name belongs to `FetchMcpResource`.
 - **The pattern matches names, not descriptions.** At [2:48] Vinnie described matching "the word web in its description". The tool's own description says the pattern "searches namespace and tool names... using RE2 syntax", and says nothing about case-insensitivity. Pattern and catalog results also cut long descriptions to 200 characters.
 - **The fresh-subagent claim is unmeasured.** At [4:07] Vinnie said a fresh subagent sees only the facade. This session's main agent sees 9 direct tools, as Vinnie himself showed at [6:26]; no subagent's tool set was measured.
-- **The duplicate `list_commits` comes from two different hosts.** At [27:10] Vinnie saw `list_commits` twice. `cursor-origin` and `user-github` share seven tool names plus `mcp_auth`, but one is Cursor's Git host and the other is GitHub, and the origin namespace's instructions say GitHub repositories "are not visible here". The namespace is what tells them apart. promptforge's wire names already include the Plugin name, so two such Plugins would not collide.
+- **The duplicate `list_commits` comes from two different hosts.** At [27:10] Vinnie saw `list_commits` twice. `cursor-origin` and `user-github` share seven tool names plus `mcp_auth`, but one is Cursor's Git host and the other is GitHub, and the origin namespace's instructions say GitHub repositories "are not visible here". The namespace is what tells them apart. runvil's wire names already include the Plugin name, so two such Plugins would not collide.
 
 One further detail surfaced in measurement: fetching a namespace reveals an `mcp_auth` tool in five MCP namespaces that the up-front list omits.
 
@@ -175,19 +175,19 @@ One further detail surfaced in measurement: fetching a namespace reveals an `mcp
 
 Anthropic and OpenAI both ship discovery, and both differ from Cursor in one way that bears on Vinnie's accuracy concern. Anthropic's tool search lets the caller mark tools `defer_loading: true`. When the model searches, by regular expression or by BM25 natural-language query, the API returns up to five matches by default and "automatically expands these references into full tool definitions" [R2]. It states that "the prefix is untouched, so prompt caching is preserved." OpenAI offers the same `defer_loading` search, where "discovered tools are appended at the end of context", and an `additional_tools` input item for adding tools mid-thread [R3].
 
-The difference is in how the model calls a discovered tool. In Cursor, the model calls `CallDynamicTool` and nests the real tool's arguments inside an `arguments` object; the real tool never becomes a tool. In the provider versions, a discovered tool becomes a real tool that the model calls natively. Vinnie's worry at [13:37], that models "may not be trained on" tools that arrive as a tool result, bites harder on the proxy form. A related effect is likely: if a server constrains tool-call arguments with a grammar built from the `tools` array, a proxied call's inner arguments go unconstrained. Anthropic notes that its strict-mode grammar "builds from the full toolset", deferred tools included, which suggests it treated the problem as real. Confidence: medium, because no promptforge server was tested.
+The difference is in how the model calls a discovered tool. In Cursor, the model calls `CallDynamicTool` and nests the real tool's arguments inside an `arguments` object; the real tool never becomes a tool. In the provider versions, a discovered tool becomes a real tool that the model calls natively. Vinnie's worry at [13:37], that models "may not be trained on" tools that arrive as a tool result, bites harder on the proxy form. A related effect is likely: if a server constrains tool-call arguments with a grammar built from the `tools` array, a proxied call's inner arguments go unconstrained. Anthropic notes that its strict-mode grammar "builds from the full toolset", deferred tools included, which suggests it treated the problem as real. Confidence: medium, because no runvil server was tested.
 
-For promptforge, the native form needs a gateway that controls how tool definitions render mid-conversation. The proxy form works with any chat-completions server. Anthropic also documents a client-side variant of tool search [R2], so neither form is tied to one vendor.
+For runvil, the native form needs a gateway that controls how tool definitions render mid-conversation. The proxy form works with any chat-completions server. Anthropic also documents a client-side variant of tool search [R2], so neither form is tied to one vendor.
 
-### 3.7 promptforge already has half the pieces
+### 3.7 runvil already has half the pieces
 
 Several things the huddle wants already exist. A section offers tools explicitly, and nothing reaches the model by default. The ask tool reaches the model only when Lua offers it: "Neither installing nor declaring the Plugin advertises anything to the model" (`crates/plugin-user-input/src/lib.rs`, lines 60-64). That matters for Vinnie's complaint at [7:11] about a run that sat for hours on an unanswered question; a pipeline that never offers `user-input/ask` cannot stall that way. Required and extra Plugins are already separate, and the engine already injects built-in tools behind an opt-in, `tools.allow_tasks`.
 
-The registry also has a slot for exactly what Vinnie described at [16:04], built-ins that "appear like an MCP server" but are "linked in directly into the executable". It is the native Plugin kind: "Built into every registry; its behavior will live in the Engine, and today's one native, `promptforge/subagents`, has none yet" (`crates/harness-internal/runner/src/packages.rs`, lines 37-38). A native Plugin has a name a prompt can declare and offer, while its behavior lives in the engine.
+The registry also has a slot for exactly what Vinnie described at [16:04], built-ins that "appear like an MCP server" but are "linked in directly into the executable". It is the native Plugin kind: "Built into every registry; its behavior will live in the Engine, and today's one native, `runvil/subagents`, has none yet" (`crates/harness-internal/runner/src/packages.rs`, lines 37-38). A native Plugin has a name a prompt can declare and offer, while its behavior lives in the engine.
 
-Four pieces are missing. There is no dynamic state. The `tools` array has no stability rule. The chat agent offers every extra directly. And the compactor's overflow estimate leaves tool schemas out: "tool schemas and the system template are not counted" (`crates/promptforge-internal/lua/src/compactors.rs`, lines 193-197).
+Four pieces are missing. There is no dynamic state. The `tools` array has no stability rule. The chat agent offers every extra directly. And the compactor's overflow estimate leaves tool schemas out: "tool schemas and the system template are not counted" (`crates/runvil-internal/lua/src/compactors.rs`, lines 193-197).
 
-The discovery idea itself is older than the huddle. The September 13 Plugins plan deferred "the discovery Plugin" and framed it this way: "Progressive discovery is an advertising problem, not a binding problem... dispatch should reject unadvertised aliases (enforced hiding, so injected content cannot talk the model into a Lua-only tool)". It cited "Plugins like bashkit carry 142 commands" as the motivation (`promptforge/vibe/2026-09/2026-09-13-1-capabilities-global-naming.md`, line 579). The huddle keeps the idea, and moves its home from an ordinary Plugin into the engine.
+The discovery idea itself is older than the huddle. The September 13 Plugins plan deferred "the discovery Plugin" and framed it this way: "Progressive discovery is an advertising problem, not a binding problem... dispatch should reject unadvertised aliases (enforced hiding, so injected content cannot talk the model into a Lua-only tool)". It cited "Plugins like bashkit carry 142 commands" as the motivation (`runvil/vibe/2026-09/2026-09-13-1-capabilities-global-naming.md`, line 579). The huddle keeps the idea, and moves its home from an ordinary Plugin into the engine.
 
 ## 4. Only the three-state design serves both pipelines and chat
 
@@ -215,9 +215,9 @@ Table 3. The five options against the seven criteria. "Yes" meets the criterion,
 
 **Three states per section meets every criterion except two caveats.** It controls context, gives each section its own shape, keeps required Plugins in the frontmatter for reproducibility, and lets the chat agent reach unplanned tools. The first caveat is cache stability: per-section changes collide with a shared message list unless the frozen-array rule of section 5.3 comes with it. The second is accuracy: dynamic tools are called through a proxy, while direct tools stay native.
 
-**A stable superset is a discipline, not a design.** It meets the cache criterion by construction, but every request still pays for every schema, and the model cannot reach anything outside the superset. It works well as a rule inside option 2: within one message list, restrict instead of remove. This report did not verify `allowed_tools` support in the local servers promptforge targets.
+**A stable superset is a discipline, not a design.** It meets the cache criterion by construction, but every request still pays for every schema, and the model cannot reach anything outside the superset. It works well as a rule inside option 2: within one message list, restrict instead of remove. This report did not verify `allowed_tools` support in the local servers runvil targets.
 
-**Discovery as an ordinary Plugin puts the facade on the wrong side of the contract.** A Plugin's contract gives it its own tool list and its own calls, and a call's context offers only the tool id, file access, the call's origin, and service lookup (`crates/promptforge-plugin/src/context.rs`, lines 59-80). It does not offer the section's scope. The facade needs both the section's states and the run's catalog, so the engine would have to expose them to a Plugin anyway. Vinnie reached the same conclusion at [31:30]-[32:03]: "they should not be part of an MCP tool... it should be like the tasks tool. It should be an integral part of the engine."
+**Discovery as an ordinary Plugin puts the facade on the wrong side of the contract.** A Plugin's contract gives it its own tool list and its own calls, and a call's context offers only the tool id, file access, the call's origin, and service lookup (`crates/runvil-plugin/src/context.rs`, lines 59-80). It does not offer the section's scope. The facade needs both the section's states and the run's catalog, so the engine would have to expose them to a Plugin anyway. Vinnie reached the same conclusion at [31:30]-[32:03]: "they should not be part of an MCP tool... it should be like the tasks tool. It should be an integral part of the engine."
 
 ## 5. Recommendation: three states, a built-in facade, a frozen array
 
@@ -241,11 +241,11 @@ Figure 1. Under the recommended design, the Host decides what exists, the frontm
 
 "Ignored" needs no API, because it is what already happens to any tool a section does not offer. "Direct" is today's `tools.offer` and `plugins.offer`. Only "dynamic" is new. The huddle produced three spellings for it.
 
-The first is a mode argument on the existing calls, which Greg believes Vinnie would prefer: "having an argument to the single offer... you can pass like the plugin name and then the tool name optionally" (Greg, [39:22]-[40:41]). Today both calls reject a second argument, with the message "plugins.offer takes one Plugin or a list of them, got extra ..." (`crates/promptforge-internal/lua/src/plugins.rs`, lines 174-179). Adding one therefore breaks no existing prompt.
+The first is a mode argument on the existing calls, which Greg believes Vinnie would prefer: "having an argument to the single offer... you can pass like the plugin name and then the tool name optionally" (Greg, [39:22]-[40:41]). Today both calls reject a second argument, with the message "plugins.offer takes one Plugin or a list of them, got extra ..." (`crates/runvil-internal/lua/src/plugins.rs`, lines 174-179). Adding one therefore breaks no existing prompt.
 
 The second is separate functions, one per state, which Andrew suggested: "offer direct... dynamic... and restrict" (Andrew, [39:04]-[39:15]). It doubles the surface, because both `tools` and `plugins` would need each function.
 
-The third is path addressing, which Jason suggested and Greg illustrated: a Plugin name, a slash, and either one tool or a star for all of them (Jason and Greg, [40:46]-[41:14]). In promptforge's ids that reads `web/search` for one tool and `web/*` for a whole Plugin. Most of it exists already, since `tools.offer` takes tool ids and `plugins.offer` takes Plugin names. Only the wildcard is new, and it repeats what `plugins.offer` does.
+The third is path addressing, which Jason suggested and Greg illustrated: a Plugin name, a slash, and either one tool or a star for all of them (Jason and Greg, [40:46]-[41:14]). In runvil's ids that reads `web/search` for one tool and `web/*` for a whole Plugin. Most of it exists already, since `tools.offer` takes tool ids and `plugins.offer` takes Plugin names. Only the wildcard is new, and it repeats what `plugins.offer` does.
 
 Recommend the mode argument, with direct as the default so every existing prompt keeps its meaning. Confidence: medium, because it is the smallest backward-compatible change, but Vinnie has not confirmed it. A section in the chat agent would then read:
 
@@ -285,7 +285,7 @@ Where the gateway supports restricting callable tools without changing the array
 
 Count tool schemas in the compactor's overflow estimate. Confidence: high, because the four measured servers alone would fill 35 percent of the chat agent's 32,768-token minimum context, and the estimate currently ignores them.
 
-Benchmark direct calls against facade calls on the local models promptforge targets, measuring call success and argument validity, before choosing the facade as the default for any pipeline. Confidence: high, because this is the largest unknown in the design.
+Benchmark direct calls against facade calls on the local models runvil targets, measuring call success and argument validity, before choosing the facade as the default for any pipeline. Confidence: high, because this is the largest unknown in the design.
 
 Support the development workflow Jason and Andrew worked out at [49:02]-[50:12]. An author develops with extras dynamic, then asks which dynamic tools the model actually used, then promotes those Plugins to the frontmatter and offers them. Promoting them makes the prompt fail at start on a machine that lacks them, which Jason accepted at [50:12] ("OK, that makes sense"). A report of which dynamic tools a run called would make the workflow cheap. Confidence: medium, because the value depends on how often authors develop this way.
 
@@ -297,7 +297,7 @@ Support the development workflow Jason and Andrew worked out at [49:02]-[50:12].
 
 **How do the states relate to the frontmatter and to extras?** Greg was unsure at [44:12]: "I don't know how it fits in with... this dynamic tool thing, like, this is a kind of a separate thing." This report reads the three as independent questions. The frontmatter says what must exist. Extras are what may exist. The state says how a section shows each tool to the model.
 
-**Should a blocking question tool ever be direct in an unattended run?** Vinnie's complaint at [7:11] was a run that stopped at step one for three hours on a question, and Jason added that models sometimes ask ten questions in a row when one list would do. promptforge already keeps the ask tool hidden unless offered. Whether pipelines need a non-blocking variant is open.
+**Should a blocking question tool ever be direct in an unattended run?** Vinnie's complaint at [7:11] was a run that stopped at step one for three hours on a question, and Jason added that models sometimes ask ten questions in a row when one list would do. runvil already keeps the ask tool hidden unless offered. Whether pipelines need a non-blocking variant is open.
 
 **Should a local model generate UI metadata such as tab titles?** Vinnie suggested it at [33:01]. It follows from section 5.2's rule that model-facing schemas hold no product fields, but nothing in the huddle decided it.
 
@@ -305,13 +305,13 @@ Support the development workflow Jason and Andrew worked out at [49:02]-[50:12].
 
 ## 7. The figures are one session's snapshot, and accuracy is unmeasured
 
-The transcript is auto-generated, and several terms are garbled. The product name appears as "Runville", which does not occur in the promptforge codebase, so this report uses promptforge throughout. "Grip" is grep, "load lints" is `ReadLints`, "ad Jason config" is the `mcp.json` file, and "Queen 99 billion" is a small Qwen model whose size the transcript lost. Quotations keep the transcript's words, with stutters removed.
+The transcript is auto-generated, and several terms are garbled. The product name appears as "Runville", which does not occur in the runvil codebase, so this report uses runvil throughout. "Grip" is grep, "load lints" is `ReadLints`, "ad Jason config" is the `mcp.json` file, and "Queen 99 billion" is a small Qwen model whose size the transcript lost. Quotations keep the transcript's words, with stutters removed.
 
 The token counts use OpenAI's o200k_base tokenizer, not Claude's or Qwen's, and leave out the per-tool overhead each chat template adds. The 9 direct Cursor schemas were reconstructed from this session's tool definitions; the 108 dynamic schemas were fetched live. All figures are one snapshot of one Cursor session and version, and Cursor's direct set may differ by mode.
 
 Nothing in this report measures accuracy. Every statement about how well models call proxied tools is inference from vendor documents.
 
-The promptforge code was read at commit `ba9ee1f6c` (October 14, 2026). A code-search subagent traced the request assembly path; the citations used here were then checked directly in the source. The Workshop scenario with four MCP servers is hypothetical, and promptforge's MCP client supports only remote Streamable HTTP servers, so a local server would install as unavailable. Paperweight's code is not in the promptforge repository, so statements about it come from the huddle.
+The runvil code was read at commit `ba9ee1f6c` (October 14, 2026). A code-search subagent traced the request assembly path; the citations used here were then checked directly in the source. The Workshop scenario with four MCP servers is hypothetical, and runvil's MCP client supports only remote Streamable HTTP servers, so a local server would install as unavailable. Paperweight's code is not in the runvil repository, so statements about it come from the huddle.
 
 ## Appendix A. Everything the huddle said on tools, plugins, and MCP
 
@@ -341,7 +341,7 @@ This appendix extracts every design point, measurement, and piece of analysis th
 - [3:37, Vinnie] A paperweight built this way would see only the two facade tools. To fetch papers it would look up "paper", read the tool definition, and then call it.
 - [4:07, Vinnie] Cursor puts its own built-in tools behind the facade, so "a fresh sub-agent" sees only the facade. Section 3.5 notes this is unmeasured.
 - [4:26, Vinnie] The facade's description tells the model to use it for web search, read file, fetch, grep, and read lints. Section 3.5 corrects this: read file and grep are direct.
-- [4:55-5:11, Vinnie] promptforge needs the same, because adding file tools and GitHub tools will flood the context.
+- [4:55-5:11, Vinnie] runvil needs the same, because adding file tools and GitHub tools will flood the context.
 - [5:38, Vinnie] The file tools are the basic set: read file, write file, string replace, and grep.
 - [6:01-6:26, Vinnie] Vinnie shared a dump of Cursor's fresh context. It has 9 tools, and web search is not among them.
 - [6:46-6:52, Andrew and Vinnie] Andrew asked whether the top tools are outside the facade; Vinnie confirmed they are, 9 in all.
@@ -357,7 +357,7 @@ This appendix extracts every design point, measurement, and piece of analysis th
 - [9:43, Vinnie] The lookup accepts a regular expression, which Vinnie described as case-insensitive.
 - [10:00, Vinnie] Cursor gives the model all the tool names up front.
 - [10:12, Vinnie] The namespaces that start with "user", such as the GitHub and WG21 wiki servers, are Vinnie's own four MCP servers.
-- [10:34-10:39, Vinnie] The plan: replace "Cursor" with promptforge's own name, so promptforge gets its own Git host namespace and its own IDE namespace.
+- [10:34-10:39, Vinnie] The plan: replace "Cursor" with runvil's own name, so runvil gets its own Git host namespace and its own IDE namespace.
 - [10:45-10:53, Vinnie] The last namespace is how Cursor drives the browser, and Vinnie wants the same.
 
 ### A.4 Why structured tools beat shell commands
@@ -370,17 +370,17 @@ This appendix extracts every design point, measurement, and piece of analysis th
 
 ### A.5 Pipelines versus chat
 
-- [12:09, Vinnie] Vinnie and Greg had concluded that promptforge should copy Cursor.
-- [12:21, Vinnie] But promptforge cannot copy Cursor completely, because pipelines don't need dynamic tools. They know which tools they want.
+- [12:09, Vinnie] Vinnie and Greg had concluded that runvil should copy Cursor.
+- [12:21, Vinnie] But runvil cannot copy Cursor completely, because pipelines don't need dynamic tools. They know which tools they want.
 - [12:39, Vinnie] Each section should decide its own tools.
 - [12:52, Vinnie] In the Workshop's agent window, web fetch and web search could sit behind the facade instead of in the default set.
 - [12:52-13:14, Vinnie] In a pipeline prompt, web fetch and web search should be "front and center", in the tools section of the request.
 - [13:14-13:37, Vinnie] The catch: the facade returns tool schemas as a tool result at the end of the conversation, not in the place where tools normally go.
-- [13:37-13:54, Vinnie] Models are trained on direct tools and may not be trained on schemas delivered as a tool result, so promptforge "might lose a few points on the benchmarks."
+- [13:37-13:54, Vinnie] Models are trained on direct tools and may not be trained on schemas delivered as a tool result, so runvil "might lose a few points on the benchmarks."
 - [14:13, Vinnie] For built-in tools like web search and web fetch, a prompt should be able to offer them directly, for example with `plugins.offer` on web. If it does not, they move to the facade.
 - [14:32, Vinnie] The dynamic tool system should be tightly integrated with the engine.
 - [15:01-15:46, Vinnie] The standard tools, such as the files Plugin, would form a core group, maybe named "core" or "std". Whether that is a Plugin is undecided.
-- [15:46, Vinnie] The facade might be called promptforge's MCP.
+- [15:46, Vinnie] The facade might be called runvil's MCP.
 - [16:04-16:14, Vinnie] Cursor's built-ins appear to the lookup like an MCP server, but they are linked into the executable.
 - [16:14-16:32, Vinnie] A prompt should be able to offer web fetch and web search so they appear as direct tools, and then the lookup will not show them.
 - [16:51-17:10, Greg] Greg's restatement: the team is deciding where the line falls between tools in the direct schema and tools kept in the dynamic list, invoked through call dynamic tool.
@@ -414,7 +414,7 @@ This appendix extracts every design point, measurement, and piece of analysis th
 - [26:29-26:34, Vinnie] The facade would belong to MCP, or be built in and always present, or be a named Plugin.
 - [26:47, Vinnie] Each Cursor namespace is like a Plugin: the built-ins are one, the Git host is another.
 - [27:10, Vinnie] The GitHub namespace and the Git host both have `list_commits`, which "doesn't look healthy." Section 3.5 explains it.
-- [27:30-28:05, Vinnie and Greg] If promptforge ran in this environment and a prompt offered its extras, would it get all of these? Greg: yes, if the Host has them in its bag.
+- [27:30-28:05, Vinnie and Greg] If runvil ran in this environment and a prompt offered its extras, would it get all of these? Greg: yes, if the Host has them in its bag.
 - [28:07-28:15, Jason and Vinnie] Cursor has all of that too, but it does not give it to the model at once; the model has to explore.
 
 ### A.7 The cost of a schema: Cursor's Task tool
@@ -532,7 +532,7 @@ Table B2. Cursor's 13 built-in tools behind the facade, in o200k_base tokens, la
 | `Delete` | 86 | 39 |
 | `CreateGoal` | 65 | 25 |
 
-For comparison, promptforge's own web tools are smaller than Cursor's. A code-search pass found about 670 characters of description and schema for `web/fetch` and about 956 for `web/search`, against 1,615 and 1,481 characters for Cursor's `WebFetch` and `WebSearch`. Those promptforge figures are approximate.
+For comparison, runvil's own web tools are smaller than Cursor's. A code-search pass found about 670 characters of description and schema for `web/fetch` and about 956 for `web/search`, against 1,615 and 1,481 characters for Cursor's `WebFetch` and `WebSearch`. Those runvil figures are approximate.
 
 ## References
 
@@ -547,25 +547,25 @@ Vendor documentation, all read on October 14, 2026:
 - [R2] Anthropic, ["Tool search tool"](https://docs.claude.com/en/docs/agents-and-tools/tool-use/tool-search-tool), Claude documentation. Source of `defer_loading`, the 30-50 tool accuracy threshold, and the 55k-token example.
 - [R3] OpenAI, ["Prompt caching"](https://platform.openai.com/docs/guides/prompt-caching), OpenAI platform guide. Source of the prefix-matching rule and "Manage tools with append-only updates".
 
-promptforge code, at commit `ba9ee1f6c` (October 14, 2026):
+runvil code, at commit `ba9ee1f6c` (October 14, 2026):
 
-- `crates/promptforge-internal/lua/src/vm/state.rs`, lines 160-167: the order and timing of the `tools` array.
-- `crates/promptforge-internal/lua/src/tools.rs` and `crates/promptforge-internal/lua/src/plugins.rs`: the Lua `tools` and `plugins` tables, including the one-argument check at `plugins.rs` lines 174-179.
-- `crates/promptforge-internal/lua/src/compactors.rs`, lines 193-197: tool schemas left out of the overflow estimate.
-- `crates/promptforge-internal/engine/src/execute/requirements.rs`, lines 104-118: refusal of a run whose required Plugin is missing.
-- `crates/promptforge-internal/engine/src/execute/scheduler/builtins.rs`, lines 1-48: the four task built-ins.
+- `crates/runvil-internal/lua/src/vm/state.rs`, lines 160-167: the order and timing of the `tools` array.
+- `crates/runvil-internal/lua/src/tools.rs` and `crates/runvil-internal/lua/src/plugins.rs`: the Lua `tools` and `plugins` tables, including the one-argument check at `plugins.rs` lines 174-179.
+- `crates/runvil-internal/lua/src/compactors.rs`, lines 193-197: tool schemas left out of the overflow estimate.
+- `crates/runvil-internal/engine/src/execute/requirements.rs`, lines 104-118: refusal of a run whose required Plugin is missing.
+- `crates/runvil-internal/engine/src/execute/scheduler/builtins.rs`, lines 1-48: the four task built-ins.
 - `crates/harness-gateway-client/src/wire/request.rs`, lines 19 and 59: `tool_choice` set to `"auto"`.
 - `crates/harness-internal/runner/src/packages.rs`, lines 37-38 and 118-119: the native Plugin kind and the `subagents` native.
-- `crates/promptforge-plugin/src/context.rs`, lines 59-80: what a tool call's context offers a Plugin.
+- `crates/runvil-plugin/src/context.rs`, lines 59-80: what a tool call's context offers a Plugin.
 - `crates/plugin-mcp/src/lib.rs`, lines 23-38, and `crates/plugin-mcp/src/server.rs`, lines 51-86: how the MCP Plugin lists and keeps a server's tools.
 - `crates/plugin-user-input/src/lib.rs`, lines 60-64: the ask tool reaches the model only when offered.
 - `crates/workshop/server/src/agents.rs`, lines 80-191: the Workshop's Plugin installs.
 - `crates/workshop/agents/agents/chat.md`, lines 28-30: the chat agent's offers.
 
-Prior promptforge plans:
+Prior runvil plans:
 
-- `promptforge/vibe/2026-09/2026-09-13-1-capabilities-global-naming.md`, line 579: the deferred discovery Plugin and enforced hiding.
-- `promptforge/vibe/2026-10-09-2-messages-userdata-refactor.md`, line 523: the rule that prefix changes are visible and explicit.
+- `runvil/vibe/2026-09/2026-09-13-1-capabilities-global-naming.md`, line 579: the deferred discovery Plugin and enforced hiding.
+- `runvil/vibe/2026-10-09-2-messages-userdata-refactor.md`, line 523: the rule that prefix changes are visible and explicit.
 
 ---
 

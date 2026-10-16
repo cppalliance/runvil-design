@@ -1,6 +1,6 @@
 # Gateway App: How to Structure API Route Code That Grows
 
-Report type: evaluation / review. It judges the PromptForge gateway app crate against 5 popular codebases sharing the Rust + axum HTTP API service technique, and prescribes idioms to adopt, in payoff order.
+Report type: evaluation / review. It judges the Runvil gateway app crate against 5 popular codebases sharing the Rust + axum HTTP API service technique, and prescribes idioms to adopt, in payoff order.
 
 ## Executive summary
 
@@ -31,7 +31,7 @@ The subject crate was profiled first through nine lenses (module decomposition, 
 
 ## Baseline: where the subject stands
 
-The gateway app crate is ~100% Rust on axum, tokio, tower, and reqwest, delivered as one `promptforge-gateway` binary with additive cargo features and a headless `--no-default-features` build. Its routing seam is genuinely good: a single `build_router(state, bound) -> Router` testable in-process via tower, an admin surface isolated as a separate `Router` under one `route_layer(require_loopback)`, transport-pure wire types in `gateway-protocol` with table-driven error mapping, and feature crates that contribute merged routers. Its deficits are all about growth: a 4,371-line lib.rs holding the route table, `AppState`, ~15 handlers, and ~60% of its bulk in inline tests; no rule deciding where a new handler goes (`admin_config`/`admin_status` sit in lib.rs while sibling routes live in `config_write.rs`/`config_pending.rs`); a route table that names private same-file functions; `#[cfg]`-gated imperative mounting that makes the mounted surface unenumerable from code; and test fixtures redefined in nearly every inline test block despite a shared `test_support.rs`.
+The gateway app crate is ~100% Rust on axum, tokio, tower, and reqwest, delivered as one `runvil-gateway` binary with additive cargo features and a headless `--no-default-features` build. Its routing seam is genuinely good: a single `build_router(state, bound) -> Router` testable in-process via tower, an admin surface isolated as a separate `Router` under one `route_layer(require_loopback)`, transport-pure wire types in `gateway-protocol` with table-driven error mapping, and feature crates that contribute merged routers. Its deficits are all about growth: a 4,371-line lib.rs holding the route table, `AppState`, ~15 handlers, and ~60% of its bulk in inline tests; no rule deciding where a new handler goes (`admin_config`/`admin_status` sit in lib.rs while sibling routes live in `config_write.rs`/`config_pending.rs`); a route table that names private same-file functions; `#[cfg]`-gated imperative mounting that makes the mounted surface unenumerable from code; and test fixtures redefined in nearly every inline test block despite a shared `test_support.rs`.
 
 ## Detailed findings, ranked by payoff
 

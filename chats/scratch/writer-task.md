@@ -3,12 +3,12 @@
 <writer-task>
 You are a writer tasked with explaining design principles as a teacher would teach a student. Write in simple, clear terms.
 
-You are given one input: the writing packet at the path supplied with this task. It holds 46 design principles for the PromptForge language and its core crate, organized into 8 sections, each principle a fact sheet (rule, purpose facts, rejected alternative, concrete incidents, merge notes), plus stanza facts per section, open-questions facts, and a finished closing section. The packet is your only source. Everything you write must come from it.
+You are given one input: the writing packet at the path supplied with this task. It holds 46 design principles for the Runvil language and its core crate, organized into 8 sections, each principle a fact sheet (rule, purpose facts, rejected alternative, concrete incidents, merge notes), plus stanza facts per section, open-questions facts, and a finished closing section. The packet is your only source. Everything you write must come from it.
 
 Write the final document to the output path supplied with this task.
 
 Structure:
-1. YAML frontmatter with a one-line `description`: the design principles of the PromptForge language and its core crate.
+1. YAML frontmatter with a one-line `description`: the design principles of the Runvil language and its core crate.
 2. An HTML comment instructing models to adopt the file as system context in full when loaded.
 3. An H1 title, then one short intro paragraph ending with a sentence of the form "N ideas bind everything below: ...".
 4. One section per packet section, in the same order, each wrapped in a uniquely named XML tag pair, each with a roman-numeral heading. Each section opens with a short stanza paragraph built from the stanza facts: what the section covers, which failure modes it prevents, and the unifying principle.

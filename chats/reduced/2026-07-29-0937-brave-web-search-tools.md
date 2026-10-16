@@ -14,7 +14,7 @@
 
 **[p3]** show me the JSON in a fence
 
-**[p4]** @promptforge do I make webfetch and websearch its own linkable rust crate and where does the Brave API key go, the gateway or.. something else?
+**[p4]** @runvil do I make webfetch and websearch its own linkable rust crate and where does the Brave API key go, the gateway or.. something else?
 
 **[p5]** so the gateway is the model router and also search tools provider?
 
@@ -68,7 +68,7 @@
 
 ### Brave web search tools
 
-*Add `web_search` (via Brave API through gateway) and `web_fetch` (local, in-process) tools to promptforge, with the tool-call loop in the executor.*
+*Add `web_search` (via Brave API through gateway) and `web_fetch` (local, in-process) tools to runvil, with the tool-call loop in the executor.*
 
 # Brave Web Search and Web Fetch Tools
 
@@ -76,15 +76,15 @@
 
 ```mermaid
 flowchart LR
-    subgraph CLI["promptforge-cli"]
+    subgraph CLI["runvil-cli"]
         Executor["executor (tool loop)"]
     end
-    subgraph Core["promptforge-core"]
+    subgraph Core["runvil-core"]
         WebFetch["web_fetch (local)"]
         ToolTrait["Tool trait"]
         RemoteProxy["RemoteToolProxy"]
     end
-    subgraph Gateway["promptforge-gateway"]
+    subgraph Gateway["runvil-gateway"]
         Route["/v1/tools/web_search"]
         BraveClient["Brave API client"]
     end
@@ -116,7 +116,7 @@ provider = "brave"
 api_key = "${BRAVE_API_KEY}"
 ```
 
-New `ToolsConfig` struct in [crates/promptforge-gateway/src/config.rs](crates/promptforge-gateway/src/config.rs) - optional section, gateway still starts without it (tools just unavailable).
+New `ToolsConfig` struct in [crates/runvil-gateway/src/config.rs](crates/runvil-gateway/src/config.rs) - optional section, gateway still starts without it (tools just unavailable).
 
 ### Route
 
@@ -126,13 +126,13 @@ New `ToolsConfig` struct in [crates/promptforge-gateway/src/config.rs](crates/pr
 - Internally calls `GET https://api.search.brave.com/res/v1/web/search?q=...&count=...` with `X-Subscription-Token` header
 - Strips Brave response down to just the `web.results` array fields we care about
 
-### New file: `crates/promptforge-gateway/src/tools.rs`
+### New file: `crates/runvil-gateway/src/tools.rs`
 
 Inline Brave HTTP client (one function, ~40 lines). Axum handler for the route.
 
 ## Core: Tool trait and implementations
 
-### New file: `crates/promptforge-core/src/tools.rs`
+### New file: `crates/runvil-core/src/tools.rs`
 
 ```rust
 #[async_trait]
@@ -144,13 +144,13 @@ pub trait Tool: Send + Sync {
 }
 ```
 
-### New file: `crates/promptforge-core/src/tools/web_fetch.rs`
+### New file: `crates/runvil-core/src/tools/web_fetch.rs`
 
 - `pub struct WebFetch` implements `Tool`
 - Fetches URL with `reqwest`, runs through `readabilityrs` for content extraction (it has built-in markdown output), falls back to `htmd::convert` for non-article pages
 - Returns markdown string
 
-### New file: `crates/promptforge-core/src/tools/web_search.rs`
+### New file: `crates/runvil-core/src/tools/web_search.rs`
 
 - `pub struct WebSearch` (a `RemoteToolProxy` specialized for web_search)
 - Calls `POST {base_url}/tools/web_search` on the gateway
@@ -158,14 +158,14 @@ pub trait Tool: Send + Sync {
 
 ## Core: Executor tool-call loop
 
-Modify [crates/promptforge-core/src/execute.rs](crates/promptforge-core/src/execute.rs):
+Modify [crates/runvil-core/src/execute.rs](crates/runvil-core/src/execute.rs):
 
 - `pub async fn run` gains a `tools: &[&dyn Tool]` parameter
 - After calling `client.complete()`, check if response contains `tool_calls` (new field in `ChatResponse`)
 - If yes: execute each tool call, append tool results as `tool` role messages, re-send to model
 - Loop until model responds with plain text (cap at N iterations to prevent infinite loops)
 
-Modify [crates/promptforge-core/src/client.rs](crates/promptforge-core/src/client.rs):
+Modify [crates/runvil-core/src/client.rs](crates/runvil-core/src/client.rs):
 
 - `GatewayClient::complete` gains an optional `tools` parameter (the JSON schema array for the model)
 - Response parsing handles both `content` (text) and `tool_calls` (array) in the choice message
@@ -188,7 +188,7 @@ The executor matches these names against the provided `&[&dyn Tool]` slice and p
 
 ## New dependencies
 
-### `promptforge-core/Cargo.toml`
+### `runvil-core/Cargo.toml`
 
 - `readabilityrs = "0.1"` - HTML content extraction with markdown output
 - `htmd = "0.5"` - fallback HTML-to-markdown
@@ -209,7 +209,7 @@ Todos:
 
 - Add optional [tools.web_search] section to gateway config parsing
 - Add POST /v1/tools/web_search route with inline Brave API client
-- Define Tool trait in promptforge-core/src/tools.rs
+- Define Tool trait in runvil-core/src/tools.rs
 - Implement WebFetch tool (reqwest + readabilityrs + htmd fallback)
 - Implement WebSearch as remote proxy calling gateway
 - Extend GatewayClient to send tool schemas and parse tool_calls responses
@@ -217,4 +217,4 @@ Todos:
 - Parse tools field from prompt frontmatter, wire to executor
 - Integration tests for gateway route, unit tests for web_fetch and executor loop
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge\README.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil\README.md`

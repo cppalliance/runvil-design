@@ -57,7 +57,7 @@ impl ToolPicker {
     ///
     /// # Examples
     /// ```no_run
-    /// use promptforge_tool_picker::{Catalog, Config, ToolDescriptor, ToolId, ToolPicker};
+    /// use runvil_tool_picker::{Catalog, Config, ToolDescriptor, ToolId, ToolPicker};
     /// use serde_json::json;
     ///
     /// let catalog = Catalog::new(vec![ToolDescriptor::new(
@@ -87,7 +87,7 @@ impl ToolPicker {
     ///
     /// # Examples
     /// ```
-    /// use promptforge_tool_picker::{Config, ToolPicker};
+    /// use runvil_tool_picker::{Config, ToolPicker};
     ///
     /// let picker = ToolPicker::empty(Config::default());
     /// assert!(picker.is_empty());
@@ -123,7 +123,7 @@ impl ToolPicker {
     ///
     /// # Examples
     /// ```no_run
-    /// use promptforge_tool_picker::{Catalog, Config, Model, ToolPicker};
+    /// use runvil_tool_picker::{Catalog, Config, Model, ToolPicker};
     ///
     /// let model = Model::load()?;
     /// let first = ToolPicker::build_with_model(&model, Catalog::default(), Config::default(), None)?;
@@ -174,7 +174,7 @@ impl ToolPicker {
     ///
     /// # Examples
     /// ```no_run
-    /// use promptforge_tool_picker::{Catalog, Config, ToolPicker};
+    /// use runvil_tool_picker::{Catalog, Config, ToolPicker};
     ///
     /// let picker = ToolPicker::build(Catalog::default(), Config::default())?;
     /// let rebuilt = picker.rebuild(Catalog::default())?;

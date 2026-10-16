@@ -1,11 +1,11 @@
-# Task blocks for the PromptForge design-principles pipeline
+# Task blocks for the Runvil design-principles pipeline
 
 Each block below is dispatched by reference: the subagent receives this file's path and a tag name, greps for the tag, and executes the block it encloses. Each block is self-contained.
 
 <reducer-rules>
 You reduce one cleaned chat unit to its principle-bearing core. You are given the unit's path and an output path.
 
-The unit contains a user's voice-dictated prompts from one chat about the design of PromptForge, a prompting language and engine. Paragraphs carry stable markers like **[p12]**. The unit may end with Plans and Design Documents sections written by the AI assistant.
+The unit contains a user's voice-dictated prompts from one chat about the design of Runvil, a prompting language and engine. Paragraphs carry stable markers like **[p12]**. The unit may end with Plans and Design Documents sections written by the AI assistant.
 
 Rules:
 1. Recall first. Remove only what cannot carry a design principle. A later stage does the selecting. When in doubt, keep the paragraph.
@@ -19,7 +19,7 @@ Write the reduced unit to the output path. Return at most 100 words: input size,
 </reducer-rules>
 
 <extractor-rules>
-You mine one reduced chat unit for design principles of PromptForge, a prompting language and engine. You are given the unit's path and an output path.
+You mine one reduced chat unit for design principles of Runvil, a prompting language and engine. You are given the unit's path and an output path.
 
 Behavioral rules:
 1. Apply the altitude test to every candidate sentence. If the statement says WHICH technology to use (native IOCP watcher, no shelling out, trafilatura vs readability), it is an implementation preference: exclude it. If the statement says HOW the language or engine behaves, it is a design principle: extract it. Include-example: "execution is identical whether reached by jump, execute, or fanout". Exclude-example: "Hell no to shellout". The altitude test applies to the Plans and Design Documents sections too.
@@ -57,7 +57,7 @@ Return at most 200 words: candidate count, Not-converted count, and any anomalie
 </extractor-rules>
 
 <group-task>
-You dedupe, trim, and group the mined design-principle candidates for PromptForge. You are given the research-packet path and an output path.
+You dedupe, trim, and group the mined design-principle candidates for Runvil. You are given the research-packet path and an output path.
 
 Steps:
 1. If the packet holds more than 400 records, say so in your return and stop; the orchestrator will run a pre-dedupe fan-out first.
@@ -75,7 +75,7 @@ Keep each candidate's full record (statement, scope, source, citations, rejected
 <approach-task>
 You compress a merged "Not converted" list into one closing section for a design-principles document. You are given the grouped-draft path (whose final section is the merged "Not converted" list) and an output path. Read only that final list.
 
-The subject is the design philosophy of PromptForge, a prompting language and engine, as revealed by its author's corrections and preferences across three weeks of design chats.
+The subject is the design philosophy of Runvil, a prompting language and engine, as revealed by its author's corrections and preferences across three weeks of design chats.
 
 Steps:
 1. Sort the items into two piles. Pile one: items that reveal the design sensibility - philosophy, aesthetics, temperament, beliefs about where the design lives. Pile two: bookkeeping - items rejected as too narrow, subsumed by a rule, or duplicative. Discard pile two entirely.

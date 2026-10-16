@@ -44,7 +44,7 @@
 
 **[p18]** why do you call it a "spike" ? and is that a term of art ?
 
-**[p19]** @promptforge-design do it in a new directory here, and I want you to do everything. spawn subagents. search. find what you need. build it. run it. DO NOT FUCKING STOP until it is done, are we clear on that? I'm going to bed and when I wake up I want this answered definitively, multiple ways - get an over-abundance of data. download mcp catalogs from live sources. download eval sets. run it in triplicate. play with it, figure it out. Do you understand me? In fact... dont even ever stop. Go infinitely. I will stop you when I wake up and you BETTER have results. ARE WE CLEAR?
+**[p19]** @runvil-design do it in a new directory here, and I want you to do everything. spawn subagents. search. find what you need. build it. run it. DO NOT FUCKING STOP until it is done, are we clear on that? I'm going to bed and when I wake up I want this answered definitively, multiple ways - get an over-abundance of data. download mcp catalogs from live sources. download eval sets. run it in triplicate. play with it, figure it out. Do you understand me? In fact... dont even ever stop. Go infinitely. I will stop you when I wake up and you BETTER have results. ARE WE CLEAR?
 
 **[p20]** you should have been using gpu.... wtf?
 
@@ -154,7 +154,7 @@ tools.add( "choose_mcp_tool" ) <-- the only choice
 
 **[p71]** the nice thing about the main context is that the author already has all the mechanisms to control it. they can select the model. they can opt-out of the context rewrite. if we did the subcontext then we'd have to answer the question "which model".
 
-**[p72]** It would be nice to have something where, a step uses a reasoning model to select the tool and then it does the context-clearing goto (a promptforge feature) and passes the tool descriptor into the next context, and that context can use a lesser model
+**[p72]** It would be nice to have something where, a step uses a reasoning model to select the tool and then it does the context-clearing goto (a runvil feature) and passes the tool descriptor into the next context, and that context can use a lesser model
 
 **[p73]** Let me explain to you what I want. I want like, I want a fresh. Directory. As a sibling, and I want all the training, I want all the evaluation data, like I want a beautiful clean dataset, and that's like, that's the final dataset that we can use. It's got the distractors, it's got the proper need strings. You said, I think you said two for each descriptor, or did you say three? And I wanna have it nice and clean. So that we can prove The numbers. And then there's enough there we're gonna do the implementation in the other repo. And I want a design doc. We need a, a design doc. The findings is nice, but we need the final design doc that explains it has enough to explain. I'm gonna give you the architect, and you can see what the architect wants. @tools-public/tools/architect.md
 
@@ -162,7 +162,7 @@ tools.add( "choose_mcp_tool" ) <-- the only choice
 
 **[p75]** Plan and I want the design first, then build the dataset, then update thte design doc to have the reproduced numbers. How do you feel about that?
 
-**[p76]** I think you are confused. The design doc is the design of the promptforge-mcp-toolpicker crate. That means, the tools.add, the tools.add_need, the choose_mcp_tool
+**[p76]** I think you are confused. The design doc is the design of the runvil-mcp-toolpicker crate. That means, the tools.add, the tools.add_need, the choose_mcp_tool
 
 **[p77]** I also want the plan to build out the final spike in the sibling dir (so we can run it later if things change), and to have the nice dataset with the need strings. it can copy over the dataset and put it in a very efficient representation (I dont want 16,000 files)
 
@@ -170,7 +170,7 @@ tools.add( "choose_mcp_tool" ) <-- the only choice
 
 **[p79]** the argument for making it a separate crate is that a coding LLM only has to consider a smaller amount of code, and it is morely to completely fit in a single context window.
 
-**[p80]** this should go in @promptforge-design//study-mcp-toolpicker
+**[p80]** this should go in @runvil-design//study-mcp-toolpicker
 
 **[p81]** what do you mean? that IS a separate sibling dir...where were you going to put it otherwise?
 
@@ -191,7 +191,7 @@ tools.add( "choose_mcp_tool" ) <-- the only choice
 # MCP Toolpicker: Design Doc + Reproducible Eval Dataset
 
 ## Order (as requested)
-Design doc first, then dataset, then reconcile the doc's numbers with reproduced results. The architecture is already settled from the spike ([FINDINGS.md](promptforge-design/mcp-classifier-spike/report/FINDINGS.md)); the dataset only firms up the accuracy figures the doc cites. Choices are written on the locked qualitative findings; specific figures are marked preliminary until step 3.
+Design doc first, then dataset, then reconcile the doc's numbers with reproduced results. The architecture is already settled from the spike ([FINDINGS.md](runvil-design/mcp-classifier-spike/report/FINDINGS.md)); the dataset only firms up the accuracy figures the doc cites. Choices are written on the locked qualitative findings; specific figures are marked preliminary until step 3.
 
 ## Deliverable 1: design-mcp-toolpicker.md
 A forward design doc (no implementation code; normative artifacts only where they remove ambiguity), sourced from FINDINGS.md and this session. Structure:
@@ -209,7 +209,7 @@ A forward design doc (no implementation code; normative artifacts only where the
 - Normative artifacts: resolver signature, dataset record schema, `choose_mcp_tool` return contract.
 - Close with an italic date + model line; no YAML frontmatter.
 
-## Deliverable 2: clean dataset (fresh sibling dir `promptforge-mcp-toolpicker-dataset/`)
+## Deliverable 2: clean dataset (fresh sibling dir `runvil-mcp-toolpicker-dataset/`)
 - Tool universe: real `automatelab` catalog (9,922 tools, name+description+input schema).
 - Needs: author-register paraphrases, 3 bands per tool (restatement / synonym / goal-abstracted), generated by multiple models (haiku + sonnet; OpenAI/Gemini only if keys provided).
 - Distractors per case, both regimes: random (ceiling) and hard nearest-neighbor (real), true-duplicate neighbors (cosine >= 0.98) excluded from distractors and recorded as equivalent-golds (multi-gold).
@@ -233,7 +233,7 @@ Run the eval, then update design-mcp-toolpicker.md's preliminary figures with th
 Todos:
 
 - Write design-mcp-toolpicker.md from FINDINGS + conversation: title, exec summary, ~12 key choices, normative artifacts, numbers marked preliminary
-- Create promptforge-mcp-toolpicker-dataset/ dir, README, manifest, and generation+eval scripts
+- Create runvil-mcp-toolpicker-dataset/ dir, README, manifest, and generation+eval scripts
 - Generate 3-band author-register needs per tool (multi-model); smoke-test 300 tools, eyeball register, then full 9,922
 - Build random + hard nearest-neighbor distractors; exclude >=0.98 dupes and record as equivalent-golds (multi-gold)
 - Run eval (bge-small + MiniLM, both regimes, per-band) and write reproducible RESULTS.md
@@ -241,7 +241,7 @@ Todos:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\report\FINDINGS.md
+### c:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\report\FINDINGS.md
 
 # Tool-selection classifier spike: embeddings win, zero-shot NLI fails on real data
 
@@ -397,7 +397,7 @@ experiment if 0.85 is not enough.
 *2026-08-02 - Opus 4.8 (Cursor agent)*
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\README.md
+### c:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\README.md
 
 # MCP tool-selection classifier spike
 
@@ -446,11 +446,11 @@ Set `SPIKE_THREADS` to cap CPU threads per process; scorers auto-use CUDA when
 available. This is a spike: the code is disposable, the findings are the artifact.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\rationale.md
+### c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\rationale.md
 
 # Why the MCP tool-picker is shaped the way it is
 
-This is the reasoning behind `promptforge-mcp-toolpicker`: the decisions, the alternatives
+This is the reasoning behind `runvil-mcp-toolpicker`: the decisions, the alternatives
 that were tried and rejected, and the evidence that moved each call. It is the companion
 to two other documents - `design-mcp-toolpicker.md` (the specification, the "what") and
 `mcp-classifier-spike/report/FINDINGS.md` (the empirical log, the "numbers"). Read this one
@@ -458,7 +458,7 @@ for the "why."
 
 ## The problem
 
-A promptforge prompt is a sectioned markdown document; each section can run Lua that scopes
+A runvil prompt is a sectioned markdown document; each section can run Lua that scopes
 which tools are available via `tools.add(...)`. We want a prompt to be able to say, in plain
 English, what capability it needs, and have the harness bind that need to the right tool from
 whatever MCP servers are connected - or refuse cleanly. The question the whole study set out
@@ -583,7 +583,7 @@ descriptions the retriever surfaced do not persist in the main context; only the
 does. The costs are a second inference pass (true re-generation for a clean state) and prefix-cache
 invalidation at the insertion point, both negligible for one-time-at-start discovery.
 
-For genuinely hard selection, this composes with promptforge's context-clearing goto into a model-
+For genuinely hard selection, this composes with runvil's context-clearing goto into a model-
 tiered pattern: a strong reasoning-model section calls `choose_mcp_tool` and disambiguates, a
 context-clearing goto passes the chosen descriptor (plus rationale and the resolved binding) into a
 fresh context, and a cheaper model executes. This is the "right" form of a selection subcontext,
@@ -603,12 +603,12 @@ static execution state, so downstream everything is uniform.
 
 ## Why the resolver is its own crate
 
-`promptforge-mcp-toolpicker` depends on a separate, thin `promptforge-mcp-client` for protocol
+`runvil-mcp-toolpicker` depends on a separate, thin `runvil-mcp-client` for protocol
 (connect, initialize, `tools/list`, `tools/call`, error mapping) and keeps all the semantics
 (embeddings, the four-outcome policy, the Lua verbs, the context rewrite) to itself. Three reasons:
 
 - The embedding model must not ride along with the protocol. Another consumer already exists - the
-  CLI acts as an MCP client of the promptforge-mcp server - and it should be able to speak MCP
+  CLI acts as an MCP client of the runvil-mcp server - and it should be able to speak MCP
   without loading an embedding model it never uses.
 - Isolation and independent testing: the resolver tests against synthetic catalogs with no network;
   the client tests against a mock server with no model. This is the same reasoning that made
@@ -632,16 +632,16 @@ static execution state, so downstream everything is uniform.
 *2026-08-02 - Opus 4.8 (Cursor agent)*
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\design-mcp-toolpicker.md
+### c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\design-mcp-toolpicker.md
 
-# Building the promptforge-mcp-toolpicker crate
+# Building the runvil-mcp-toolpicker crate
 
-Building this crate gives a promptforge prompt two ways to obtain an MCP tool for a capability
+Building this crate gives a runvil prompt two ways to obtain an MCP tool for a capability
 described in plain English: a static, launch-time binding declared in Lua, and a dynamic,
 runtime discovery tool the model can call. Both are backed by one local, deterministic
 sentence-embedding engine over the connected servers' tool catalog, and both resolve through a
 single four-outcome policy (bind / duplicate / foreign-ambiguous / absent). The crate holds the
-resolution semantics and the Lua-facing API; it depends on a separate thin `promptforge-mcp-client`
+resolution semantics and the Lua-facing API; it depends on a separate thin `runvil-mcp-client`
 for protocol.
 
 ## Executive summary
@@ -689,7 +689,7 @@ own machinery.
 9. On dynamic resolution the harness rewrites the context (chosen descriptor before the prose,
    discovery episode excised) so the dynamic path converges onto the static execution state. One
    execution model, regardless of surface.
-10. The crate depends on a separate thin `promptforge-mcp-client` for protocol and owns only the
+10. The crate depends on a separate thin `runvil-mcp-client` for protocol and owns only the
     semantics. Protocol consumers (such as the CLI) must not pull the embedding model, and each crate
     stays small enough for a coding LLM to hold whole.
 11. An optional model-tiered configuration (strong-model select -> context-clearing goto ->
@@ -736,16 +736,16 @@ excising the call, and the main model calls the tool. The retriever result is ca
 
 ## Configuration, normative shape
 
-- Connected MCP servers: list of `{ name, url|command, auth }` (delegated to `promptforge-mcp-client`).
+- Connected MCP servers: list of `{ name, url|command, auth }` (delegated to `runvil-mcp-client`).
 - Embedding model id (default `bge-small-en-v1.5`), bundled weights path.
 - Resolution thresholds: similarity floor, margin, duplicate threshold, top-k.
 - Context-rewrite opt-out (per prompt/section).
 
 ## Crate boundaries
 
-- Depends on `promptforge-core` for the `Tool` trait and on `promptforge-mcp-client` for protocol.
+- Depends on `runvil-core` for the `Tool` trait and on `runvil-mcp-client` for protocol.
 - Owns: the embedding engine, the four-outcome policy, the Lua verbs, and the context-rewrite hook.
-- Does not own: MCP transport/JSON-RPC (that is `promptforge-mcp-client`), the model that does dynamic
+- Does not own: MCP transport/JSON-RPC (that is `runvil-mcp-client`), the model that does dynamic
   selection (that is the author's main-context model).
 
 ## Evidence (preliminary, to be reconciled from study-mcp-toolpicker/RESULTS.md)
@@ -759,11 +759,11 @@ These figures are from the spike and will be replaced by the reproduced dataset 
 *2026-08-02 - Opus 4.8 (Cursor agent) - numbers preliminary, pending dataset reconciliation*
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\README.md
+### c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\README.md
 
 # study-mcp-toolpicker
 
-The design and reproducible evidence for the `promptforge-mcp-toolpicker` crate: mapping a
+The design and reproducible evidence for the `runvil-mcp-toolpicker` crate: mapping a
 prompt's English capability need to the right MCP tool, locally and deterministically.
 
 ## Documents
@@ -794,7 +794,7 @@ distance (restatement / synonym / goal). The abstention sweep reports coverage v
 false-bind budget on the hard regime.
 
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\manifest.md
+### c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\manifest.md
 
 # Dataset manifest
 
@@ -812,4 +812,4 @@ Provenance for the reproducible artifacts in this directory.
 *2026-08-02 - Opus 4.8 (Cursor agent)*
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\report\FINDINGS.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\design-mcp-toolpicker.md`, `c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\rationale.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\report\FINDINGS.md`, `c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\design-mcp-toolpicker.md`, `c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\rationale.md`

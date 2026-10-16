@@ -1,5 +1,5 @@
 <!--
-Simplified Diligence, written in PromptForge, as a teaching example.
+Simplified Diligence, written in Runvil, as a teaching example.
 Not the real 30-test tool. Every idiom of the language appears at least once,
 labelled in an HTML comment so you can find it. Reading this top to bottom
 should teach the whole language.

@@ -1,16 +1,16 @@
 [package]
-name = "promptforge-tool-picker"
+name = "runvil-tool-picker"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
 
-description = "PromptForge tool picker: resolve a plain-English capability need to a tool from an abstract catalog"
+description = "Runvil tool picker: resolve a plain-English capability need to a tool from an abstract catalog"
 readme = "README.md"
 keywords = ["tool", "semantic", "embedding", "resolution", "ai"]
 categories = ["algorithms"]
-documentation = "https://cppalliance.github.io/promptforge/"
+documentation = "https://cppalliance.github.io/runvil/"
 
 [dependencies]
 candle-core = { workspace = true }
@@ -18,7 +18,7 @@ candle-nn = { workspace = true }
 candle-transformers = { workspace = true }
 # The global naming grammar (GlobalName, the canonical ToolId) the picker's
 # catalog identities speak.
-promptforge-api-types.workspace = true
+runvil-api-types.workspace = true
 shared-progress.workspace = true
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true }
@@ -47,7 +47,7 @@ test-fixtures = []
 [dev-dependencies]
 # The crate dev-depends on itself so every test target builds the library
 # with test-fixtures enabled, without gate commands needing a --features flag.
-promptforge-tool-picker = { path = ".", features = ["test-fixtures"] }
+runvil-tool-picker = { path = ".", features = ["test-fixtures"] }
 
 [lints]
 workspace = true

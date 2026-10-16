@@ -32,8 +32,8 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Merged from purpose-cluster-3 Record 1 (fall-through, default advance, termination) and Record 2 (jump, explicit transfer, reply rule). Both records state the same root rule: every section transition starts a fresh context, because accumulation is what forces big models and compaction. Record 1 is the default form; Record 2 is the explicit form.
-- Record 1 citations: 2026-07-28-2238-orchestrator-design-continued.md [p75], [p121]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p75], [p121]; 2026-08-02-1134-mcp-client-large-part5.md [p363], [p414], [p415]; 2026-07-30-0534-promptforge-design-context.md [p9], [p10].
-- Record 2 citations: 2026-07-28-0925-orchestrator-design-document.md [p14], [p74], [p75]; 2026-07-28-2238-orchestrator-design-continued.md [p14], [p75], [p120]; 2026-07-30-0534-promptforge-design-context.md [p12]-[p18]; 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20], [p21], [p22]; 2026-08-14-1613-promptforge-core-largest-part5.md [p442], [p481].
+- Record 1 citations: 2026-07-28-2238-orchestrator-design-continued.md [p75], [p121]; 2026-07-30-1046-compaction-algorithm-large-part2.md [p75], [p121]; 2026-08-02-1134-mcp-client-large-part5.md [p363], [p414], [p415]; 2026-07-30-0534-runvil-design-context.md [p9], [p10].
+- Record 2 citations: 2026-07-28-0925-orchestrator-design-document.md [p14], [p74], [p75]; 2026-07-28-2238-orchestrator-design-continued.md [p14], [p75], [p120]; 2026-07-30-0534-runvil-design-context.md [p12]-[p18]; 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20], [p21], [p22]; 2026-08-14-1613-runvil-core-largest-part5.md [p442], [p481].
 
 ## Principle 15: execute() runs a section as a subroutine; jump() transfers without returning
 
@@ -56,7 +56,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 3); no merge. Distinct purpose from jump: subroutine with return vs transfer without return.
-- Citations: 2026-08-14-1613-promptforge-core-largest-part5.md [p430], [p431], [p488], [p489]; 2026-08-09-1058-promptforge-core-large-part5.md [p430], [p432], [p433]; 2026-08-19-0048-promptforge-md-aug19.md [p55], [p58], [p60]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p242].
+- Citations: 2026-08-14-1613-runvil-core-largest-part5.md [p430], [p431], [p488], [p489]; 2026-08-09-1058-runvil-core-large-part5.md [p430], [p432], [p433]; 2026-08-19-0048-runvil-md-aug19.md [p55], [p58], [p60]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p242].
 
 ## Principle 16: A section ends when the model replies with text and no tool calls
 
@@ -80,7 +80,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 4); no merge. Source tagged ai-proposed; user-stated.
 - Open question 6 in the principles file notes the tension: "An empty model response is never acceptable" versus the conditional empty-turn clean exit; the later rule refines the earlier one, but the exact boundary of which empty turns fail closed deserves confirmation.
-- Citations: 2026-08-18-1639-promptforge-md-aug18-afternoon.md [p3], [p6], [plans section]; 2026-07-30-1046-compaction-algorithm-large-part5.md [STATUS.md decisions]; 2026-08-09-1058-promptforge-core-large-part5.md [p429]; grouped-draft also lists 2026-08-03-1827-two-repo-commit-review.md [design documents section].
+- Citations: 2026-08-18-1639-runvil-md-aug18-afternoon.md [p3], [p6], [plans section]; 2026-07-30-1046-compaction-algorithm-large-part5.md [STATUS.md decisions]; 2026-08-09-1058-runvil-core-large-part5.md [p429]; grouped-draft also lists 2026-08-03-1827-two-repo-commit-review.md [design documents section].
 
 ## Principle 17: Cycles are allowed
 
@@ -102,7 +102,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 5); no merge. Source tagged user-corrective; user-stated.
-- Citations: 2026-07-30-1046-compaction-algorithm-large-part5.md [p369]-[p372]; 2026-08-02-1134-mcp-client-large-part5.md [p369], [p371], [p372]; 2026-08-19-0048-promptforge-md-aug19.md [p60]; 2026-07-28-0925-orchestrator-design-document.md [p18]; 2026-07-30-0534-promptforge-design-context.md [p4].
+- Citations: 2026-07-30-1046-compaction-algorithm-large-part5.md [p369]-[p372]; 2026-08-02-1134-mcp-client-large-part5.md [p369], [p371], [p372]; 2026-08-19-0048-runvil-md-aug19.md [p60]; 2026-07-28-0925-orchestrator-design-document.md [p18]; 2026-07-30-0534-runvil-design-context.md [p4].
 
 ## Principle 18: A task is either synchronous or asynchronous
 
@@ -123,7 +123,7 @@ Facts only. Sources: purpose-cluster-3.md (Records 1-6), grouped-draft.md "Contr
 
 **Merge/derivation notes:**
 - Single record (purpose-cluster-3 Record 6); no merge.
-- Citations: 2026-07-30-0534-promptforge-design-context.md [p22], [p23], [p25], [p26], [p27], [p28], [p34], [p35]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p247]; 2026-08-02-1134-mcp-client-large-part4.md [p245], [p246], [p247].
+- Citations: 2026-07-30-0534-runvil-design-context.md [p22], [p23], [p25], [p26], [p27], [p28], [p34], [p35]; 2026-07-30-1046-compaction-algorithm-large-part4.md [p247]; 2026-08-02-1134-mcp-client-large-part4.md [p245], [p246], [p247].
 
 ## Stanza facts (Section III header)
 

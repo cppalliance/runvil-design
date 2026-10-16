@@ -1,11 +1,11 @@
 ---
 produced: 2026-09-20
-title: PromptForge gateway axum server structure review - tier-named per-area router constructors, WireQuery and WirePath rejection extractors, blocking helper, loopback tier extractor, typed admin responses, route registry, compared against Windmill, Svix, mistral.rs, SGLang, and llm-gateway-rs
+title: Runvil gateway axum server structure review - tier-named per-area router constructors, WireQuery and WirePath rejection extractors, blocking helper, loopback tier extractor, typed admin responses, route registry, compared against Windmill, Svix, mistral.rs, SGLang, and llm-gateway-rs
 ---
 
-# PromptForge Gateway: How to Structure an axum Server
+# Runvil Gateway: How to Structure an axum Server
 
-Report type: evaluation / review. It judges the PromptForge gateway app crate against 5 popular codebases sharing the Rust axum multi-tier API server technique, and prescribes idioms to adopt, in payoff order.
+Report type: evaluation / review. It judges the Runvil gateway app crate against 5 popular codebases sharing the Rust axum multi-tier API server technique, and prescribes idioms to adopt, in payoff order.
 
 ## Executive summary
 
@@ -155,7 +155,7 @@ Windmill's cited files all carry Claude co-author trailers at HEAD, but the mech
 - mistral.rs (mistralrs-server-core): https://github.com/EricLBuehler/mistral.rs - HEAD d5ae0f18f2170f10d30880cb7d21fb0880410e7b - MIT - analyzed 2026-09-20 - no rewind
 - SGLang (sgl-model-gateway): https://github.com/sgl-project/sglang - HEAD 745de73ba3c136b6f99b7a3e2177ed1a8eef4a56 - Apache-2.0 - analyzed 2026-09-20 - PRE_AI_SHA 4b62af92ef3632863e288af802ef63f40efbb503 (server.rs)
 - llm-gateway-rs: https://github.com/poly-workshop/llm-gateway-rs - HEAD a580c58d3ae9af06b90632b25b03c6223e74f01d - MIT - analyzed 2026-09-20 - no rewind
-- Field survey: 2026-09-20, 17 candidates, 13 verified. Subject profile: 2026-09-20, PromptForge gateway app crate.
+- Field survey: 2026-09-20, 17 candidates, 13 verified. Subject profile: 2026-09-20, Runvil gateway app crate.
 
 *2026-09-20 11:45 - Claude Fable 5.1*
 

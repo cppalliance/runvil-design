@@ -16367,7 +16367,7 @@ Each of these was produced on 2026-10-10 and holds the verbatim schemas, permali
 - "Open-source coding harnesses: model-facing subagent, delegation, and background-task tools"
 - "Naming survey slice: agent frameworks and SDKs that expose delegation to a model as a tool"
 - "Training-data alignment for subagent tools: what models were trained on, and how much names and shapes matter"
-- "PromptForge: Naming the Subagents Plugin's Model Tools So Models Call Them Without Coaching" (its section on where the research notes disagree supplied corrections that this catalog re-cites to their primary sources)
+- "Runvil: Naming the Subagents Plugin's Model Tools So Models Call Them Without Coaching" (its section on where the research notes disagree supplied corrections that this catalog re-cites to their primary sources)
 
 ---
 

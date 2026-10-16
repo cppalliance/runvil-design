@@ -8,13 +8,13 @@
 
 
 
-**[p1]** Hey, listen up, here's what I want. I wanna modify the store. So that It can be passed in, and it can have files already in it. And so what I wanna be able to do is I wanna be able to make a prompt that That has input files. And I'm not exactly sure how the prompt advertises that, maybe it's in the YAML, I don't know. But For example, I wanna make a, I wanna do a version of Papergate, where you, you input the paper down, and then it does its processing, and then it leaves behind a report in a file, and the file is becomes output. So it takes a file as input, it gives a file as output, but we wanna be able to use the memory store so that there's no actual disk IO, so it's all like in a sandbox and safe. @promptforge
+**[p1]** Hey, listen up, here's what I want. I wanna modify the store. So that It can be passed in, and it can have files already in it. And so what I wanna be able to do is I wanna be able to make a prompt that That has input files. And I'm not exactly sure how the prompt advertises that, maybe it's in the YAML, I don't know. But For example, I wanna make a, I wanna do a version of Papergate, where you, you input the paper down, and then it does its processing, and then it leaves behind a report in a file, and the file is becomes output. So it takes a file as input, it gives a file as output, but we wanna be able to use the memory store so that there's no actual disk IO, so it's all like in a sandbox and safe. @runvil
 
 **[p2]** Wait a minute, I'm not, I don't know if I'm thinking about Oh yeah, files dot inputs. Files the prompt expects to find already in the store, yeah. Actually, that sounds right. Because. Because It doesn't go in the args, the args is textual input, but this goes this is, this is initialized as a parameter to the execution function, right? Like there's no it's not part of the prompt. So, what, what, what's actually being passed in is an instance of the store.
 
 **[p3]** The question is, how would the I guess the file so the files parameter would specify the file name? 'Cause this is different. Like. Because if you go through this, if you go through the API, you have to pass a store and the file has to be at a certain file name. But if you go through the MCP, obviously we can't pass a store, we can only pass full paths. So how does this work?
 
-**[p4]** I think this sounds largely correct, but I think the The MCP server. The, the PromptForge MCP server has to map the file name to the store, and I think It also, we, we also need to make a choice on which, which store to use. Should we use a memory store? That would be the safest one. So that means that the MCP gateway programmatically reads the files in and it loads up the store, and then it runs the prompt, and then the prompt does what it wants, it goes to town. It can read, it can even modify, it can create, and then, but as long as, but it has to leave behind its outputs in the files that it promised. And then when it's done The gateway gets control again, and now it makes the decision on what to do with the files. It could output it into the chat, right? It could put it in a different path, and we have, we have to figure that out.
+**[p4]** I think this sounds largely correct, but I think the The MCP server. The, the Runvil MCP server has to map the file name to the store, and I think It also, we, we also need to make a choice on which, which store to use. Should we use a memory store? That would be the safest one. So that means that the MCP gateway programmatically reads the files in and it loads up the store, and then it runs the prompt, and then the prompt does what it wants, it goes to town. It can read, it can even modify, it can create, and then, but as long as, but it has to leave behind its outputs in the files that it promised. And then when it's done The gateway gets control again, and now it makes the decision on what to do with the files. It could output it into the chat, right? It could put it in a different path, and we have, we have to figure that out.
 
 **[p5]** I think, I think We wanna let the caller say, okay, put the file here. Like for example, when you call the The MTP server will, will, will advertise to the model that it can. That the model can specify the output file, and then if it, if it does that, then the gateway, the MCP server, will take the memory file in the store, which the prompt put at a specific file name, and then it'll write that into the output file name in the real file system that the orchestrator who invoked the gateway specified. I think that's the safest thing to do because then we don't have to worry about any permissions, we don't have to worry about authorization, we put it all on the orchestrator to handle that.
 
@@ -30,7 +30,7 @@
 
 **[p11]** how do we add text inputs later
 
-**[p12]** No, no, I don't. I think we need to design this, we need to think about it a little better because it's, this feels like it's very specific to files. Like, I think On the prompt side, the prompt has to see files. It just makes sense because. It already handles files and the prompt doesn't care how it gets it. So whether we're getting text from JSON, whether we're getting the model is orchestrating and just putting a prompt in there directly in quotes, or whether it's pointing it at a file, the prompt itself, the prompt for the prompt itself shouldn't care. The executor should just offer the store parameter in its API. But then what does care is the gateway, the MCP server. So the MCP server's job is to translate back and forth between The orchestration environment that's invoking the MCP and the PromptForge ex-exec executor. And we wanna be flexible, so in the chat, show me, show me a couple of different options, just for the input. Let's do just the input. Show me a couple of options on how we can handle multimodal text input.
+**[p12]** No, no, I don't. I think we need to design this, we need to think about it a little better because it's, this feels like it's very specific to files. Like, I think On the prompt side, the prompt has to see files. It just makes sense because. It already handles files and the prompt doesn't care how it gets it. So whether we're getting text from JSON, whether we're getting the model is orchestrating and just putting a prompt in there directly in quotes, or whether it's pointing it at a file, the prompt itself, the prompt for the prompt itself shouldn't care. The executor should just offer the store parameter in its API. But then what does care is the gateway, the MCP server. So the MCP server's job is to translate back and forth between The orchestration environment that's invoking the MCP and the Runvil ex-exec executor. And we wanna be flexible, so in the chat, show me, show me a couple of different options, just for the input. Let's do just the input. Show me a couple of options on how we can handle multimodal text input.
 
 **[p13]** I'm not sure about fetching URLs. I don't know about that one. 'Cause what if, what if we want the model to do the fetching for some reason? Then it would be ambiguous. No, I'm thinking for input you could use either a file. Or text. I'm trying to figure out how to make the schema small. Because so it makes it easier for like a smaller model to fill in.
 
@@ -42,7 +42,7 @@
 
 **[p17]** what is this "additionalProperties" ?
 
-**[p18]** we can't do this. the promptforge mcp server needs to be able to map the caller's inputs to the Store without using inference
+**[p18]** we can't do this. the runvil mcp server needs to be able to map the caller's inputs to the Store without using inference
 
 **[p19]** I don't, it's not, I think, I don't think this is ambiguous, but I'm trying to juggle opposing needs. First, I wanna, I wanna make it as simple as possible. Because I want, the simpler it is, the, the more likely that a smaller model is gonna be able to call it correctly. And I'm trying to decide if I should even allow multiple inputs and outputs. Maybe there should be a syntax for, like, maybe there's, maybe the case of one file in, one file out should be It should be a known case, 'cause it's so common. I don't know. And then Like for example, let's say we're gonna do something that, like, a paper gate, or it can only accept one paper. So why do we even need to give it a name? Like, why, why doesn't the caller just say, "Here's the input blob, " and then. There can be, we need args as to be separate because someone could specify a paper, you could, someone could specify a file input, but then they want to give additional commands, like for example, that you might want to say, "Uh, you know
 
@@ -64,7 +64,7 @@
 
 **[p28]** review the plan
 
-**[p29]** I thought that the promptforge-core package offered a function to parse the frontmatter?
+**[p29]** I thought that the runvil-core package offered a function to parse the frontmatter?
 
 **[p30]** what is a "seed_store" ?
 
@@ -78,7 +78,7 @@
 
 **[p35]** do not create a new workspace rule
 
-**[p36]** Listen up, here's what I want you to do. I want you to create this, I want you to put it into this file, instructions for the LLM on how to use PromptForge, but I want this to be very compressed. I just want the minimum. I want it to say how to launch the gate, how to launch the MCP server, how to launch the gateway, and how to launch an individual prompt using the dev tool, and like what goes in the YAML What goes in the Tamil configuration files and basically that sort of thing. And the goal is that the user, for example, me in Cursor, is I open up a fresh chat and then I just mention this file and then the model will load it and then it'll know how to do, it'll know how to do Prompt Forge, you know what I'm saying? But I this has to be compact. So I want the plan that you're about to make to have a list of bullets and s and sections that mirrors what it's gonna put in the actual file. @promptforge/promptforge.md
+**[p36]** Listen up, here's what I want you to do. I want you to create this, I want you to put it into this file, instructions for the LLM on how to use Runvil, but I want this to be very compressed. I just want the minimum. I want it to say how to launch the gate, how to launch the MCP server, how to launch the gateway, and how to launch an individual prompt using the dev tool, and like what goes in the YAML What goes in the Tamil configuration files and basically that sort of thing. And the goal is that the user, for example, me in Cursor, is I open up a fresh chat and then I just mention this file and then the model will load it and then it'll know how to do, it'll know how to do Runvil, you know what I'm saying? But I this has to be compact. So I want the plan that you're about to make to have a list of bullets and s and sections that mirrors what it's gonna put in the actual file. @runvil/runvil.md
 
 **[p37]** But I thought you need to use cargo.
 
@@ -86,7 +86,7 @@
 
 **[p39]** To prevent the duplication, this should reference other files. Like for example, the YAML format, you should just reference the file that has it. For prompt structure, you should reference that file. Make it relative to the repo.
 
-**[p40]** we need a gitignored directory in the repo which is used to hold local mcp prompts so the promptforge.md can configure the gateway. lets call it prompts-mcp
+**[p40]** we need a gitignored directory in the repo which is used to hold local mcp prompts so the runvil.md can configure the gateway. lets call it prompts-mcp
 
 **[p41]** briefer.md will move to it
 
@@ -106,13 +106,13 @@
 
 **[p49]** add @tools-public/rulebooks/vibe-rulebook.md and @tools-public/rulebooks/rust-rulebook.md
 
-**[p50]** @promptforge/research/2026-08-03-recover-rationale-promptforge-core.md does this have any purpose
+**[p50]** @runvil/research/2026-08-03-recover-rationale-runvil-core.md does this have any purpose
 
 **[p51]** show me one thing of value it offers
 
 **[p52]** I think the file is worthless and I deleted it
 
-**[p53]** run promptforge prompt echo
+**[p53]** run runvil prompt echo
 
 **[p54]** how is it possible if you literally just finished building things?
 
@@ -120,11 +120,11 @@
 
 **[p56]** I need you to go commit by commit, actually run the tests and make sure they work. amend the commit as needed. when you are done I want a commit log where every commit has tests and runs them
 
-**[p57]** run promptforge echo
+**[p57]** run runvil echo
 
-**[p58]** I want @promptforge/promptforge.md to have a minimal set of instructions so that if I write "promptforge echo.md this is the text" then it will launch the gateway, launch the mcp server, and then issue the toolcall. and in that chat context, the orchestrator will remember that those services were launched and then I can run the promptforge prompts over and over do you understand?
+**[p58]** I want @runvil/runvil.md to have a minimal set of instructions so that if I write "runvil echo.md this is the text" then it will launch the gateway, launch the mcp server, and then issue the toolcall. and in that chat context, the orchestrator will remember that those services were launched and then I can run the runvil prompts over and over do you understand?
 
-**[p59]** apply @tools-public/rulebooks/prompts-rulebook.md to promptforge.md
+**[p59]** apply @tools-public/rulebooks/prompts-rulebook.md to runvil.md
 
 
 
@@ -141,7 +141,7 @@
 The run pipeline is:
 
 1. MCP `run_prompt` receives `{ prompt: "name", args: "raw string" }`
-2. Runner creates a fresh empty `StoreRef::memory()` ([runner.rs:273](promptforge/crates/promptforge-mcp-server/src/server/runner.rs))
+2. Runner creates a fresh empty `StoreRef::memory()` ([runner.rs:273](runvil/crates/runvil-mcp-server/src/server/runner.rs))
 3. `execute::run()` takes `store: &StoreRef` and threads it through all sections
 4. Lua code accesses files via `store.write()`, `store.read()`, etc.
 5. Run completes, returns a string; the store is dropped (contents lost)
@@ -158,7 +158,7 @@ Add an optional `files` key to `Frontmatter`:
 ---
 name: papergate
 description: Analyze a WG21 paper and produce a gating report
-promptforge: 1
+runvil: 1
 files:
   inputs:
     - path: paper.md
@@ -230,13 +230,13 @@ impl StoreRef {
 
 ## Key Files to Modify
 
-- `promptforge/crates/promptforge-core/src/parser/build.rs` - extend `Frontmatter` with `files` field
-- `promptforge/crates/promptforge-core/src/store/mem.rs` - add `MemStore::with_files`
-- `promptforge/crates/promptforge-core/src/store.rs` - add `StoreRef::with_files`
-- `promptforge/crates/promptforge-mcp-server/src/tools.rs` - extend `run_prompt` schema conditionally
-- `promptforge/crates/promptforge-mcp-server/src/server/runner.rs` - seed store from `files` param, extract outputs after run
-- `promptforge/crates/promptforge-mcp-server/src/result.rs` - extend `RunResult` to carry output files
-- `promptforge/crates/promptforge-cli/src/main.rs` - allow CLI to pass files (optional, lower priority)
+- `runvil/crates/runvil-core/src/parser/build.rs` - extend `Frontmatter` with `files` field
+- `runvil/crates/runvil-core/src/store/mem.rs` - add `MemStore::with_files`
+- `runvil/crates/runvil-core/src/store.rs` - add `StoreRef::with_files`
+- `runvil/crates/runvil-mcp-server/src/tools.rs` - extend `run_prompt` schema conditionally
+- `runvil/crates/runvil-mcp-server/src/server/runner.rs` - seed store from `files` param, extract outputs after run
+- `runvil/crates/runvil-mcp-server/src/result.rs` - extend `RunResult` to carry output files
+- `runvil/crates/runvil-cli/src/main.rs` - allow CLI to pass files (optional, lower priority)
 
 ## Decisions to Confirm
 
@@ -303,30 +303,30 @@ Todos:
 - Add commit-override clause to always.mdc workspace rule
 - Rewrite the commit instruction as standalone imperative per prompts-rulebook rules
 
-### Promptforge quickref file
+### Runvil quickref file
 
-*Write a compressed LLM quickref into promptforge.md covering launch commands, config formats, YAML frontmatter, and prompt structure - minimal tokens, maximum utility for a fresh chat context.*
+*Write a compressed LLM quickref into runvil.md covering launch commands, config formats, YAML frontmatter, and prompt structure - minimal tokens, maximum utility for a fresh chat context.*
 
-# PromptForge Quickref
+# Runvil Quickref
 
-Write into `promptforge/promptforge.md`. The file's purpose: an LLM loads it at the start of a chat and immediately knows how to write and run PromptForge prompts. Compressed - no tutorial prose, no rationale, just the facts.
+Write into `runvil/runvil.md`. The file's purpose: an LLM loads it at the start of a chat and immediately knows how to write and run Runvil prompts. Compressed - no tutorial prose, no rationale, just the facts.
 
 ## Sections (mirrors the output file structure)
 
 ### 1. Dev Runner
-- Command: `promptforge-dev [--watch] [--capture-raw] <prompt.md> [input]`
-- Required env: `PROMPTFORGE_GATEWAY_URL`, `PROMPTFORGE_GATEWAY_KEY`
+- Command: `runvil-dev [--watch] [--capture-raw] <prompt.md> [input]`
+- Required env: `RUNVIL_GATEWAY_URL`, `RUNVIL_GATEWAY_KEY`
 - `[input]` becomes `args` in the prompt
 - `--watch` reruns on save
 
 ### 2. MCP Server
-- Command: `promptforge-mcp-server serve [--stdio] <prompts.toml>`
+- Command: `runvil-mcp-server serve [--stdio] <prompts.toml>`
 - HTTP default: `127.0.0.1:9310/mcp`, bearer auth
 - `--stdio`: JSON-RPC over stdin/stdout
 
 ### 3. Gateway
-- Command: `promptforge-gateway serve [--profile NAME | config.toml]`
-- Required env: `PROMPTFORGE_GATEWAY_KEY`, plus API keys per endpoint
+- Command: `runvil-gateway serve [--profile NAME | config.toml]`
+- Required env: `RUNVIL_GATEWAY_KEY`, plus API keys per endpoint
 
 ### 4. `prompts.toml` (MCP server config)
 - Minimal example showing `[server]`, `[gateway]`, `[paths]`, `[catalog]`
@@ -338,7 +338,7 @@ Write into `promptforge/promptforge.md`. The file's purpose: an LLM loads it at 
 - `[tools.web_search]` for web search
 
 ### 6. YAML Frontmatter
-- Table of fields: `name`, `description`, `promptforge`, `default_return`, `max_tool_iterations`, `input`, `output`
+- Table of fields: `name`, `description`, `runvil`, `default_return`, `max_tool_iterations`, `input`, `output`
 - All types and constraints in one compact table
 
 ### 7. Prompt Structure
@@ -369,38 +369,38 @@ Write into `promptforge/promptforge.md`. The file's purpose: an LLM loads it at 
 
 Todos:
 
-- Write the compressed quickref into promptforge/promptforge.md
+- Write the compressed quickref into runvil/runvil.md
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\promptforge\promptforge.md
+### c:\Users\Vinnie\src\cursor\runvil\runvil.md
 
-# PromptForge Quickref
+# Runvil Quickref
 
-This file is loaded into an orchestration model's context so it understands how to write and run PromptForge prompts.
+This file is loaded into an orchestration model's context so it understands how to write and run Runvil prompts.
 
 ## 1. Gateway
 
 - **What:** HTTP proxy routing model completions to upstream providers (Anthropic, OpenAI, local llama-server). Start first.
-- Command: `cargo run -p promptforge-gateway -- serve gateway.toml`
-- Env: `PROMPTFORGE_GATEWAY_KEY`, plus per-endpoint keys (e.g. `ANTHROPIC_API_KEY`)
+- Command: `cargo run -p runvil-gateway -- serve gateway.toml`
+- Env: `RUNVIL_GATEWAY_KEY`, plus per-endpoint keys (e.g. `ANTHROPIC_API_KEY`)
 - Default bind: `127.0.0.1:8081`
 
 ## 2. MCP Server
 
 - **What:** Exposes prompts as MCP tools to an orchestrator (Cursor, Claude Code). Resolves names, runs prompts, streams progress.
 - **Requires:** running gateway.
-- Command: `cargo run -p promptforge-mcp-server -- serve [--stdio] <prompts.toml>`
+- Command: `cargo run -p runvil-mcp-server -- serve [--stdio] <prompts.toml>`
 - HTTP default: `127.0.0.1:9310/mcp`, bearer auth
 - `--stdio`: JSON-RPC over stdin/stdout (for Cursor MCP config)
-- Env: `PROMPTFORGE_MCP_TOKEN`, `PROMPTFORGE_GATEWAY_KEY`
+- Env: `RUNVIL_MCP_TOKEN`, `RUNVIL_GATEWAY_KEY`
 
 ## 3. Dev Runner
 
 - **What:** Single-prompt edit-run loop for authoring. Runs one prompt, prints result, optionally watches.
 - **Requires:** running gateway.
-- Command: `cargo run -p promptforge-dev -- [--watch] [--capture-raw] <prompt.md> [input]`
-- Env: `PROMPTFORGE_GATEWAY_URL`, `PROMPTFORGE_GATEWAY_KEY`
+- Command: `cargo run -p runvil-dev -- [--watch] [--capture-raw] <prompt.md> [input]`
+- Env: `RUNVIL_GATEWAY_URL`, `RUNVIL_GATEWAY_KEY`
 - `[input]` becomes `args` in the prompt; `--watch` reruns on save
 
 ## 4. `prompts.toml` (MCP server config)
@@ -409,14 +409,14 @@ Minimal:
 
 ```toml
 [server]
-token = "${PROMPTFORGE_MCP_TOKEN}"
+token = "${RUNVIL_MCP_TOKEN}"
 
 [paths]
 prompts = "prompts-mcp"
 
 [gateway]
 url = "http://127.0.0.1:8081/v1"
-key = "${PROMPTFORGE_GATEWAY_KEY}"
+key = "${RUNVIL_GATEWAY_KEY}"
 
 [tools]
 web_fetch = true
@@ -426,7 +426,7 @@ web_search = true
 - `[tools]` defaults to nothing enabled (true sandbox). Enable what the prompts need.
 - `[catalog]` optional: `include`/`exclude` globs relative to `[paths].prompts`
 - `[prompts.NAME]` optional: per-prompt overrides (`enabled = false`, `file = "path"`)
-- Full schema: `crates/promptforge-mcp-server/design-mcp-server.md`
+- Full schema: `crates/runvil-mcp-server/design-mcp-server.md`
 
 ## 5. `gateway.toml` (gateway config)
 
@@ -435,7 +435,7 @@ Minimal remote:
 ```toml
 [server]
 bind = "127.0.0.1:8081"
-key = "${PROMPTFORGE_GATEWAY_KEY}"
+key = "${RUNVIL_GATEWAY_KEY}"
 
 [[endpoint]]
 id = "anthropic"
@@ -455,7 +455,7 @@ endpoints = ["anthropic"]
 
 - `[[local_model]]` for GGUF: `source`, `sha256`, `context`, `gpu_layers`, `flash_attention`
 - `[tools.web_search]`: `provider = "brave"`, `api_key = "${BRAVE_API_KEY}"`
-- Full schema: `crates/promptforge-gateway/design-gateway.md`
+- Full schema: `crates/runvil-gateway/design-gateway.md`
 
 ## 6. YAML Frontmatter
 
@@ -463,13 +463,13 @@ endpoints = ["anthropic"]
 |---|---|---|---|
 | `name` | yes | string | Identifier, `^[a-z][a-z0-9_]{0,47}$` |
 | `description` | yes | string | One-line for listings and retrieval |
-| `promptforge` | yes | int | Engine major version. Only `1` today |
+| `runvil` | yes | int | Engine major version. Only `1` today |
 | `default_return` | no | string | Returned on fall-through |
 | `max_tool_iterations` | no | int 1-1000 | Tool-loop cap (default 24) |
 | `input` | no | object | `path` + `description` of expected store input |
 | `output` | no | object | `path` + `description` of produced store output |
 
-Authoritative schema: `crates/promptforge-core/src/parser/build.rs`
+Authoritative schema: `crates/runvil-core/src/parser/build.rs`
 
 ## 7. Prompt Structure and Lua API
 
@@ -497,7 +497,7 @@ Full reference: `guide/src/prompt-files.md` (structure), `guide/src/lua.md` (Lua
 ---
 name: research_person
 description: Research a person from the open web
-promptforge: 1
+runvil: 1
 max_tool_iterations: 20
 ---
 
@@ -527,32 +527,32 @@ More examples: `prompts/`
 - `prompts-mcp/` - gitignored directory for local prompts served by the MCP server
 - `prompts-mcp.toml` - config serving that directory (also gitignored)
 - Drop any `.md` prompt file into `prompts-mcp/` and it's live (with `--watch`)
-- Launch: `cargo run -p promptforge-mcp-server -- serve prompts-mcp.toml`
+- Launch: `cargo run -p runvil-mcp-server -- serve prompts-mcp.toml`
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\promptforge.md
+### c:\Users\Vinnie\src\cursor\runvil\runvil.md
 
-# PromptForge Quickref
+# Runvil Quickref
 
-Load this file to write and run PromptForge prompts. The repo root is `c:\Users\Vinnie\src\cursor\promptforge`.
+Load this file to write and run Runvil prompts. The repo root is `c:\Users\Vinnie\src\cursor\runvil`.
 
 ## Running a prompt
 
-When the user says `promptforge <prompt.md> [input]`:
+When the user says `runvil <prompt.md> [input]`:
 
-1. Check terminals for a running `promptforge-gateway`. If absent, start one in a background terminal from the repo root:
+1. Check terminals for a running `runvil-gateway`. If absent, start one in a background terminal from the repo root:
    ```
-   cargo run -p promptforge-gateway -- serve gateway.toml
+   cargo run -p runvil-gateway -- serve gateway.toml
    ```
    Wait for the line containing "listening" before proceeding.
 2. Export env vars in the execution shell if not already set:
    ```
-   export PROMPTFORGE_GATEWAY_URL=http://127.0.0.1:8081/v1
-   export PROMPTFORGE_GATEWAY_KEY=dev-secret
+   export RUNVIL_GATEWAY_URL=http://127.0.0.1:8081/v1
+   export RUNVIL_GATEWAY_KEY=dev-secret
    ```
 3. Run the prompt from the repo root:
    ```
-   cargo run -p promptforge-dev -- <prompt.md> [input]
+   cargo run -p runvil-dev -- <prompt.md> [input]
    ```
 
 The gateway persists for the session. Skip step 1 on subsequent runs.
@@ -565,9 +565,9 @@ Prompts in `prompts-mcp/` use path `prompts-mcp/<name>.md`.
 
 | Component | Command | Env required | Default bind |
 |---|---|---|---|
-| Gateway | `cargo run -p promptforge-gateway -- serve gateway.toml` | `PROMPTFORGE_GATEWAY_KEY`, `ANTHROPIC_API_KEY` | `127.0.0.1:8081` |
-| MCP Server | `cargo run -p promptforge-mcp-server -- serve [--stdio] <prompts.toml>` | `PROMPTFORGE_MCP_TOKEN`, `PROMPTFORGE_GATEWAY_KEY` | `127.0.0.1:9310` |
-| Dev Runner | `cargo run -p promptforge-dev -- [--watch] [--capture-raw] <prompt.md> [input]` | `PROMPTFORGE_GATEWAY_URL`, `PROMPTFORGE_GATEWAY_KEY` | n/a |
+| Gateway | `cargo run -p runvil-gateway -- serve gateway.toml` | `RUNVIL_GATEWAY_KEY`, `ANTHROPIC_API_KEY` | `127.0.0.1:8081` |
+| MCP Server | `cargo run -p runvil-mcp-server -- serve [--stdio] <prompts.toml>` | `RUNVIL_MCP_TOKEN`, `RUNVIL_GATEWAY_KEY` | `127.0.0.1:9310` |
+| Dev Runner | `cargo run -p runvil-dev -- [--watch] [--capture-raw] <prompt.md> [input]` | `RUNVIL_GATEWAY_URL`, `RUNVIL_GATEWAY_KEY` | n/a |
 
 Start the gateway first. The MCP server and dev runner both call through it.
 
@@ -575,14 +575,14 @@ Start the gateway first. The MCP server and dev runner both call through it.
 
 ```toml
 [server]
-token = "${PROMPTFORGE_MCP_TOKEN}"
+token = "${RUNVIL_MCP_TOKEN}"
 
 [paths]
 prompts = "prompts-mcp"
 
 [gateway]
 url = "http://127.0.0.1:8081/v1"
-key = "${PROMPTFORGE_GATEWAY_KEY}"
+key = "${RUNVIL_GATEWAY_KEY}"
 
 [tools]
 web_fetch = true
@@ -592,14 +592,14 @@ web_search = true
 - `[tools]` defaults to nothing enabled (true sandbox). Enable per prompt needs.
 - `[catalog]` optional: `include`/`exclude` globs relative to `[paths].prompts`.
 - `[prompts.NAME]` optional: per-prompt overrides (`enabled = false`).
-- Full schema: `crates/promptforge-mcp-server/design-mcp-server.md`
+- Full schema: `crates/runvil-mcp-server/design-mcp-server.md`
 
 ## `gateway.toml` (gateway config)
 
 ```toml
 [server]
 bind = "127.0.0.1:8081"
-key = "${PROMPTFORGE_GATEWAY_KEY}"
+key = "${RUNVIL_GATEWAY_KEY}"
 
 [[endpoint]]
 id = "anthropic"
@@ -619,7 +619,7 @@ endpoints = ["anthropic"]
 
 - `[[local_model]]` for GGUF: `source`, `sha256`, `context`, `gpu_layers`, `flash_attention`.
 - `[tools.web_search]`: `provider = "brave"`, `api_key = "${BRAVE_API_KEY}"`.
-- Full schema: `crates/promptforge-gateway/design-gateway.md`
+- Full schema: `crates/runvil-gateway/design-gateway.md`
 
 ## YAML Frontmatter
 
@@ -627,13 +627,13 @@ endpoints = ["anthropic"]
 |---|---|---|---|
 | `name` | yes | string | Identifier, `^[a-z][a-z0-9_]{0,47}$` |
 | `description` | yes | string | One-line for listings and retrieval |
-| `promptforge` | yes | int | Engine major. Only `1` runs today |
+| `runvil` | yes | int | Engine major. Only `1` runs today |
 | `default_return` | no | string | Returned on fall-through |
 | `max_tool_iterations` | no | int 1-1000 | Tool-loop cap (default 24) |
 | `input` | no | object | `path` + `description` of expected store input |
 | `output` | no | object | `path` + `description` of produced store output |
 
-Authoritative schema: `crates/promptforge-core/src/parser/build.rs`
+Authoritative schema: `crates/runvil-core/src/parser/build.rs`
 
 ## Prompt Structure
 
@@ -676,7 +676,7 @@ Full reference: `guide/src/prompt-files.md` (structure), `guide/src/lua.md` (API
 ---
 name: research_person
 description: Research a person from the open web
-promptforge: 1
+runvil: 1
 max_tool_iterations: 20
 ---
 
@@ -706,7 +706,7 @@ More examples: `prompts/`
 - `prompts-mcp/` - gitignored directory for local prompts
 - `prompts-mcp.toml` - config serving that directory (also gitignored)
 - Drop a `.md` prompt file into `prompts-mcp/` and it is live (with `--watch`)
-- Launch: `cargo run -p promptforge-mcp-server -- serve prompts-mcp.toml`
+- Launch: `cargo run -p runvil-mcp-server -- serve prompts-mcp.toml`
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge\promptforge.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil\runvil.md`

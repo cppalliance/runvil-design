@@ -24,7 +24,7 @@ API = (
 def curl(url):
     return subprocess.run(
         ["curl", "-sS", "--max-time", "30",
-         "-H", "User-Agent: promptforge-study/1.0 (research; contact vinnie)", url],
+         "-H", "User-Agent: runvil-study/1.0 (research; contact vinnie)", url],
         capture_output=True, text=True, encoding="utf-8",
     ).stdout
 

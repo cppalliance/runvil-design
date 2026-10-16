@@ -1,12 +1,12 @@
-This crate lets your program run PromptForge prompts, one [`Harness`] per run.
+This crate lets your program run Runvil prompts, one [`Harness`] per run.
 
 Your program builds a Harness for each run, hands it the recorder, the broker that reaches its models, the timer, and the capabilities and services the run may use, then awaits [`Harness::run`]. That is the whole job of a Host. The Harness drives the run, and your program owns everything around it: the models, the clock, the person at the screen, and when to stop.
 
-By the end of this page you will have built `desk`, a Host that runs prompts for one person. Each tour adds one idea: run a prompt and read its output, answer the operator by supplying an input broker, stop a round and cancel a run, and stream from your own broker. A real `desk` passes `harness_gateway_client::GatewayBroker`, which reaches the PromptForge Gateway. The examples on this page compile against this crate alone, so their hidden lines define `Offline`, a broker that lists no model and refuses every round, and `Clock`, a timer that sleeps on tokio. Where a tour needs a model, its hidden lines list `stub-model`, and a model that answers writes `You said: ` and the last message.
+By the end of this page you will have built `desk`, a Host that runs prompts for one person. Each tour adds one idea: run a prompt and read its output, answer the operator by supplying an input broker, stop a round and cancel a run, and stream from your own broker. A real `desk` passes `harness_gateway_client::GatewayBroker`, which reaches the Runvil Gateway. The examples on this page compile against this crate alone, so their hidden lines define `Offline`, a broker that lists no model and refuses every round, and `Clock`, a timer that sleeps on tokio. Where a tour needs a model, its hidden lines list `stub-model`, and a model that answers writes `You said: ` and the last message.
 
 # Before you start
 
-A PromptForge prompt is a Markdown file. Its Lua code holds the logic, and its prose holds text for a model. The [PromptForge language guide](https://cppalliance.github.io/promptforge/language/) teaches how to write one. This page uses a few words for the things a Host deals with:
+A Runvil prompt is a Markdown file. Its Lua code holds the logic, and its prose holds text for a model. The [Runvil language guide](https://cppalliance.github.io/runvil/language/) teaches how to write one. This page uses a few words for the things a Host deals with:
 
 - One execution of a prompt, from its start to its end, is a *run*. One Harness drives one run.
 - The object your program hands the Harness to answer every model call the run makes, and to list the models the run can bind, is the *broker*. One model call is a *round*.
@@ -30,13 +30,13 @@ use harness::vfs::VfsRef;
 use harness::{Harness, HostSnapshot, RunRequest};
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -52,7 +52,7 @@ use std::sync::Arc;
 
 // 1. desk's `greet` prompt: it reads the line in `name.txt` and writes its greeting to `reply.txt`.
 let greet = concat!(
-    "---\nname: greet\ndescription: Greets the operator by name\npromptforge: 0\n",
+    "---\nname: greet\ndescription: Greets the operator by name\nrunvil: 0\n",
     "input: { path: name.txt, description: The operator's name }\n",
     "output: { path: reply.txt, description: The greeting }\n",
     "---\n\n# Greet\n\n## Answer\n\n```lua\n",
@@ -85,7 +85,7 @@ assert!(recorder.outcome(report.run_id.ok_or("the run began")?).is_some());
 # }
 ````
 
-1. Step 1 writes `greet` as a string. Its frontmatter holds the three keys every prompt needs, `name`, `description`, and `promptforge: 0`, plus the files it reads and writes: `input:` names the file it reads, and `output:` the file it writes. The source is built with `concat!` so that rustdoc keeps its `# Greet` line. The source text is the Harness's one prompt input: your program reads it from wherever it keeps prompts.
+1. Step 1 writes `greet` as a string. Its frontmatter holds the three keys every prompt needs, `name`, `description`, and `runvil: 0`, plus the files it reads and writes: `input:` names the file it reads, and `output:` the file it writes. The source is built with `concat!` so that rustdoc keeps its `# Greet` line. The source text is the Harness's one prompt input: your program reads it from wherever it keeps prompts.
 2. Step 2 builds a Harness with [`Harness::new`]. It takes the recorder as an `Arc<dyn RunRecorder>`, here a [`MemoryRecorder`](record::MemoryRecorder) that keeps the run's records in memory, the broker as an [`InferenceBroker`], the timer as a [`Timer`], a [`CapabilityRegistry`](capability::CapabilityRegistry) of the capabilities the prompt may declare, and the [`HostServices`](capability::HostServices) those capabilities read. `greet` makes no model round, so the hidden `Offline` broker is enough, and it declares no capability. Building a Harness touches nothing and calls no broker.
 3. Step 3 builds the [`RunRequest`]. `name` names the run in every record and event, `source` is the prompt's text, `args` is the run's argument text, and `input_text` is written at the prompt's declared input file before the run starts. `vfs` is the run's whole filesystem, here a fresh memory store; [Files](vfs) shows how to give a run files of your own. `host` is the [`HostSnapshot`]: the operator's selected model and granted workspace roots, both empty here.
 4. Step 4 awaits [`Harness::run`], which consumes the Harness. The future needs no runtime of its own and starts no task, so any executor can drive it. Build a new Harness for each run; the objects you hand it are shared behind `Arc`s and clone cheaply.
@@ -111,13 +111,13 @@ use harness::vfs::VfsRef;
 use harness::{Harness, HostSnapshot, RunRequest};
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -150,8 +150,8 @@ services.provide(&INPUT_BROKER, operator)?;
 
 // 3. A prompt that asks once and returns the answer.
 let asks = concat!(
-    "---\nname: asks\ndescription: Asks the operator once\npromptforge: 0\n",
-    "capabilities:\n  - promptforge/user-input\n",
+    "---\nname: asks\ndescription: Asks the operator once\nrunvil: 0\n",
+    "capabilities:\n  - runvil/user-input\n",
     "---\n\n# Asks\n\n## Only\n\n```lua\n",
     "return input.ask()\n",
     "```\n",
@@ -174,15 +174,15 @@ assert_eq!(report.outcome, RunOutcome::Completed { final_text: "Hello, desk.".in
 ````
 
 1. Step 1 implements [`InputBroker`](capability::InputBroker) for `Operator`. Its one method, `wait`, returns the operator's next message byte for byte, or an [`InputError`](capability::InputError) when nobody will answer; the prompt sees that error at its `input.ask()` call. A real `desk` shows the question in its window and resolves `wait` when the operator presses Enter.
-2. Step 2 registers [`UserInput`](capability::UserInput), the `promptforge/user-input` capability, and provides the broker under [`INPUT_BROKER`](capability::INPUT_BROKER). A Host supplies a fresh input broker for each run by cloning its base services and providing the broker on the clone; the base services leave `INPUT_BROKER` empty, because [`HostServices::provide`](capability::HostServices::provide) refuses a second provider for the same id.
-3. Step 3 writes `asks`, which declares `promptforge/user-input` under `capabilities:` and calls `input.ask()`.
+2. Step 2 registers [`UserInput`](capability::UserInput), the `runvil/user-input` capability, and provides the broker under [`INPUT_BROKER`](capability::INPUT_BROKER). A Host supplies a fresh input broker for each run by cloning its base services and providing the broker on the clone; the base services leave `INPUT_BROKER` empty, because [`HostServices::provide`](capability::HostServices::provide) refuses a second provider for the same id.
+3. Step 3 writes `asks`, which declares `runvil/user-input` under `capabilities:` and calls `input.ask()`.
 4. Step 4 runs `asks` and asserts that the operator's text is the run's final text.
 
-The model can ask the operator too. The prompt's `tools:` frontmatter maps an alias to [`USER_INPUT_ASK_TOOL`], as in `ask: promptforge/user-input/ask`, and its Lua offers the alias with `tools.add` or `tools.always`. Both paths wait on the same input broker.
+The model can ask the operator too. The prompt's `tools:` frontmatter maps an alias to [`USER_INPUT_ASK_TOOL`], as in `ask: runvil/user-input/ask`, and its Lua offers the alias with `tools.add` or `tools.always`. Both paths wait on the same input broker.
 
 A question to the operator is the one effect a stop leaves alone, as the next tour shows, so a person mid-answer never loses the prompt they are typing into. A cancel drops it: the Harness drops the future `wait` returned, so a broker that shows a prompt clears it when its future is dropped.
 
-You might expect the Harness to bring its own way to reach a person. Instead, it has none: a prompt that requires `promptforge/user-input` on a Host with no input broker is refused as it prepares, and an optional one reads `input.connected()` as `false`.
+You might expect the Harness to bring its own way to reach a person. Instead, it has none: a prompt that requires `runvil/user-input` on a Host with no input broker is refused as it prepares, and an optional one reads `input.connected()` as `false`.
 
 Supply the broker, register the capability, and the run asks through you. Next, [Stop a round and cancel a run](#stop-a-round-and-cancel-a-run) cuts a run's work short.
 
@@ -199,7 +199,7 @@ use harness::vfs::VfsRef;
 use harness::{Harness, HostSnapshot, RunRequest};
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionOptions, Message, ModelBinding, ModelCatalog, ModelDescriptor, ModelId, ThinkingMode, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionOptions, Message, ModelBinding, ModelCatalog, ModelDescriptor, ModelId, ThinkingMode, ToolSchema};
 # use std::sync::Mutex;
 # use std::task::{Poll, Waker};
 # struct Started(Mutex<(bool, Option<Waker>)>);
@@ -224,7 +224,7 @@ use std::sync::Arc;
 #         let model = ModelId::gateway("stub-model").map(|id| ModelDescriptor::new(id, "stub", std::num::NonZeroU32::MIN.saturating_add(131_071), ThinkingMode::Never));
 #         Box::pin(async move { Ok(ModelCatalog::new(model.into_iter()).unwrap_or_else(|_| ModelCatalog::empty())) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         self.0.raise();
 #         Box::pin(std::future::pending())
 #     }
@@ -245,7 +245,7 @@ use std::sync::Arc;
 
 // 1. A prompt whose one model round sits under a `pcall`; the hidden broker never answers it.
 let patient = concat!(
-    "---\nname: patient\ndescription: Waits on the model\npromptforge: 0\n",
+    "---\nname: patient\ndescription: Waits on the model\nrunvil: 0\n",
     "models: { writer: {} }\n",
     "---\n\n# Patient\n\n## Only\n\n```lua\n",
     "local ok, err = pcall(models.infer, writer, 'Take your time.')\n",
@@ -303,13 +303,13 @@ use harness::capability::{CapabilityRegistry, HostServices};
 use harness::record::{MemoryRecorder, RecordKind};
 use harness::vfs::VfsRef;
 use harness::{BoxFuture, Harness, HostSnapshot, InferenceBroker, RunRequest};
-use promptforge::effect::Round;
-use promptforge::event::ReplyOrigin;
-use promptforge::model::{Completion, CompletionError, CompletionOptions, CompletionResult, Message, ModelBinding, ModelCatalog, ToolSchema};
+use runvil::effect::Round;
+use runvil::event::ReplyOrigin;
+use runvil::model::{Completion, CompletionError, CompletionOptions, CompletionResult, Message, ModelBinding, ModelCatalog, ToolSchema};
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 # use harness::Timer;
-# use promptforge::model::{ModelDescriptor, ModelId, ThinkingMode};
+# use runvil::model::{ModelDescriptor, ModelId, ThinkingMode};
 # fn stub_models() -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #     let model = ModelId::gateway("stub-model").map(|id| ModelDescriptor::new(id, "stub", std::num::NonZeroU32::MIN.saturating_add(131_071), ThinkingMode::Never));
 #     Box::pin(async move { Ok(ModelCatalog::new(model.into_iter()).unwrap_or_else(|_| ModelCatalog::empty())) })
@@ -355,7 +355,7 @@ impl InferenceBroker for Streaming {
 
 // 3. A prompt with one section round.
 let chats = concat!(
-    "---\nname: chats\ndescription: Says hello to the model\npromptforge: 0\n",
+    "---\nname: chats\ndescription: Says hello to the model\nrunvil: 0\n",
     "models: { writer: {} }\n",
     "---\n\n# Chats\n\n## Only\n\n```lua\n",
     "local msgs = messages.new()\n",
@@ -394,7 +394,7 @@ assert_eq!(shown, [(round, "You said: ".to_owned()), (round, "Hello, desk.".to_o
 ````
 
 1. Step 1 defines `Streaming`, the broker that talks to `desk`'s model, with its own `window` sender standing in for `desk`'s window. Here the hidden `stub_models` lists `stub-model`, and the hidden `model_writes` stands in for the model, writing `You said: ` and the last message in two pieces. A real `desk` serves its rounds through `harness_gateway_client::GatewayBroker`, whose `chat_streaming` hands each piece to a callback of `desk`'s.
-2. Step 2 takes a sender only for a round whose [`Round`](promptforge::effect::Round) has the origin [`ReplyOrigin::Chat`](promptforge::event::ReplyOrigin::Chat): a section's own round, the one the operator watches. A nested `models.infer` round has the origin `Infer`, and `desk` reads it whole from its answer. Each piece goes out under `round.id`, the run-wide number of the round, and the whole reply goes back to the run.
+2. Step 2 takes a sender only for a round whose [`Round`](runvil::effect::Round) has the origin [`ReplyOrigin::Chat`](runvil::event::ReplyOrigin::Chat): a section's own round, the one the operator watches. A nested `models.infer` round has the origin `Infer`, and `desk` reads it whole from its answer. Each piece goes out under `round.id`, the run-wide number of the round, and the whole reply goes back to the run.
 3. Step 3 writes `chats`, whose one section sends one round through `models.loop`.
 4. Step 4 runs `chats` over `Streaming`, recording into a memory recorder.
 5. Step 5 finds the `assistant_reply` event in the run's records and asserts that the pieces `desk` showed carry the round id that event holds. The run's thinking, reply, and tool-call events each carry their round's id as `round`, so `desk` swaps its streamed preview for the finished text by that number.
@@ -446,7 +446,7 @@ Stream where the operator watches, and let the recorded reply have the last word
 
 - `models`: lists the models the broker serves. A run calls it once as it starts.
 - `chat`: performs one round over the messages with the tools advertised, under the round's options. An error it returns fails that round, and the prompt receives it.
-- `round`: `chat`'s [`Round`](promptforge::effect::Round), the round's run-wide id and the path that dispatched it; the round's events carry the same id. The Harness takes only the finished reply; [Stream from your own broker](#stream-from-your-own-broker) shows a broker that streams a round's pieces on its own.
+- `round`: `chat`'s [`Round`](runvil::effect::Round), the round's run-wide id and the path that dispatched it; the round's events carry the same id. The Harness takes only the finished reply; [Stream from your own broker](#stream-from-your-own-broker) shows a broker that streams a round's pieces on its own.
 
 ## OutputError
 
@@ -491,7 +491,7 @@ Stream where the operator watches, and let the recorded reply have the last word
 
 ## USER_INPUT_ASK_TOOL
 
-[`USER_INPUT_ASK_TOOL`] is the id of the tool that asks the operator. Bind it under an alias in `tools:`, such as `ask: promptforge/user-input/ask`, and offer the alias with `tools.add` or `tools.always`. A script's `input.ask()` calls the same tool. [Answer the operator](#answer-the-operator) teaches this.
+[`USER_INPUT_ASK_TOOL`] is the id of the tool that asks the operator. Bind it under an alias in `tools:`, such as `ask: runvil/user-input/ask`, and offer the alias with `tools.add` or `tools.always`. A script's `input.ask()` calls the same tool. [Answer the operator](#answer-the-operator) teaches this.
 
 ## display_chain
 

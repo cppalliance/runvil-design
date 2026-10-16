@@ -1,6 +1,6 @@
 # Why the MCP tool-picker is shaped the way it is
 
-This is the reasoning behind `promptforge-tool-picker`: the decisions, the alternatives
+This is the reasoning behind `runvil-tool-picker`: the decisions, the alternatives
 that were tried and rejected, and the evidence that moved each call. It is the companion
 to two other documents - `design-tool-picker.md` (the specification, the "what") and
 `spike-tool-picker/report/FINDINGS.md` (the empirical log, the "numbers"). Read this one
@@ -8,7 +8,7 @@ for the "why."
 
 ## The problem
 
-A promptforge prompt is a sectioned markdown document; each section can run Lua that scopes
+A runvil prompt is a sectioned markdown document; each section can run Lua that scopes
 which tools are available via `tools.add(...)`. We want a prompt to be able to say, in plain
 English, what capability it needs, and have the harness bind that need to the right tool from
 whatever MCP servers are connected - or refuse cleanly. The question the whole study set out
@@ -135,7 +135,7 @@ descriptions the retriever surfaced do not persist in the main context; only the
 does. The costs are a second inference pass (true re-generation for a clean state) and prefix-cache
 invalidation at the insertion point, both negligible for one-time-at-start discovery.
 
-For genuinely hard selection, this composes with promptforge's context-clearing goto into a model-
+For genuinely hard selection, this composes with runvil's context-clearing goto into a model-
 tiered pattern: a strong reasoning-model section calls `choose_mcp_tool` and disambiguates, a
 context-clearing goto passes the chosen descriptor (plus rationale and the resolved binding) into a
 fresh context, and a cheaper model executes. This is the "right" form of a selection subcontext,
@@ -155,12 +155,12 @@ static execution state, so downstream everything is uniform.
 
 ## Why the resolver is its own crate
 
-`promptforge-tool-picker` depends on a separate, thin `promptforge-mcp-client` for protocol
+`runvil-tool-picker` depends on a separate, thin `runvil-mcp-client` for protocol
 (connect, initialize, `tools/list`, `tools/call`, error mapping) and keeps all the semantics
 (embeddings, the four-outcome policy, the Lua verbs, the context rewrite) to itself. Three reasons:
 
 - The embedding model must not ride along with the protocol. Another consumer already exists - the
-  CLI acts as an MCP client of the promptforge-mcp server - and it should be able to speak MCP
+  CLI acts as an MCP client of the runvil-mcp server - and it should be able to speak MCP
   without loading an embedding model it never uses.
 - Isolation and independent testing: the resolver tests against synthetic catalogs with no network;
   the client tests against a mock server with no model. This is the same reasoning that made

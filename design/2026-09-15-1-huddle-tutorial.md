@@ -1,8 +1,8 @@
-<!-- source: Huddle, Sep 15 2026, 10:30 AM to 12:02 PM Pacific, Greg Kaleka, Sean Parsons, Vinnie Falco. Walkthrough of the PromptForge prompting-language design document: goals, non-goals, success criteria, constraints, deferred open questions, functional specification. -->
+<!-- source: Huddle, Sep 15 2026, 10:30 AM to 12:02 PM Pacific, Greg Kaleka, Sean Parsons, Vinnie Falco. Walkthrough of the Runvil prompting-language design document: goals, non-goals, success criteria, constraints, deferred open questions, functional specification. -->
 
-# PromptForge, Taught From the Ground Up
+# Runvil, Taught From the Ground Up
 
-This tutorial is built from a working session in which two engineers read the PromptForge design document aloud, stopped at every sentence they did not understand, and had the designer explain it. That is a gift for a teacher, because it shows exactly where the confusion lives. Every idea below is one that tripped somebody up, and every explanation is the one that finally made it click.
+This tutorial is built from a working session in which two engineers read the Runvil design document aloud, stopped at every sentence they did not understand, and had the designer explain it. That is a gift for a teacher, because it shows exactly where the confusion lives. Every idea below is one that tripped somebody up, and every explanation is the one that finally made it click.
 
 The ideas are ordered so that nothing is used before it is introduced. If you read it top to bottom you will never hit a term you have not already met. If you skip ahead, the glossary at the end will catch you.
 
@@ -14,7 +14,7 @@ The ideas are ordered so that nothing is used before it is introduced. If you re
 
 Start with the simplest possible picture. A large language model, by itself, is a function: text goes in, text comes out. That is all. It cannot search the web, read a file, remember yesterday, or ask you a question. If you have never "talked to a raw LLM," picture a toy that turns ordinary sentences into pirate speak. You type, it answers, and nothing else in the world changes.
 
-Everything you think of as "the AI doing things" is done by something wrapped around the model. That wrapper is called the **harness**, or in PromptForge's vocabulary, the **host**. One of the engineers summed it up during the session: the host is what connects the model to the outside world. It integrates the model with the person chatting, with tools, with files, with other models. That is why the design document calls it a **host integrator**.
+Everything you think of as "the AI doing things" is done by something wrapped around the model. That wrapper is called the **harness**, or in Runvil's vocabulary, the **host**. One of the engineers summed it up during the session: the host is what connects the model to the outside world. It integrates the model with the person chatting, with tools, with files, with other models. That is why the design document calls it a **host integrator**.
 
 Hold onto this: **run does nothing on its own.** Whenever you feel lost later, come back to the question "who is actually doing this, the model or the host?" The answer is almost always the host.
 
@@ -24,7 +24,7 @@ When you use a commercial coding assistant, you are using somebody else's harnes
 
 That works until the conversation gets long. Then the harness compacts the history (we will study compaction carefully in Part 9), and each compaction blurs your instructions a little more. An agent you carefully designed drifts out of character because it never controlled what survives.
 
-PromptForge exists so that **you** control the harness: what goes in the system prompt, which tools the model can see, when and how history is compacted, and what happens when something fails. The rest of this tutorial is the mechanics of that control.
+Runvil exists so that **you** control the harness: what goes in the system prompt, which tools the model can see, when and how history is compacted, and what happens when something fails. The rest of this tutorial is the mechanics of that control.
 
 ### 1.3 The one design philosophy you need
 
@@ -36,13 +36,13 @@ If you remember one sentence, make it this one: **every model operation is expli
 
 ### 2.1 Three ingredients
 
-A PromptForge prompt is a single Markdown file containing three kinds of material:
+A Runvil prompt is a single Markdown file containing three kinds of material:
 
 - **YAML frontmatter** at the very top. This declares the contract: which tools the prompt is allowed to use, which model slots it uses, what its input and output store files are. Anything the prompt uses has to be named here. Think of it as the manifest.
 - **Markdown**: headings and ordinary text. Headings divide the file into sections. Text is either commentary for humans or material you will hand to a model.
 - **Lua fences**: fenced code blocks marked as Lua. This is where all the work happens. Every model call, every tool call, every decision is written in Lua.
 
-The frontmatter contains a version line, `promptforge: 0`. One of the constraints in the design document is that this number must never be incremented while the current design work is active. The engineers laughed in recognition here: AI assistants love to bump version numbers on pre-release software, and this rule exists to stop them.
+The frontmatter contains a version line, `runvil: 0`. One of the constraints in the design document is that this number must never be incremented while the current design work is active. The engineers laughed in recognition here: AI assistants love to bump version numbers on pre-release software, and this rule exists to stop them.
 
 ### 2.2 Sections
 
@@ -65,7 +65,7 @@ This part is where the first engineer said "I didn't understand any of these sen
 
 ### 3.1 The pending prose buffer
 
-As PromptForge reads your file from top to bottom, it keeps a running buffer of Markdown text. Call it the **pending prose buffer**. Three things reset it:
+As Runvil reads your file from top to bottom, it keeps a running buffer of Markdown text. Call it the **pending prose buffer**. Three things reset it:
 
 - A **heading** starts a new section and a fresh buffer.
 - A **Lua fence** consumes the buffer (details next) and leaves it empty.
@@ -83,13 +83,13 @@ A subtle consequence the engineers worked out on their own: if a section has no 
 
 ### 3.3 The Lua fence receives `prose`
 
-When PromptForge reaches a Lua fence, it takes whatever is in the pending buffer and installs it as a value called **`prose`**, visible inside that fence. Then it clears the buffer so the next stretch of Markdown accumulates cleanly. Then it runs the Lua.
+When Runvil reaches a Lua fence, it takes whatever is in the pending buffer and installs it as a value called **`prose`**, visible inside that fence. Then it clears the buffer so the next stretch of Markdown accumulates cleanly. Then it runs the Lua.
 
 Three properties of `prose` matter:
 
 - **Read-only.** You cannot assign to it. It is the text above the fence, period.
 - **Lazy.** Nothing is done with the text until your Lua actually reads `prose`. If your fence never mentions it, the text was never processed.
-- **Evaluated once and memoized.** The first time your Lua reads `prose`, PromptForge takes a snapshot of the section's current state, fills in every `{{ }}` substitution once, and remembers the resulting string. Every later read in that same fence returns the identical string, even if state has changed. This matters inside loops: you pay for the substitution once, and the text cannot shift under you mid-fence.
+- **Evaluated once and memoized.** The first time your Lua reads `prose`, Runvil takes a snapshot of the section's current state, fills in every `{{ }}` substitution once, and remembers the resulting string. Every later read in that same fence returns the identical string, even if state has changed. This matters inside loops: you pay for the substitution once, and the text cannot shift under you mid-fence.
 
 ### 3.4 Substitutions
 
@@ -109,7 +109,7 @@ This is the philosophy from Part 1.3 made concrete: no positional inference rule
 
 ### 4.1 One fresh Lua VM per section entry
 
-Now the payoff of defining sections. **Every time execution enters a section, PromptForge spins up a brand-new Lua virtual machine for it.** When the section ends, that VM is gone.
+Now the payoff of defining sections. **Every time execution enters a section, Runvil spins up a brand-new Lua virtual machine for it.** When the section ends, that VM is gone.
 
 There is no long-running Lua process holding state across the whole file. You do not start the VM yourself; writing a section is how you declare "this gets its own VM." The Rust runtime underneath handles the spin-up and tear-down when it ingests and runs each section.
 
@@ -152,11 +152,11 @@ Anything more sophisticated than a single request needs a **message array**. Eve
 - **assistant**: what the model said.
 - **tool**: the result of a tool the model asked to run.
 
-When you chat with any assistant, every time you send a new message, what actually gets transmitted is the entire list that came before plus your new one. The model has no memory; the message array **is** the memory. PromptForge lets you build that array yourself instead of letting the harness build it for you.
+When you chat with any assistant, every time you send a new message, what actually gets transmitted is the entire list that came before plus your new one. The model has no memory; the message array **is** the memory. Runvil lets you build that array yourself instead of letting the harness build it for you.
 
 ### 5.3 Provider-neutral
 
-Every model vendor wants messages in a slightly different wire format. PromptForge keeps one **provider-neutral** representation of the array, and a translation layer (owned by the gateway, not by your prompt) projects it into whatever format the chosen model wants. You write against one message model; the gateway handles the rest. The design explicitly refuses to fork or replace the gateway's model-specific chat-template responsibility.
+Every model vendor wants messages in a slightly different wire format. Runvil keeps one **provider-neutral** representation of the array, and a translation layer (owned by the gateway, not by your prompt) projects it into whatever format the chosen model wants. You write against one message model; the gateway handles the rest. The design explicitly refuses to fork or replace the gateway's model-specific chat-template responsibility.
 
 The success criteria phrase this as: every model request "carries a validated provider-neutral role sequence." Role sequence just means the ordered list of system, user, assistant, and tool messages.
 
@@ -207,7 +207,7 @@ Same prompt, same bound tools, two different model calls with two different view
 
 In a general-purpose harness, the model can call any tool it has access to at any moment: shell out, search, explore files, spawn agents. Every turn, the model has to decide which of many tools to use. That decision-making load is part of why those harnesses need frontier-class models to work well.
 
-PromptForge's bet is that if **you** give each model call exactly the tools it needs and nothing more, the model has less to decide and a smaller, cheaper model can do the same work. The designer stated it plainly: you want to add exactly the tools the model needs and not one more. This is not a convenience feature. It is one of the core reasons the project exists.
+Runvil's bet is that if **you** give each model call exactly the tools it needs and nothing more, the model has less to decide and a smaller, cheaper model can do the same work. The designer stated it plainly: you want to add exactly the tools the model needs and not one more. This is not a convenience feature. It is one of the core reasons the project exists.
 
 ---
 
@@ -352,7 +352,7 @@ Every model has a context window: a maximum number of tokens it can attend to at
 
 The designer's phrase for this was that compaction is "a traumatic brain injury." The model loses granularity. One engineer admitted he treats the compaction prompt in commercial tools as the signal to just close the session, because he has learned the model will be noticeably dumber afterward.
 
-PromptForge does not eliminate compaction. It makes the injury controllable and keeps a full medical record.
+Runvil does not eliminate compaction. It makes the injury controllable and keeps a full medical record.
 
 ### 9.2 Two histories, not one
 
@@ -399,7 +399,7 @@ Only the minimum compactor surface is being built right now: the hook that invok
 
 ### 9.7 The payoff
 
-Come back to Part 1.2. The reason a carefully designed agent drifts in someone else's harness is that it does not control compaction. In PromptForge, the compactor is yours. After every compaction, it can put your agent's instructions right back at the top of the array. The agent stays in character forever, no matter how long the conversation runs.
+Come back to Part 1.2. The reason a carefully designed agent drifts in someone else's harness is that it does not control compaction. In Runvil, the compactor is yours. After every compaction, it can put your agent's instructions right back at the top of the array. The agent stays in character forever, no matter how long the conversation runs.
 
 ---
 
@@ -494,7 +494,7 @@ The top-level heading of a prompt file is somewhat special. It is the bootstrap:
 
 ### 13.1 Nothing about the chat UI is hard-coded
 
-The chat window in the Workshop (PromptForge's IDE) is not implemented in Rust as a special case. It runs a prompt, `chat.md`, written in the same Markdown and Lua you have been learning. The constraint reads: "Keep all user-visible agent behavior editable at runtime through Lua or prompt files. The agent window is not Rust-special."
+The chat window in the Workshop (Runvil's IDE) is not implemented in Rust as a special case. It runs a prompt, `chat.md`, written in the same Markdown and Lua you have been learning. The constraint reads: "Keep all user-visible agent behavior editable at runtime through Lua or prompt files. The agent window is not Rust-special."
 
 If you want the chat agent to behave differently, you edit a prompt file. No recompile.
 
@@ -502,7 +502,7 @@ If you want the chat agent to behave differently, you edit a prompt file. No rec
 
 The designer illustrated why this matters with an existing prompt called the Mentographist, an agent that interviews you. Today it runs inside a commercial IDE. The IDE's system prompt goes first; the Mentographist's instructions arrive as user messages or tool data; after a couple of compactions the agent loses its grip on its own instructions and gets fuzzy.
 
-Reimplement the Mentographist as a PromptForge prompt and it controls the system prompt and the compactor. After every compaction it puts its own instructions back at the top. It stays in character indefinitely.
+Reimplement the Mentographist as a Runvil prompt and it controls the system prompt and the compactor. After every compaction it puts its own instructions back at the top. It stays in character indefinitely.
 
 Now generalize. "New agent" in the Workshop can open a list: Mentographist, Architect, a Python tutor, a debt collector, anything. Each is just a prompt file. Each survives compaction. Each can look back through the canonical history (Part 9.3), index the whole conversation, and enrich its own context with things you said an hour ago.
 
@@ -520,11 +520,11 @@ A model with no tools is sterile: a sandbox you can only talk to. Give it tools 
 
 Today everyone is a token miser. Frontier inference is billed per token, so you send as little as possible and let the card sit idle. But if you own a GPU with spare VRAM, running a model on it costs nothing extra. Now the incentive inverts: you want inference running **constantly**. While you type, a local model should be indexing your codebase, analyzing the conversation, pre-loading context, surfacing tips. An idle local card is wasted capital. Consumer cards with very large VRAM are already available at non-exotic prices, and nobody has built the harness that exploits them.
 
-PromptForge, with a gateway that can route to local models, is meant to be that harness.
+Runvil, with a gateway that can route to local models, is meant to be that harness.
 
 ### 14.3 The escape hatch
 
-The designer's closing argument was blunt. The proprietary tools people rely on are going to get worse: more expensive, more restricted, less willing to do what you ask. The frontier models will follow. There is a limited window to build your own tools before that happens. PromptForge is designed as the escape: an IDE that works the way you want, running open-weight models on your own hardware, so the productivity of the current moment survives whatever the vendors decide.
+The designer's closing argument was blunt. The proprietary tools people rely on are going to get worse: more expensive, more restricted, less willing to do what you ask. The frontier models will follow. There is a limited window to build your own tools before that happens. Runvil is designed as the escape: an IDE that works the way you want, running open-weight models on your own hardware, so the productivity of the current moment survives whatever the vendors decide.
 
 Whether the ideas are, in his words, "green field with money on the table" or "huffing the AI sauce," he put at fifty-fifty. The engineers voted green field.
 
@@ -564,7 +564,7 @@ A good specification says what it is not doing. The design does this in two list
 - Every model request originates from an explicit Lua call and carries a validated provider-neutral role sequence.
 - One Rust-backed `models.loop` appends protocol-complete history, processes every structured model tool call, returns nil, and behaves identically with zero or many model-visible tools.
 - The agent window keeps working through the generic input broker and the active `models.loop`. This means "do not break it while making the changes," not "it never blocks."
-- Prompts, examples, guides, and tests touched by the active work use `promptforge: 0` and its explicit model.
+- Prompts, examples, guides, and tests touched by the active work use `runvil: 0` and its explicit model.
 - Reconnect persistence, Workshop restore, concurrency, and composition contracts remain deferred.
 
 ---
@@ -578,7 +578,7 @@ A good specification says what it is not doing. The design does this in two list
 - **Compactor**: a Lua-supplied policy that `models.loop` invokes on precheck or provider overflow.
 - **Fall-through**: control continuing from one section to the next at the same heading level, carrying `var`.
 - **Frontmatter**: the YAML block at the top of a prompt file declaring tools, models, version, input, and output.
-- **Host / host integrator / harness**: the runtime that connects the model to the world. In PromptForge, the Rust runtime plus gateway.
+- **Host / host integrator / harness**: the runtime that connects the model to the world. In Runvil, the Rust runtime plus gateway.
 - **Host-observer data**: metadata recorded by the host (model identity, request IDs, metrics) that is not exposed to Lua.
 - **Inert**: Markdown that no Lua fence reads. Equivalent to a comment.
 - **Model-facing section**: a section whose own Lua fence calls a model.

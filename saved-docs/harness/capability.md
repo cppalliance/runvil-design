@@ -1,10 +1,10 @@
 Install the capabilities your prompts declare, and provide the services those capabilities read.
 
-You need this when a prompt lists a capability under `capabilities:` in its frontmatter, such as Workshop's built-in `chat`, which declares `promptforge/user-input` and `promptforge/web`.
+You need this when a prompt lists a capability under `capabilities:` in its frontmatter, such as Workshop's built-in `chat`, which declares `runvil/user-input` and `runvil/web`.
 
 # Where this fits
 
-[The crate overview](crate) builds `desk`, a Host that runs prompts for one person. A *capability* is a named set of tools and Lua that the Harness adds to a run when the prompt declares it, such as `promptforge/user-input`, which gives the prompt `input.ask()`. Your program registers each one it offers in a [`CapabilityRegistry`] and hands the registry to each run's [`Harness::new`](crate::Harness::new). The run resolves its declarations against that registry, and the Harness adds no capability of its own. `promptforge/web`, the fetch and search tools `chat` declares, is the `harness_web::Web` capability of the `harness-web` crate, which your program registers like any other.
+[The crate overview](crate) builds `desk`, a Host that runs prompts for one person. A *capability* is a named set of tools and Lua that the Harness adds to a run when the prompt declares it, such as `runvil/user-input`, which gives the prompt `input.ask()`. Your program registers each one it offers in a [`CapabilityRegistry`] and hands the registry to each run's [`Harness::new`](crate::Harness::new). The run resolves its declarations against that registry, and the Harness adds no capability of its own. `runvil/web`, the fetch and search tools `chat` declares, is the `harness_web::Web` capability of the `harness-web` crate, which your program registers like any other.
 
 Some capabilities need something only your program has, such as a client, a setting, a runtime handle, or a way to reach the operator. Each such thing is a *service*: an object your program puts in a [`HostServices`] map under a named id, beside the registry. A capability names the services it needs, and reads them when a run activates it.
 
@@ -25,13 +25,13 @@ use harness::Harness;
 use std::error::Error;
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -104,7 +104,7 @@ let _harness = Harness::new(Arc::new(MemoryRecorder::new()), Arc::new(Offline), 
 1. Step 1 declares the service's key as a `const`. A [`ServiceKey`] binds an id, `namespace/name` like a capability id, to the Rust type its provider has, here `u32`. Your program provides the service under the key, and the capability reads it under the same key.
 2. Step 2 implements [`Capability`] for `Limits`. [`Capability::needs`] lists the [`ServiceId`] of every service it reads. [`Capability::create`] runs once for each run that declares `com.example.desk/limits`, reads the limit from the [`RunServices`] it is given, and returns a [`Contribution`]. Its `prelude` is Lua every section of the run installs, so the prompt reads `desk.word_limit`. A capability can also contribute [`Tool`]s, which the prompt binds under `tools:`.
 3. Step 3 implements [`InputBroker`] for `Operator`: the service `UserInput` waits on for the operator's next message, as the main page's [Answer the operator](crate#answer-the-operator) tour teaches.
-4. Step 4 registers [`UserInput`], the `promptforge/user-input` capability, and `Limits` under `com.example.desk/limits`. [`CapabilityRegistry::register`] refuses a second capability with the same id, or one whose id differs from a registered one only by `-`, `_`, or `.`, with a [`RegistryError`].
+4. Step 4 registers [`UserInput`], the `runvil/user-input` capability, and `Limits` under `com.example.desk/limits`. [`CapabilityRegistry::register`] refuses a second capability with the same id, or one whose id differs from a registered one only by `-`, `_`, or `.`, with a [`RegistryError`].
 5. Step 5 provides the limit and the input broker with [`HostServices::provide`], which refuses an id that is not `namespace/name`, or one already provided, with a [`ServiceError`]. [`HostServices::provides`] confirms each service is there under its key's type.
 6. Step 6 builds the run's Harness with both, after the recorder, the broker, here `Offline`, and the timer, here `Clock`, both defined in hidden lines.
 
@@ -119,7 +119,7 @@ What reaches a run depends on how the prompt declares the capability:
 
 Each refusal fails the run as it prepares: [`Harness::run`](crate::Harness::run) returns a report whose outcome is `Failed` with the kind `RequirementsUnmet`.
 
-You might expect the Harness to bring the capabilities PromptForge ships, the way a framework turns on its defaults. Instead, it adds none: `promptforge/user-input` reaches a prompt only when your program registers [`UserInput`] and provides an input broker, and `promptforge/web` only when it registers `harness_web::Web` and provides the search provider and tokio runtime handle that crate's `SEARCH_PROVIDER` and `TOKIO_RUNTIME` keys name. Your program decides what every prompt may do.
+You might expect the Harness to bring the capabilities Runvil ships, the way a framework turns on its defaults. Instead, it adds none: `runvil/user-input` reaches a prompt only when your program registers [`UserInput`] and provides an input broker, and `runvil/web` only when it registers `harness_web::Web` and provides the search provider and tokio runtime handle that crate's `SEARCH_PROVIDER` and `TOKIO_RUNTIME` keys name. Your program decides what every prompt may do.
 
 Register what your prompts declare, provide what those capabilities need, and hand both to each run's `Harness::new`. [Where to go next](crate#where-to-go-next) lists the other pages.
 
@@ -144,7 +144,7 @@ Register what your prompts declare, provide what those capabilities need, and ha
 
 ## CapabilityId
 
-[`CapabilityId`] is a capability's `namespace/pack` id, in lowercase ASCII letters, digits, `-`, `_`, and `.`. Build one with [`CapabilityId::parse`]. A namespace is reverse-DNS, such as `com.example.desk`, or `promptforge`, which is reserved for the capabilities PromptForge ships.
+[`CapabilityId`] is a capability's `namespace/pack` id, in lowercase ASCII letters, digits, `-`, `_`, and `.`. Build one with [`CapabilityId::parse`]. A namespace is reverse-DNS, such as `com.example.desk`, or `runvil`, which is reserved for the capabilities Runvil ships.
 
 ## CapabilityRegistry
 
@@ -207,4 +207,4 @@ Register what your prompts declare, provide what those capabilities need, and ha
 
 ## UserInput
 
-[`UserInput`] is the `promptforge/user-input` capability, which gives a prompt `input.ask()` and the ask tool. Register it, and provide an [`InputBroker`] under [`INPUT_BROKER`], so a prompt can ask the operator.
+[`UserInput`] is the `runvil/user-input` capability, which gives a prompt `input.ask()` and the ask tool. Register it, and provide an [`InputBroker`] under [`INPUT_BROKER`], so a prompt can ask the operator.

@@ -1,10 +1,10 @@
-<!-- STATUS: residue - promptforge-gateway - forward design, none of it fully built; the crate's as-built document is crates/promptforge-gateway/design-gateway.md - see design.md for the system -->
+<!-- STATUS: residue - runvil-gateway - forward design, none of it fully built; the crate's as-built document is crates/runvil-gateway/design-gateway.md - see design.md for the system -->
 
-# `promptforge-gateway` residue: the service the gateway was designed to grow into, and has not
+# `runvil-gateway` residue: the service the gateway was designed to grow into, and has not
 
-This is forward design. Nothing specified below is fully built, and most of it does not exist at all: admission control and the whole budget model, endpoint pinning through `X-PromptForge-Run`, streaming, the Anthropic shim, model packs, hot reload and drain, service installation, three of the five designed routes, most of `gateway.toml`, nine of the fifteen error variants, and the entire observability section are all designed and unimplemented. Three things below are partly built: the typed request and response bodies, which ship reduced to `model`, `messages`, and `choices` with everything else kept as opaque JSON; `default_max_tokens`, which parses and is never read; and a model's `endpoints` list, which parses and serves only its first entry.
+This is forward design. Nothing specified below is fully built, and most of it does not exist at all: admission control and the whole budget model, endpoint pinning through `X-Runvil-Run`, streaming, the Anthropic shim, model packs, hot reload and drain, service installation, three of the five designed routes, most of `gateway.toml`, nine of the fifteen error variants, and the entire observability section are all designed and unimplemented. Three things below are partly built: the typed request and response bodies, which ship reduced to `model`, `messages`, and `choices` with everything else kept as opaque JSON; `default_max_tokens`, which parses and is never read; and a model's `endpoints` list, which parses and serves only its first entry.
 
-What exists today is a service that accepts OpenAI-shaped chat completions on one route, resolves the request's model by exact string match to one endpoint fixed at load, holds every backend credential, forwards the request with only `model` substituted, and answers a built-in `web_search` route and an unauthenticated `GET /health`. That crate's own `design-gateway.md`, at `crates/promptforge-gateway/design-gateway.md`, is written from its code and is the document to read for what the gateway does.
+What exists today is a service that accepts OpenAI-shaped chat completions on one route, resolves the request's model by exact string match to one endpoint fixed at load, holds every backend credential, forwards the request with only `model` substituted, and answers a built-in `web_search` route and an unauthenticated `GET /health`. That crate's own `design-gateway.md`, at `crates/runvil-gateway/design-gateway.md`, is written from its code and is the document to read for what the gateway does.
 
 The built half was substantial, so what is left is a shorter document rather than a differently shaped one, and where a passage was split - a configuration struct whose fields are half built, a route table with three of five routes serving, an error enum with six of fifteen variants - the part that stayed sits under the heading it had before.
 
@@ -97,7 +97,7 @@ pub enum FinishReason { Stop, Length, ToolCalls, ContentFilter }
 pub struct Usage { pub prompt_tokens: u32, pub completion_tokens: u32, pub total_tokens: u32 }
 ```
 
-Every response also carries `X-PromptForge-Endpoint` naming the endpoint that served it and `X-PromptForge-Queued-Ms` reporting admission wait, which is how a caller confirms a pin held without the gateway growing a run concept. Neither header is sent today.
+Every response also carries `X-Runvil-Endpoint` naming the endpoint that served it and `X-Runvil-Queued-Ms` reporting admission wait, which is how a caller confirms a pin held without the gateway growing a run concept. Neither header is sent today.
 
 ### Streaming
 
@@ -132,7 +132,7 @@ The `Admission` guard is moved into the stream, so permits are held for exactly 
 A caller communicates a pin with a request header.
 
 ```
-X-PromptForge-Run: 9f2c1e7a-4b83-4f10-9f1e-2d47c0b6a5e1
+X-Runvil-Run: 9f2c1e7a-4b83-4f10-9f1e-2d47c0b6a5e1
 ```
 
 A header rather than a body field, for four reasons. The body must stay a valid OpenAI chat completions body so an unmodified SDK works: Talktron uses the Python `openai` client, and a non-standard body field forces either a hand-built body or `extra_body`, both of which break the moment anything validates the schema strictly. Every OpenAI SDK exposes per-request and per-client headers, so a pin costs one line of client configuration. Admission needs the pin before it decides anything, and a header is readable without buffering or parsing the body. A header also survives an intervening proxy and appears in access logs.
@@ -203,7 +203,7 @@ The `/status` document in full, on the production profile:
 }
 ```
 
-The first three keys and the `name`, `state`, `inflight`, and `waiting` fields are exactly `/health`, so one parser reads both and a supervisor that graduates to the authenticated route learns no new shape. `inflight_limit` and `queue_depth` are the configured caps rather than live counts, which is what makes `inflight` and `waiting` interpretable without reading the configuration file next to the answer. `refusals` carries the same four reasons and the same per-endpoint labelling as `pf_gateway_refusals_total`, cumulative since process start and never reset by a reload, so `/status` and `/metrics` cannot disagree about a refusal. `models` is the loaded routing table, which is how an operator answers "did my reload take" when the generation number alone only says that something changed.
+The first three keys and the `name`, `state`, `inflight`, and `waiting` fields are exactly `/health`, so one parser reads both and a supervisor that graduates to the authenticated route learns no new shape. `inflight_limit` and `queue_depth` are the configured caps rather than live counts, which is what makes `inflight` and `waiting` interpretable without reading the configuration file next to the answer. `refusals` carries the same four reasons and the same per-endpoint labelling as `rv_gateway_refusals_total`, cumulative since process start and never reset by a reload, so `/status` and `/metrics` cannot disagree about a refusal. `models` is the loaded routing table, which is how an operator answers "did my reload take" when the generation number alone only says that something changed.
 
 No credential appears here and none can: `Secret` has no `Serialize`, so `server.token` and every `api_key` are unrepresentable rather than merely omitted. `base_url` is left out too, because an endpoint is named by its configuration `name` everywhere else in this crate. Tension: `/status` therefore cannot diagnose a wrong `base_url`, and that stays a log-reading job.
 
@@ -289,9 +289,9 @@ The reason for the chain rather than a direct home-to-pod hop is the rule the cr
 
 The single-owner rule is a convention until the network enforces it. A RunPod proxy URL is public, so the pods must accept connections only from the company gateway's egress address, by IP allowlist or by placing the pods on the intranet. Without that, a leaked RunPod credential reaches the pods around the company gateway and around its budget. The allowlist keys on source IP, so the company gateway needs a stable egress address. This is network configuration outside any `gateway.toml` and is stated here because the budget's integrity depends on it.
 
-Two chain concerns are deferred. Pinning needs the run header to survive each hop, so a forwarding endpoint must relay `X-PromptForge-Run` for the terminal gateway's pin to hold; a chain that drops it costs a prefill per hop and no more. And a forwarding gateway's own admission budget sits in front of the authoritative one, so a passthrough hop should run an effectively unbounded budget rather than throttle before the process that owns the backend does. Neither matters until admission control and pinning exist.
+Two chain concerns are deferred. Pinning needs the run header to survive each hop, so a forwarding endpoint must relay `X-Runvil-Run` for the terminal gateway's pin to hold; a chain that drops it costs a prefill per hop and no more. And a forwarding gateway's own admission budget sits in front of the authoritative one, so a passthrough hop should run an effectively unbounded budget rather than throttle before the process that owns the backend does. Neither matters until admission control and pinning exist.
 
-Tension: composition multiplies the places a request can wait, fail, or lose its pin, and a symptom seen at the executor may originate two gateways away. The `X-PromptForge-Endpoint` header names only the terminal endpoint, so diagnosing a chain means reading a log line at each hop rather than one.
+Tension: composition multiplies the places a request can wait, fail, or lose its pin, and a symptom seen at the executor may originate two gateways away. The `X-Runvil-Endpoint` header names only the terminal endpoint, so diagnosing a chain means reading a log line at each hop rather than one.
 
 ## Admission control
 
@@ -393,7 +393,7 @@ The endpoint permit is taken first, then the global permit, always in that order
 
 The order matters. A request holding a global permit while waiting on a busy endpoint denies an unrelated endpoint that has free capacity, because the global cap of 16 is the binding constraint once more than two endpoints are busy. A request holding an endpoint permit while waiting on the global cap only blocks requests to the endpoint it is already queued for, which are queued anyway. Tension: that request leaves one GPU slot idle while it waits, bounded by the 30 s budget.
 
-`Semaphore` exposes no waiter count, so `waiting` is an explicit `AtomicU32` incremented by an RAII guard around the wait and read by the queue-depth check. That counter is the one the depth refusal and the `pf_gateway_queued` gauge both read.
+`Semaphore` exposes no waiter count, so `waiting` is an explicit `AtomicU32` incremented by an RAII guard around the wait and read by the queue-depth check. That counter is the one the depth refusal and the `rv_gateway_queued` gauge both read.
 
 ### Why the gateway owns the queue
 
@@ -457,7 +457,7 @@ Build the mechanism with no packs in it, then write the first pack for whichever
 
 Pinning decides which pod a turn lands on. It does not decide what bytes that pod receives, and prefix caching pays only on the bytes.
 
-The gain pinning chases is real and already recorded above: a fixed prefix has been reported to move TTFT p50 from 480 ms to 110 ms at a 94 percent hit rate. What that figure assumes is a prefix that repeats exactly. Prefix caching matches at 16-token block granularity, so one differing token in the first block invalidates every block after it, which is the difference between a 0.3 percent and an 87 percent hit rate depending on where a volatile field sits. [design-promptforge.md](design-promptforge.md) draws the rule that follows and states it as a design rule: keep the system prompt and tool schemas byte-for-byte static, and put volatile data at the tail.
+The gain pinning chases is real and already recorded above: a fixed prefix has been reported to move TTFT p50 from 480 ms to 110 ms at a 94 percent hit rate. What that figure assumes is a prefix that repeats exactly. Prefix caching matches at 16-token block granularity, so one differing token in the first block invalidates every block after it, which is the difference between a 0.3 percent and an 87 percent hit rate depending on where a volatile field sits. [design-runvil.md](design-runvil.md) draws the rule that follows and states it as a design rule: keep the system prompt and tool schemas byte-for-byte static, and put volatile data at the tail.
 
 That rule is currently unenforceable from inside this system. The gateway hands the backend a message array and a tools array; a Jinja2 template shipped in the model's own `tokenizer_config.json` decides the byte layout downstream of that, including whether tool schemas serialize in a stable key order, whether anything volatile is interpolated into the system preamble, and whether whitespace shifts between two vLLM releases. Nothing in this crate can assert on a prefix it never constructed, so the byte-stability rule is written down in one document and checked nowhere.
 
@@ -515,7 +515,7 @@ pub struct PackUpstream(Arc<dyn Pack>);
 
 The registry is a `HashMap<&'static str, Arc<dyn Pack>>` built at startup from the packs the binary linked, and a `pack` name it cannot answer is a config failure rather than a first-request failure. Packs are linked, not loaded, for the reason [design.md](design.md) gives for extensions generally: Rust has no stable ABI and dead-code elimination silently drops registrations.
 
-A caller cannot tell which path served it. The response is the same `ChatResponse`, `model` is rewritten to the caller's name as always, and `X-PromptForge-Endpoint` still names the endpoint. Tension: that opacity is deliberate and it means a pack regression looks like a model regression from outside, so the pack name is recorded on the span to make the two separable in a log.
+A caller cannot tell which path served it. The response is the same `ChatResponse`, `model` is rewritten to the caller's name as always, and `X-Runvil-Endpoint` still names the endpoint. Tension: that opacity is deliberate and it means a pack regression looks like a model regression from outside, so the pack name is recorded on the span to make the two separable in a log.
 
 ### Route selection, and the rejected protocol variant
 
@@ -578,8 +578,8 @@ pub struct LimitsConfig {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LogConfig {
-    /// No default. The two profiles write to `C:/ProgramData/PromptForge/logs` and
-    /// `/var/log/promptforge`, and a guess that a service account cannot write is a
+    /// No default. The two profiles write to `C:/ProgramData/Runvil/logs` and
+    /// `/var/log/runvil`, and a guess that a service account cannot write is a
     /// service that starts and logs nowhere.
     pub dir: PathBuf,
     /// Defaults to "info", which is what both profiles set.
@@ -646,7 +646,7 @@ This profile does not load against the shipped configuration schema: it uses `na
 [server]
 bind = "0.0.0.0:8081"              # a network interface, never loopback: Cursor connects
                                    # from a workstation and Talktron from its own process
-token = "${PROMPTFORGE_TOKEN}"     # the same shared secret promptforge-mcp checks
+token = "${RUNVIL_TOKEN}"     # the same shared secret runvil-mcp checks
 max_body_bytes = 8388608           # 8 MiB; a 128k-token prompt is roughly 500 KiB
 
 [limits]
@@ -659,7 +659,7 @@ shutdown_grace_secs = 600          # the request ceiling: a stop never severs a 
                                    # the gateway would have let run to completion
 
 [log]
-dir = "C:/ProgramData/PromptForge/logs"
+dir = "C:/ProgramData/Runvil/logs"
 level = "info"
 rotation = "daily"
 retain_days = 14
@@ -721,7 +721,7 @@ default_max_tokens = 8192
 
 [server]
 bind = "10.0.4.12:8081"            # the intranet address; the firewall is the boundary
-token = "${PROMPTFORGE_TOKEN}"
+token = "${RUNVIL_TOKEN}"
 max_body_bytes = 8388608
 
 [limits]
@@ -733,7 +733,7 @@ max_pins = 4096
 shutdown_grace_secs = 600          # TimeoutStopSec below is 630, this plus 30 s of slack
 
 [log]
-dir = "/var/log/promptforge"
+dir = "/var/log/runvil"
 level = "info"
 rotation = "daily"
 retain_days = 30
@@ -890,18 +890,18 @@ A Windows service has no console, so `stdout` and `stderr` go nowhere and are no
 
 Shutdown is a cancellation token in every case, feeding `axum::serve(..).with_graceful_shutdown(..)`. The listener stops accepting, queued waiters are released with 503, and admitted requests finish within `limits.shutdown_grace_secs`. On Windows this needs care: the SCM kills a service that does not report progress within roughly 30 s, so the handler reports `SERVICE_STOP_PENDING` with a `wait_hint` covering the grace period and re-reports periodically, or a long streaming response is severed at 30 s regardless of the grace setting.
 
-Configuration path is explicit and positional, `promptforge-gateway serve /etc/promptforge/gateway.toml`, defaulting to the platform data directory. A Windows service account cannot read a developer's user profile, so a path relative to the home directory is not a usable default. The positional path is built; the default is not, and an omitted path is a usage error.
+Configuration path is explicit and positional, `runvil-gateway serve /etc/runvil/gateway.toml`, defaulting to the platform data directory. A Windows service account cannot read a developer's user profile, so a path relative to the home directory is not a usable default. The positional path is built; the default is not, and an omitted path is a usage error.
 
 ```ini
 [Unit]
-Description=PromptForge inference gateway
+Description=Runvil inference gateway
 After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/promptforge-gateway serve /etc/promptforge/gateway.toml
+ExecStart=/usr/local/bin/runvil-gateway serve /etc/runvil/gateway.toml
 Environment=ANTHROPIC_API_KEY=
-EnvironmentFile=/etc/promptforge/gateway.env
+EnvironmentFile=/etc/runvil/gateway.env
 Restart=on-failure
 KillSignal=SIGTERM
 TimeoutStopSec=630
@@ -972,7 +972,7 @@ The rows of the envelope table for the unbuilt variants:
 | `PackParse` | 502 | `server_error` | `pack_parse` |
 | `UpstreamStatus`, upstream 429 | 429 | `rate_limit_error` | `rate_limit_exceeded` |
 
-`code` is the variant name in snake case in every row the gateway originates, so a client switches on it without keeping a translation table and a new variant cannot reuse an old code; `ToolNotConfigured`, added since, already departs from that rule. `overloaded` is not an OpenAI type at all, which is safe because every SDK selects its exception class from the HTTP status and treats `type` as description. The four refusal codes are the same four strings as the `reason` label on `pf_gateway_refusals_total` and the same as the `outcome` field on the span, so one word follows a refusal from the client's error, through the log line, to the metric.
+`code` is the variant name in snake case in every row the gateway originates, so a client switches on it without keeping a translation table and a new variant cannot reuse an old code; `ToolNotConfigured`, added since, already departs from that rule. `overloaded` is not an OpenAI type at all, which is safe because every SDK selects its exception class from the HTTP status and treats `type` as description. The four refusal codes are the same four strings as the `reason` label on `rv_gateway_refusals_total` and the same as the `outcome` field on the span, so one word follows a refusal from the client's error, through the log line, to the metric.
 
 `Retry-After` is `limits.admission_wait_secs` in seconds on every refusal the gateway generates. A fixed value rather than an estimated drain time, because an estimate needs slot-hold history the gateway does not keep yet.
 
@@ -993,22 +993,22 @@ What runs today is `tracing_subscriber`'s default formatter and one info line na
 
 Never recorded, at any level: message content, tool arguments, tool results, system prompts, credentials. The gateway sees every prompt and every completion in the system, so this is a property to state rather than to leave implied. What it may record about a body is its byte length and its message count.
 
-Metrics under the `pf_gateway_` namespace, Prometheus text at `/metrics`:
+Metrics under the `rv_gateway_` namespace, Prometheus text at `/metrics`:
 
-- `pf_gateway_requests_total{model,endpoint,outcome}` - counter
-- `pf_gateway_refusals_total{endpoint,reason}` - counter; `reason` is `queue_full`, `admission_timeout`, `no_healthy_endpoint`, or `shutting_down`
-- `pf_gateway_inflight{endpoint}` and `pf_gateway_global_inflight` - gauges
-- `pf_gateway_queued{endpoint}` - gauge of waiters, which is also a count of held sockets
-- `pf_gateway_admission_wait_seconds{endpoint}` - histogram
-- `pf_gateway_ttfb_seconds{model,endpoint}` and `pf_gateway_request_seconds{model,endpoint}` - histograms
-- `pf_gateway_tokens_total{model,endpoint,kind}` - counter, `kind` is `prompt` or `completion`
-- `pf_gateway_endpoint_up{endpoint}` - gauge, 1 or 0
-- `pf_gateway_pins` gauge and `pf_gateway_pin_evictions_total{reason}` counter, `reason` being `idle` or `capacity`
-- `pf_gateway_reloads_total{outcome}` counter and `pf_gateway_draining_endpoints` gauge
+- `rv_gateway_requests_total{model,endpoint,outcome}` - counter
+- `rv_gateway_refusals_total{endpoint,reason}` - counter; `reason` is `queue_full`, `admission_timeout`, `no_healthy_endpoint`, or `shutting_down`
+- `rv_gateway_inflight{endpoint}` and `rv_gateway_global_inflight` - gauges
+- `rv_gateway_queued{endpoint}` - gauge of waiters, which is also a count of held sockets
+- `rv_gateway_admission_wait_seconds{endpoint}` - histogram
+- `rv_gateway_ttfb_seconds{model,endpoint}` and `rv_gateway_request_seconds{model,endpoint}` - histograms
+- `rv_gateway_tokens_total{model,endpoint,kind}` - counter, `kind` is `prompt` or `completion`
+- `rv_gateway_endpoint_up{endpoint}` - gauge, 1 or 0
+- `rv_gateway_pins` gauge and `rv_gateway_pin_evictions_total{reason}` counter, `reason` being `idle` or `capacity`
+- `rv_gateway_reloads_total{outcome}` counter and `rv_gateway_draining_endpoints` gauge
 
-No pack metric is added. `outcome` on `pf_gateway_requests_total` is the `GatewayError` variant name, so `pack_parse` is already countable per model and per endpoint, and a pack that starts failing is visible without a new series. What no metric can show is the drift failure named under `Model packs`, since a stale pack produces a successful request.
+No pack metric is added. `outcome` on `rv_gateway_requests_total` is the `GatewayError` variant name, so `pack_parse` is already countable per model and per endpoint, and a pack that starts failing is visible without a new series. What no metric can show is the drift failure named under `Model packs`, since a stale pack produces a successful request.
 
-Queued requests hold a connection while they wait, which is the operational consequence that matters most. `pf_gateway_queued` is therefore a socket-pressure metric as much as a fairness one, the file descriptor limit has to exceed the sum of every endpoint's in-flight plus queue depth on both sides of the gateway, and a client's own HTTP timeout must exceed `admission_wait_secs` or it will abandon requests the gateway was about to admit. `pf_gateway_admission_wait_seconds` and `pf_gateway_refusals_total` together are the signal for recalibrating `inflight` against real traffic, which the research explicitly leaves to observation rather than to derivation.
+Queued requests hold a connection while they wait, which is the operational consequence that matters most. `rv_gateway_queued` is therefore a socket-pressure metric as much as a fairness one, the file descriptor limit has to exceed the sum of every endpoint's in-flight plus queue depth on both sides of the gateway, and a client's own HTTP timeout must exceed `admission_wait_secs` or it will abandon requests the gateway was about to admit. `rv_gateway_admission_wait_seconds` and `rv_gateway_refusals_total` together are the signal for recalibrating `inflight` against real traffic, which the research explicitly leaves to observation rather than to derivation.
 
 ## The tests those features would need
 
@@ -1042,7 +1042,7 @@ The suite that exists is listed in the crate's document. The designed suite adds
 - Whether a pack owns sampling defaults. A model family has a recommended temperature and `top_p`, that recommendation belongs with the format knowledge, and the gateway currently forwards whatever the caller sent. Moving it into the pack would silently change results for an existing caller, which argues for leaving it out and recording it here instead.
 - How a stale pack is detected rather than reasoned about. Nothing in the test suite or the metrics distinguishes a pack that has drifted from its model's trained format from a model that has simply got worse, and a held-out quality check per packed model is the only candidate. Until one exists the drift risk is carried on argument alone.
 - Whether canonical tool-schema key ordering belongs in the pack or in `ChatRequest` deserialization. Putting it in the pack repeats it per pack; putting it in the wire struct makes every path deterministic including the unpacked one, which is arguably where it should have been all along.
-- Whether `log.level` is a single level name or a full `tracing` filter directive. Both profiles only ever set `info`, so nothing here distinguishes them. A bare level is one word to validate and cannot express per-target filtering; an `EnvFilter` directive such as `info,promptforge_gateway::upstream=debug` can isolate the Anthropic shim under real load without raising the volume of everything else, at the cost of a typo becoming a filter that silently matches nothing. The field is typed `String`, so both readings parse and only the validation differs.
+- Whether `log.level` is a single level name or a full `tracing` filter directive. Both profiles only ever set `info`, so nothing here distinguishes them. A bare level is one word to validate and cannot express per-target filtering; an `EnvFilter` directive such as `info,runvil_gateway::upstream=debug` can isolate the Anthropic shim under real load without raising the volume of everything else, at the cost of a typo becoming a filter that silently matches nothing. The field is typed `String`, so both readings parse and only the validation differs.
 - Whether `default_max_tokens` should stay in the schema while nothing reads it. It parses today and its only designed consumer is the Anthropic shim, so a deployment can set it and see no effect, which is the failure mode `deny_unknown_fields` exists to prevent one field short of the rule.
 
 *2026-07-26 - design-gateway*

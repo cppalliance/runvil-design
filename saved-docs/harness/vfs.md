@@ -12,7 +12,7 @@ Every example on this page is code from `desk`, a small Host program that drives
 
 A prompt keeps its working files in a *store*. The store is the set of files a run reads and writes. The prompt's Lua code calls `store.read` and `store.write` on relative paths such as `notes.md`. Every *section* of the prompt shares the same files, and the files stay after the run ends.
 
-A section is one `##` heading of the prompt with the prose and Lua under it, named by its heading text. A deeper heading such as `###` starts a section nested inside it. The [PromptForge language guide](https://cppalliance.github.io/promptforge/language/) covers the store from the prompt's side.
+A section is one `##` heading of the prompt with the prose and Lua under it, named by its heading text. A deeper heading such as `###` starts a section nested inside it. The [Runvil language guide](https://cppalliance.github.io/runvil/language/) covers the store from the prompt's side.
 
 # Give a run your own files
 
@@ -30,13 +30,13 @@ use harness::{Harness, HostSnapshot, RunRequest};
 use std::error::Error;
 use std::sync::Arc;
 # use harness::{BoxFuture, InferenceBroker, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -52,7 +52,7 @@ use std::sync::Arc;
 
 // 1. desk's `shout` prompt reads `notes.md` and writes `summary.md`.
 let shout = concat!(
-    "---\nname: shout\ndescription: Shouts the operator's notes\npromptforge: 0\n",
+    "---\nname: shout\ndescription: Shouts the operator's notes\nrunvil: 0\n",
     "input: { path: notes.md, description: The operator's notes }\n",
     "output: { path: summary.md, description: The shouted notes }\n",
     "---\n\n# Shout\n\n## Summary\n\n```lua\n",
@@ -96,7 +96,7 @@ assert_eq!(summary, "SHIP ON FRIDAY.");
 4. Step 4 moves the other clone into the request's `vfs` field. With no input text, the Harness only checks that the declared input file exists.
 5. Step 5 reads the output twice: from the report's `output`, which the Harness read as the run completed, and through a fresh view of `desk`'s clone. Collect only after the run ends, because until then the prompt may rewrite that file, and its claims on it last as long.
 
-With `input_text: Some`, the Harness writes that text over any file you seeded, so do one or the other, never both. With no input text and no such file in the store, the run fails before it starts with run error kind `Input`. The language guide's [How a failed run is classified](https://cppalliance.github.io/promptforge/language/16-limits-and-errors.html#how-a-failed-run-is-classified) says what each kind means.
+With `input_text: Some`, the Harness writes that text over any file you seeded, so do one or the other, never both. With no input text and no such file in the store, the run fails before it starts with run error kind `Input`. The language guide's [How a failed run is classified](https://cppalliance.github.io/runvil/language/16-limits-and-errors.html#how-a-failed-run-is-classified) says what each kind means.
 
 The report's `output` is read once, as the run completes. For what each of its errors means, see [`OutputError`](crate::OutputError). Two come from the store:
 
@@ -117,26 +117,26 @@ A policy and a sink feel like middleware: each request passes a check, gets logg
 
 Nothing spawns or joins across scopes, so when your access and the run's touch one path, at least one writes, and both are alive, they conflict. Spawn and join, not timing, decide whether two accesses conflict, so an overlap between two live accesses fails on every run instead of only under unlucky timing. Which side fails does depend on timing, because the access that touches the path second is the one refused.
 
-Each operation passes through its `Access` in order: the policy, then the claims, then the sink, then the files. This module re-exports only the three types the example's first `use` line names. `MemoryBackend`, `Op`, `Policy`, `Verdict`, and `VfsPath` live in [`promptforge::vfs`](promptforge::vfs), the module those three come from. To name them, add the `promptforge` crate to your program's dependencies beside `harness`.
+Each operation passes through its `Access` in order: the policy, then the claims, then the sink, then the files. This module re-exports only the three types the example's first `use` line names. `MemoryBackend`, `Op`, `Policy`, `Verdict`, and `VfsPath` live in [`runvil::vfs`](runvil::vfs), the module those three come from. To name them, add the `runvil` crate to your program's dependencies beside `harness`.
 
 The example's hidden lines define `Offline` and `Clock`, and an input broker, `Edit`, that stands in for the operator: when the run asks its question, `Edit` first tries `desk`'s own write to `notes.md`, notes how it went, and then answers.
 
 ````
 use harness::vfs::{Origin, VfsError, VfsRef};
-use promptforge::vfs::{MemoryBackend, Op, Policy, Verdict, VfsPath};
+use runvil::vfs::{MemoryBackend, Op, Policy, Verdict, VfsPath};
 use std::sync::{Arc, Mutex};
 # use async_trait::async_trait;
 # use harness::capability::{CapabilityRegistry, HostServices, INPUT_BROKER, InputBroker, InputError, UserInput};
 # use harness::record::MemoryRecorder;
 # use harness::{BoxFuture, Harness, HostSnapshot, InferenceBroker, RunRequest, Timer};
-# use promptforge::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
+# use runvil::model::{Completion, CompletionError, CompletionErrorKind, CompletionOptions, Message, ModelBinding, ModelCatalog, ToolSchema};
 # use std::error::Error;
 # struct Offline;
 # impl InferenceBroker for Offline {
 #     fn models(&self) -> BoxFuture<Result<ModelCatalog, CompletionError>> {
 #         Box::pin(async { Ok(ModelCatalog::empty()) })
 #     }
-#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: promptforge::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
+#     fn chat(&self, _: ModelBinding, _: Vec<Message>, _: Vec<ToolSchema>, _: CompletionOptions, _: runvil::effect::Round) -> BoxFuture<Result<Box<Completion>, CompletionError>> {
 #         let kind = CompletionErrorKind::Unavailable;
 #         Box::pin(async move { Err(CompletionError::new(kind, kind.phrase())) })
 #     }
@@ -162,8 +162,8 @@ use std::sync::{Arc, Mutex};
 # #[tokio::main(flavor = "current_thread")]
 # async fn main() -> Result<(), Box<dyn Error>> {
 # let review = concat!(
-#     "---\nname: review\ndescription: Reads the notes, then asks the operator\npromptforge: 0\n",
-#     "capabilities:\n  - promptforge/user-input\n",
+#     "---\nname: review\ndescription: Reads the notes, then asks the operator\nrunvil: 0\n",
+#     "capabilities:\n  - runvil/user-input\n",
 #     "input: { path: notes.md, description: The operator's notes }\n",
 #     "output: { path: summary.md, description: The approved notes }\n",
 #     "---\n\n# Review\n\n## Approve\n\n```lua\n",
@@ -225,7 +225,7 @@ assert_eq!(report.output?, "Ship on Friday. Approved.");
 
 Which access reports a conflict does depend on timing: the one that touches the path second fails and never reaches the files. Yours returns the conflict, whose `detail` names both sides; a run access ends the run with run error kind `Determinism`, which the prompt cannot catch. The first write stays either way, so check the file before you retry.
 
-A denial reaches the prompt as a store error with reason `permission_denied`, which it can catch with `pcall`, Lua's protected call; uncaught, it ends the run with kind `Vfs`. Your own `Access` gets `PermissionDenied` with the verdict text in `reason`. A third variant, `Verdict::Ask(String)`, for an operation that needs user approval, arrives exactly as [`Verdict::Deny`](promptforge::vfs::Verdict::Deny) does, so read `reason` to tell them apart.
+A denial reaches the prompt as a store error with reason `permission_denied`, which it can catch with `pcall`, Lua's protected call; uncaught, it ends the run with kind `Vfs`. Your own `Access` gets `PermissionDenied` with the verdict text in `reason`. A third variant, `Verdict::Ask(String)`, for an operation that needs user approval, arrives exactly as [`Verdict::Deny`](runvil::vfs::Verdict::Deny) does, so read `reason` to tell them apart.
 
 The builder takes the policy by value, so to change it mid-run, have it read shared state such as an `Arc<Mutex<Verdict>>` field and keep a clone; the next operation sees the change.
 
@@ -235,7 +235,7 @@ The Harness's own file work, labeled `input: <path>` before the run and `output:
 
 You might expect a Host write to wait for the run's access, the way a `Mutex` would. Instead, a store operation fails at once with `VfsError::Conflict`, so retry only after the other access drops.
 
-The policy decides, the sink watches, `Origin` labels, and claims catch overlaps. The [Reference](#reference) covers only `Origin`, [`VfsError`], and [`VfsRef`], the three types this module exports. For [`Access`](promptforge::vfs::Access), `Policy`, `Verdict`, `Op`, and `OpEvent`, see `promptforge::vfs`; `Access` lists the operations the `VfsError` table names, such as `str_replace`, `read_range`, and `remove` with its `recursive` flag.
+The policy decides, the sink watches, `Origin` labels, and claims catch overlaps. The [Reference](#reference) covers only `Origin`, [`VfsError`], and [`VfsRef`], the three types this module exports. For [`Access`](runvil::vfs::Access), `Policy`, `Verdict`, `Op`, and `OpEvent`, see `runvil::vfs`; `Access` lists the operations the `VfsError` table names, such as `str_replace`, `read_range`, and `remove` with its `recursive` flag.
 
 # Reference
 

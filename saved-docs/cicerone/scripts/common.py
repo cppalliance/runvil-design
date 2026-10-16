@@ -38,7 +38,7 @@ TOUR_FIELDS = ("How", "What if", "Why", "Example", "Diagram")
 # Surface-check mode per facade. `xtask` runs `cargo xtask api --check` on the
 # pinned nightly, `checklist` rewrites variant-field links from the inventory,
 # and every other crate gets `none`, which the gate reports as not run.
-SURFACE = {"promptforge": "xtask", "harness": "checklist"}
+SURFACE = {"runvil": "xtask", "harness": "checklist"}
 
 
 def stop(message):

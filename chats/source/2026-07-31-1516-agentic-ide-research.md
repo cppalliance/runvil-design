@@ -8,7 +8,7 @@ if I wanted to create my own IDE for agentic workflow what are my options if I b
 
 I am leaning Tauri but before I do that how popular is it, and what software stack does VSCode/Cursor use
 
-@promptforge-ide this will be the project directory and it will have all the crates
+@runvil-ide this will be the project directory and it will have all the crates
 
 apply @tools-public/tools/architect.md
 
@@ -26,7 +26,7 @@ Here's what I need: Menubar, project treeview, editor tabs, terminal panel, chat
 
 shell plus global search and is this going to be able to open and edit files? and add folders to the workspace?
 
-I am building this in a separate repo from @promptforge but eventually I want to put all the crates together will that be a problem?
+I am building this in a separate repo from @runvil but eventually I want to put all the crates together will that be a problem?
 
 what is ui/ ?
 
@@ -36,19 +36,19 @@ so webview2 uses process isolation\
 
 sounds good. what is left?
 
-since we are merging later should we use promptforge- as the prefix here?
+since we are merging later should we use runvil- as the prefix here?
 
 I dont understand Browser panel. Is this for the editor? or is this for a full-blown browser experience connecting to the internet and surfing?
 
-what does "splits out a promptforge-search crate." mean in practical terms?
+what does "splits out a runvil-search crate." mean in practical terms?
 
-promptforge-core already exists in the other repo
+runvil-core already exists in the other repo
 
 I need the full browser and eventually the LLM will need to be able to drive it
 
 Rename it to vibbi
 
-does it matter that the repo dir is called promptforge-ide ?
+does it matter that the repo dir is called runvil-ide ?
 
 why are there two plans @c:\Users\Vinnie\.cursor\plans\rust_tauri_editor_substrate_2f025609.plan.md @c:\Users\Vinnie\.cursor\plans\rust_tauri_editor_substrate_9cfb8626.plan.md
 
@@ -379,7 +379,7 @@ Todos:
 
 Build the chat surface that was designed but never scheduled into a milestone. A dockable chat panel (scrolling transcript + an input box pinned at the bottom, opened from a new activity-bar entry, defaulting to a right-side pane) talks to an LLM through the Rust core, which streams tokens back to the UI. This is executed as a vibe run: small reviewed commits, work in subagents, following `tools-public/how-to/how-to-write-rust.md` and the plan's existing review checks, preserving the browser-isolation invariant.
 
-Repo is now at `c:\Users\Vinnie\src\cursor\vibbi` (renamed from promptforge-ide).
+Repo is now at `c:\Users\Vinnie\src\cursor\vibbi` (renamed from runvil-ide).
 
 ## Defaults I chose (correct any on confirm)
 
@@ -422,7 +422,7 @@ flowchart LR
 ## Out of scope (next milestone)
 
 - Agentic tool-use: letting the model call vibbi's `read_file`/`write_file`/`search_workspace`/`terminal_*`/`browser_*` commands in a tool-calling loop, with approval UI. This builds directly on slice 1-3 and on the CDP-drivable browser already in place.
-- Merging the chat onto the `promptforge` agent engine (an alternative you did not choose now).
+- Merging the chat onto the `runvil` agent engine (an alternative you did not choose now).
 
 Todos:
 

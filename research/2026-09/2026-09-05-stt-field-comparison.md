@@ -1,10 +1,10 @@
 # Realtime STT Architecture: Field Comparison and Adoption Priorities
 
-Report type: evaluation / review. It judges PromptForge against five open-source codebases sharing realtime speech-to-text architecture and prescribes idioms to adopt, in payoff order.
+Report type: evaluation / review. It judges Runvil against five open-source codebases sharing realtime speech-to-text architecture and prescribes idioms to adopt, in payoff order.
 
 ## Executive summary
 
-PromptForge has a strong native core wrapped in an unsafe service boundary. Its FFI ownership, dedicated inference workers, and generation-aware transcript protocol beat much of the field, but the absence of a backend seam, bounded admission, and per-session final-pass ownership makes the current design brittle under extension and concurrency. The highest-payoff change is to preserve the two-model stable-plus-unstable algorithm while moving model execution behind a provider-neutral contract.
+Runvil has a strong native core wrapped in an unsafe service boundary. Its FFI ownership, dedicated inference workers, and generation-aware transcript protocol beat much of the field, but the absence of a backend seam, bounded admission, and per-session final-pass ownership makes the current design brittle under extension and concurrency. The highest-payoff change is to preserve the two-model stable-plus-unstable algorithm while moving model execution behind a provider-neutral contract.
 
 ### Key findings
 
@@ -18,7 +18,7 @@ PromptForge has a strong native core wrapped in an unsafe service boundary. Its 
 
 ## Method
 
-PromptForge was profiled first through nine architecture lenses, with speech-to-text weighted above unrelated code. Fifteen open-source candidates were surveyed and fourteen were verified against source; five complementary references were selected and examined at pinned commits. Each cited idiom received a provenance tag, including pre-AI rewinds where explicit markers appeared. Findings were ranked by deficit severity, convergence, and adoption cost, then 27 citations were checked against the pinned clones; nine path corrections were applied and no finding was dropped.
+Runvil was profiled first through nine architecture lenses, with speech-to-text weighted above unrelated code. Fifteen open-source candidates were surveyed and fourteen were verified against source; five complementary references were selected and examined at pinned commits. Each cited idiom received a provenance tag, including pre-AI rewinds where explicit markers appeared. Findings were ranked by deficit severity, convergence, and adoption cost, then 27 citations were checked against the pinned clones; nine path corrections were applied and no finding was dropped.
 
 ## Reference projects and provenance
 
@@ -32,7 +32,7 @@ PromptForge was profiled first through nine architecture lenses, with speech-to-
 
 ## Baseline: where the subject stands
 
-PromptForge is a Rust-first STT stack built from Axum, Tokio, WebSockets, dedicated whisper.cpp worker threads, and a runtime-loaded C ABI. Its strongest mechanisms are dedicated blocking workers in `gateway-transcribe/src/worker.rs` and `final_pass.rs`, RAII wrappers in `gateway-whisper-ffi/src/library.rs` and `context.rs`, generation-aware frames in `gateway-stt/src/stt.rs`, and layered errors across the FFI, transcription, and Gateway crates.
+Runvil is a Rust-first STT stack built from Axum, Tokio, WebSockets, dedicated whisper.cpp worker threads, and a runtime-loaded C ABI. Its strongest mechanisms are dedicated blocking workers in `gateway-transcribe/src/worker.rs` and `final_pass.rs`, RAII wrappers in `gateway-whisper-ffi/src/library.rs` and `context.rs`, generation-aware frames in `gateway-stt/src/stt.rs`, and layered errors across the FFI, transcription, and Gateway crates.
 
 The main deficits are concrete. `gateway-transcribe/src/engine.rs`, `worker.rs`, and `final_pass.rs` hard-code whisper.cpp rather than a backend contract. `gateway-stt/src/stt.rs` and both worker modules use unbounded buffers or queues. `gateway-stt/src/runtime.rs` publishes engine and model-name state separately, waits without a shutdown bound, and silently resets active takes during profile switches. The final-pass worker owns one global current take, so simultaneous realtime clients can interleave resets and segment notifications. Rust and TypeScript duplicate the wire schema, the browser permits a new take while finalization is pending, and model-dependent integration tests are skipped in normal CI.
 
@@ -78,7 +78,7 @@ Replace the unbounded strong-count wait in `gateway-stt/src/runtime.rs` with a s
 
 Universal Realtime STT drives provider orchestration through deterministic doubles ([`tests/test_unit.py:24-263`](https://github.com/Chronica-Anima/universal-realtime-stt/blob/c3ce5b164154b10d6b46b58f24bb0c5714ed4b21/tests/test_unit.py#L24-L263)). GigaSTT enforces runtime-factory isolation in CI ([`runtime/factory.rs`](https://github.com/ekhodzitsky/gigastt/blob/da75d72bcbcf8b1ec908648ef0be29664983f436/crates/gigastt-core/src/runtime/factory.rs), [CI lines 212-222](https://github.com/ekhodzitsky/gigastt/blob/da75d72bcbcf8b1ec908648ef0be29664983f436/.github/workflows/ci.yml#L212-L222)).
 
-Add a fake backend that runs in every CI job and deterministically covers batch selection, hypothesis replacement, stable deltas, completion, overload, cancellation, profile changes, and concurrent session isolation. Keep real Whisper model tests as a second integration tier, not the only proof of critical behavior. Confidence: high - this directly closes PromptForge's skipped-test gap without weakening native coverage.
+Add a fake backend that runs in every CI job and deterministically covers batch selection, hypothesis replacement, stable deltas, completion, overload, cancellation, profile changes, and concurrent session isolation. Keep real Whisper model tests as a second integration tier, not the only proof of critical behavior. Confidence: high - this directly closes Runvil's skipped-test gap without weakening native coverage.
 
 ## Provenance
 
@@ -86,11 +86,11 @@ Five cited Dalston mechanisms carry explicit AI markers. Its canonical transcrip
 
 ## Where the subject already matches or beats the references
 
-- PromptForge isolates blocking native inference on dedicated threads as cleanly as Keyless and more clearly than Vox's cancellation path.
-- PromptForge's `gateway-whisper-ffi` RAII wrappers provide stronger native pointer and dynamic-library lifetime ownership than any shortlisted reference exposed.
-- PromptForge's generation-aware `stream`, `interim`, and `final` frames already reject stale restart output, a stronger explicit invariant than the small provider adapter projects.
-- PromptForge preserves source errors through FFI, transcription, and Gateway layers, while Vox collapses many backend failures to strings.
-- PromptForge's worker and runtime ownership is structural; it should preserve that strength when adding bounded session handles.
+- Runvil isolates blocking native inference on dedicated threads as cleanly as Keyless and more clearly than Vox's cancellation path.
+- Runvil's `gateway-whisper-ffi` RAII wrappers provide stronger native pointer and dynamic-library lifetime ownership than any shortlisted reference exposed.
+- Runvil's generation-aware `stream`, `interim`, and `final` frames already reject stale restart output, a stronger explicit invariant than the small provider adapter projects.
+- Runvil preserves source errors through FFI, transcription, and Gateway layers, while Vox collapses many backend failures to strings.
+- Runvil's worker and runtime ownership is structural; it should preserve that strength when adding bounded session handles.
 
 ## Messes we should explicitly not copy
 
@@ -121,6 +121,6 @@ Findings 1 and 5 begin as structural changes, but backend substitution, protocol
 - Keyless, https://github.com/hate/keyless, `4cefbea3755b6ad10757cc713b08fe639f40f9b6`, MIT, analyzed 2026-09-05.
 - Universal Realtime STT, https://github.com/Chronica-Anima/universal-realtime-stt, `c3ce5b164154b10d6b46b58f24bb0c5714ed4b21`, MIT, analyzed 2026-09-05.
 - Dalston, https://github.com/ssarunic/dalston, `04c99b307d7b7563c6e7be711b1f48447cde9814`, Apache-2.0, analyzed 2026-09-05. Rewinds: `ddd1b11a181683a7dcb1c748226267b9ec0540ed`, `77316618ab802563f823bc336e71522c6dc3def1`, `eade4b733a0bdaa164e5f744703f2755e24a5ebb`.
-- Field survey and PromptForge profile produced 2026-09-05.
+- Field survey and Runvil profile produced 2026-09-05.
 
 *2026-09-05 07:55 - GPT-5.6 Sol*

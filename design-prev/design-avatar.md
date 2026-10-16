@@ -21,7 +21,7 @@ It does not cover the Mentographist prompt, the conversation compaction, the bac
 What this layer does not do, and cannot be made to do without a change to this document:
 
 - Generate speech. The audio is Chatterbox Turbo's, exactly as today. This layer consumes that audio and never produces any.
-- Reach an LLM. The avatar stage sits downstream of every model call and makes none of its own. It never touches `promptforge-gateway`.
+- Reach an LLM. The avatar stage sits downstream of every model call and makes none of its own. It never touches `runvil-gateway`.
 - Take a turn. It renders the answer that the pipeline already decided to speak, and it holds no state that survives the turn.
 - Understand the user. There is no camera, no gaze tracking, no facial perception of the person sitting in front of it. Talktron listens with a microphone and nothing else.
 - Render a body, hands, or a background that moves independently of the source loop. The frame is a head and shoulders against whatever was behind them when the loop was captured.
@@ -70,7 +70,7 @@ Five options were considered against those criteria. Table 1 scores them; the pr
 
 The avatar is one stage appended to a cascade that already exists. Figure 1 shows where it attaches and what crosses each boundary.
 
-**Figure 1. Talktron's pipeline with the avatar stage attached.** The `existing` subgraph predates this document and is unchanged. `promptforge-gateway` is reached exactly as it is today, from the LLM stage only. The single node labelled "one PCM buffer" is where synchronisation is won or lost.
+**Figure 1. Talktron's pipeline with the avatar stage attached.** The `existing` subgraph predates this document and is unchanged. `runvil-gateway` is reached exactly as it is today, from the LLM stage only. The single node labelled "one PCM buffer" is where synchronisation is won or lost.
 
 ```mermaid
 flowchart TB
@@ -78,7 +78,7 @@ flowchart TB
         Mic["Browser microphone"]
         VAD["Silero VAD<br/>CPU"]
         STT["faster-whisper large-v3-turbo<br/>GPU ~6 GB"]
-        LLM["LLM turn<br/>via promptforge-gateway"]
+        LLM["LLM turn<br/>via runvil-gateway"]
         TTS["Chatterbox Turbo 350M<br/>GPU ~3 GB"]
 
         Mic -->|"WebSocket PCM"| VAD
@@ -191,7 +191,7 @@ Hardware encoding through NVENC is intended but not assumed. The `av` build has 
 - No third-party avatar API - ruled out by the standing 2026-07-24 constraint, and the better options in that category are named in `## Options` rather than hidden
 - No second TTS pass for the avatar branch - both branches descend from one buffer, which is what makes sync arithmetic
 - No replacement of the existing WebSocket - it keeps carrying microphone audio, transcript, and control, none of which benefit from WebRTC
-- No avatar in a PromptForge prompt - this is Talktron's layer, and `design.md`'s rule that no prompt requires audio extends unchanged to video
+- No avatar in a Runvil prompt - this is Talktron's layer, and `design.md`'s rule that no prompt requires audio extends unchanged to video
 
 ## Build path
 

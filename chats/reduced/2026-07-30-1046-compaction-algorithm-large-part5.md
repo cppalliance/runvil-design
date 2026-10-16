@@ -32,9 +32,9 @@
 
 **[p346]** well yeah paperflow is read-only
 
-**[p347]** obviously promptforge has to handle edit in place wtf..
+**[p347]** obviously runvil has to handle edit in place wtf..
 
-**[p348]** promptforge needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.
+**[p348]** runvil needs to be able to be used in a way that is equal to the power of an agentic harness like Cursor or Claude Code. Better in fact.
 
 **[p349]** Lua needs equal access to the vfs
 
@@ -82,7 +82,7 @@ Search for {{ input }} on the web.
 
 **[p372]** nesting limit, step budget, tool budget
 
-**[p376]** no I mean if we embed the xml blocks, the numbered bullets in a Promptforge program, what is the syntax for extracting that material into a fanout?
+**[p376]** no I mean if we embed the xml blocks, the numbered bullets in a Runvil program, what is the syntax for extracting that material into a fanout?
 
 **[p377]** update the plan with everything we know. put all the control flow, xml, store, and related things together in one tight compact section iun the plan
 
@@ -148,16 +148,16 @@ Kept principle and rationale statements:
 - Migration: proof-of-concept alongside assay, starting with PaperGate; graduate if PaperGate validates the model.
 - Appendix (compaction): recursive halving of the first N/2 lines; fidelity gradient (recent full-resolution, older progressively compressed); structured preamble (prompt + state) exempt; pre-compaction at 90% capacity to hide latency; full transcript preserved in database; NOT relevant to the orchestrator (goto clears context instead of compacting).
 
-### PromptForge Executor Tranche 1
+### Runvil Executor Tranche 1
 
-*Scaffold the promptforge Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
+*Scaffold the runvil Rust workspace and implement the section parser - the smallest deliverable that proves the repo builds, tests pass, and a prompt file can be split into its section map.*
 
 Deliverable: one lib crate + one bin crate; the binary parses a prompt file into a section tree (frontmatter + H2 sections + H3 children + Lua blocks separated from prose) and prints it. No inference, no Lua, no tools.
 
 Design decisions settled (from the plan's STATUS.md seed):
 
 - Rust + mlua (not Python + lupa)
-- Multi-crate workspace: promptforge-core (lib), promptforge-cli (bin)
+- Multi-crate workspace: runvil-core (lib), runvil-cli (bin)
 - Fall-through default, context clears on every section transition
 - args global and read-only for the run
 - State tiering: files primary, counters for audit, store for battery+coupling
@@ -167,20 +167,20 @@ Open questions: call syntax: positional vs table-form; context-preserving call: 
 
 ### gateway v0
 
-*Stand up promptforge-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire promptforge-core to talk through it with a shared token (moving the vendor key out of the executor). Retire the completed tranche 1 plan.*
+*Stand up runvil-gateway as a walking skeleton: an axum service that holds the LLM credential, maps model names to a backend, and forwards OpenAI-shaped chat completions. Rewire runvil-core to talk through it with a shared token (moving the vendor key out of the executor). Retire the completed tranche 1 plan.*
 
-Approach: breadth-first - stand the crate up, establish the seam, defer everything hard. Afterward `promptforge run` requires the gateway; the executor no longer knows any vendor.
+Approach: breadth-first - stand the crate up, establish the seam, defer everything hard. Afterward `runvil run` requires the gateway; the executor no longer knows any vendor.
 
 Two decisions (veto at confirmation):
 
-- Same workspace: new crate crates/promptforge-gateway (binary + thin lib target), not a separate repo - the end-to-end test drives the gateway with core's real client in one cargo test, matching the design's "binary crate with a thin library target."
-- Rewire now: core stops reading ANTHROPIC_API_KEY and points at the gateway; `promptforge run` now requires the gateway running.
+- Same workspace: new crate crates/runvil-gateway (binary + thin lib target), not a separate repo - the end-to-end test drives the gateway with core's real client in one cargo test, matching the design's "binary crate with a thin library target."
+- Rewire now: core stops reading ANTHROPIC_API_KEY and points at the gateway; `runvil run` now requires the gateway running.
 
 Deferred, each with a one-line note in the crate doc "so each is a decision not an omission": admission control / permits, endpoint pinning, model packs, hot reload, the Anthropic protocol shim (v0's single endpoint IS Anthropic's OpenAI-compatible endpoint), streaming, /metrics /status, OS service installers.
 
 ### Lua args substitution
 
-*Embed Lua (mlua) in promptforge-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else - no files, store, exits, fall-through, or model-side control.*
+*Embed Lua (mlua) in runvil-core, run a section's Lua block in a sandbox with a read-only args table and a writable var table, and resolve {{ args.x }} / {{ var.x }} in the prose before the model turn. Nothing else - no files, store, exits, fall-through, or model-side control.*
 
 Semantics: args positional -> args[1..] (1-indexed, Lua convention), key=value -> args.name. Substitution: scalars -> string, tables -> JSON, missing key -> hard error, single pass.
 
@@ -190,9 +190,9 @@ Explicitly deferred to later rungs: virtual files, store, counters, goto/task/fa
 
 ### webfetch crate extraction
 
-*Extract web_fetch from promptforge-core into a new promptforge-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
+*Extract web_fetch from runvil-core into a new runvil-webfetch crate, implement the full fetch security surface (SSRF URL policy, blocked-CIDR guarded DNS resolver, redirect re-check, size/char caps, content-type routing, timeouts), and move design-search.md into the crate as design-webfetch.md refocused to the real Tool-trait architecture.*
 
-web_search stays in core (it proxies through the gateway; no model-chosen URL, no SSRF surface). promptforge-webfetch depends on promptforge-core for the Tool trait, "exactly as an extension crate should."
+web_search stays in core (it proxies through the gateway; no model-chosen URL, no SSRF surface). runvil-webfetch depends on runvil-core for the Tool trait, "exactly as an extension crate should."
 
 Security surface (the design spec): SSRF URL policy (scheme allowlist https, http only if allow_http; no userinfo; ports [80, 443]; no bare IP literals); blocked-CIDR table (full IPv4 + IPv6) plus deny_extra/allow_exact; guarded DNS resolver filtering answers through the CIDR policy (defeats rebinding and multi-answer attacks, covers redirect hops); per-hop redirect re-check, cap 5, no https->http downgrade; size caps (Content-Length pre-check, streamed 8 MiB, 40k max_chars with truncated flag); content-type routing (html -> readability+htmd; text/json/xml -> plain; binary or absent -> refuse, no sniffing); charset via encoding_rs; connect 5s / total 20s timeouts; no cookies, no credential header.
 
@@ -202,7 +202,7 @@ Non-goals: no change to web_search or the gateway; no prompts.toml [extensions] 
 
 ### multi-turn research prompt
 
-*Author a PromptForge prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
+*Author a Runvil prompt that researches a person across multiple web_search and web_fetch turns and returns a ~500-600 token summary, and make the tool-call loop's iteration cap configurable so genuine multi-turn research does not hit the current hard limit of 10.*
 
 Rests entirely on existing machinery; no new tool, store, or token-enforcement mechanism.
 Stop-and-return: the tool-call loop already ends a section when the model replies with text and no tool calls, and that text becomes the run result; the token target is a prose instruction the model self-limits to (no hard cap).
@@ -247,9 +247,9 @@ Non-goals: a probabilistic mitigation, not a boundary - it does not replace per-
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil.md
 
-BLUF: PromptForge is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing goto, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped", so a new pipeline is a new markdown file, not hundreds of lines of new Python.
+BLUF: Runvil is a general-purpose runtime that executes analysis pipelines defined entirely in a single markdown document. The markdown is the program, the model is the CPU, embedded Lua is the microcode, and a ~300-800 line Python harness is the instruction decoder. A pipeline is a set of named sections; the model transitions between them with a context-clearing goto, builds all state through flat tool calls into a persistent store, and spawns subagents by section reference so the prompt author's exact words execute without drift. Each section declares its model tier and its scoped tool set in a Lua block that also runs preconditions and postconditions. The same generic runtime runs any pipeline that is "assay-shaped", so a new pipeline is a new markdown file, not hundreds of lines of new Python.
 
 Payoff: iteration speed (idea to running in an hour, edited in one file, no orchestration code); model sovereignty (every design decision - context clearing, flat tool calls, per-section scoping, fan-out to small models - is chosen to make mid-size open-weight models reliable, at roughly 1/100th of frontier API cost); integrity (subagent prompts shipped verbatim from named sections rather than paraphrased by the model - what you test is what runs).
 
@@ -265,37 +265,37 @@ Prior-art lessons and novelty:
 
 Architecture: three layers - the runtime is generic and fixed; the tool library grows slowly and is shared across pipelines; the pipeline documents are one markdown file each, and they are where all iteration happens. The runtime never contains orchestration logic, prompt assembly, or step ordering; those live in the markdown. The tool library never contains pipeline-specific logic; each tool is a thin, flat-signature function. This separation lets one runtime run every pipeline.
 
-The four primitives: everything in PromptForge reduces to four mechanisms; every later feature is a composition of these four. "A reader should finish the document thinking 'that is all it is,' which is the point."
+The four primitives: everything in Runvil reduces to four mechanisms; every later feature is a composition of these four. "A reader should finish the document thinking 'that is all it is,' which is the point."
 
 1. Parse. Read a markdown file into a section map. H2s are the primary addressable sections; H3s are children of their H2, individually addressable for fan-out. ## Main is the entry point.
 2. Configure. Run a section's optional Lua block, exposing five host objects: state, store, tools, params, context. Preconditions run before the model launches; postconditions after the model calls done().
 3. Execute. Run a section as a tool-call loop over a fresh context (section prose + Lua-injected context + scoped tool schemas) until the model calls done() or a budget is hit.
 4. Dispatch. Resolve a tool name to a function, validate its flat arguments, run it, return a short result string.
 
-### c:\Users\Vinnie\src\cursor\wg21-paperflow\promptforge-transcript.md
+### c:\Users\Vinnie\src\cursor\wg21-paperflow\runvil-transcript.md
 
-[pasted: promptforge-transcript.md, July 23-24 design session transcript - compaction algorithm, tool-call state instead of Pydantic output, goto with context clearing, verbatim Task("## Section") dispatch, nesting with safety valve, model tiering, Mentograph distillation and economics - ~600 lines in two near-duplicate copies plus a checkpoint continuation]
+[pasted: runvil-transcript.md, July 23-24 design session transcript - compaction algorithm, tool-call state instead of Pydantic output, goto with context clearing, verbatim Task("## Section") dispatch, nesting with safety valve, model tiering, Mentograph distillation and economics - ~600 lines in two near-duplicate copies plus a checkpoint continuation]
 
-### c:\Users\Vinnie\src\cursor\promptforge-design\example-diligence.md
+### c:\Users\Vinnie\src\cursor\runvil-design\example-diligence.md
 
 [pasted: example-diligence.md, a teaching-example prompt exercising every language idiom (frontmatter, substitution, Main, fall-through, Lua model()/tools.add(), virtual files, counters, store queries, fanout over ### children, task dispatch, return fence, pre/postconditions), ~260 lines]
-### c:\Users\Vinnie\src\cursor\promptforge-design\design-plans.md
+### c:\Users\Vinnie\src\cursor\runvil-design\design-plans.md
 
 [pasted: design-plans.md, an index of seven plan files with links]
 
-### c:\Users\Vinnie\src\cursor\promptforge\AGENTS.md
+### c:\Users\Vinnie\src\cursor\runvil\AGENTS.md
 
-[pasted: promptforge/AGENTS.md, workspace rules - update STATUS.md before committing (under 80 lines), doc-comment every public item, the plan is the spec]
+[pasted: runvil/AGENTS.md, workspace rules - update STATUS.md before committing (under 80 lines), doc-comment every public item, the plan is the spec]
 
-### c:\Users\Vinnie\src\cursor\promptforge\README.md
+### c:\Users\Vinnie\src\cursor\runvil\README.md
 
-[pasted: promptforge/README.md, workspace layout, build/run instructions, prompt file anatomy - sections fall through in file order and context clears on each transition]
+[pasted: runvil/README.md, workspace layout, build/run instructions, prompt file anatomy - sections fall through in file order and context clears on each transition]
 
-### c:\Users\Vinnie\src\cursor\promptforge\STATUS.md
+### c:\Users\Vinnie\src\cursor\runvil\STATUS.md
 
 Decisions settled:
 
-- Rust multi-crate workspace: promptforge-core (lib), promptforge-cli (bin)
+- Rust multi-crate workspace: runvil-core (lib), runvil-cli (bin)
 - OpenAI-compatible HTTP (Anthropic URL hardcoded now, gateway later)
 - Entry point is the first H2, not a named section
 - Recursive heading nesting (H2-H6); skipped levels tolerated

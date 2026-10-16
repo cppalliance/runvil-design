@@ -149,7 +149,7 @@ Hello, world!
 
 **[p192]** oh.... now I get it. Of course they should not share them. that's unnecessary coupling.
 
-**[p193]** @c:\Users\Vinnie\.cursor\plans\promptforge_executor_tranche_1_08fd6c2c.plan.md do we need this?
+**[p193]** @c:\Users\Vinnie\.cursor\plans\runvil_executor_tranche_1_08fd6c2c.plan.md do we need this?
 
 **[p194]** lets plan the gateway. in the plan, plan the move to trash too
 
@@ -205,9 +205,9 @@ Hello, world!
 
 **[p219]** is this all in the design doc
 
-**[p220]** update this @promptforge-design/design/design-gateway.md
+**[p220]** update this @runvil-design/design/design-gateway.md
 
-**[p221]** Okay, let's talk about the control flow. @c:\Users\Vinnie\.cursor\plans\promptforge_orchestrator_only.plan.md
+**[p221]** Okay, let's talk about the control flow. @c:\Users\Vinnie\.cursor\plans\runvil_orchestrator_only.plan.md
 
 **[p222]** I want to refine the call() model. The full call() has the different kinds. but what if a section is only going to goto with clear? we could restrict the tools further. we can just offer goto() that has no mode. this reduces pressure because the model doesnt have to pick a call kind
 

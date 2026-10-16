@@ -97,7 +97,7 @@ Trilium serves `/api/images/:noteId/:filename` and `/api/attachments/:attachment
 
 What it replaces: every server route addresses a bundle asset or a raw OS path passed as a query parameter; nothing serves an object by identity.
 
-The fix: a `GET /_promptforge/{*path}` dispatcher over an `ArtifactProvider` slot, with four rules from the field: registering a provider for an already-registered kind is an error, never a shadow; a provider keys on id and facet, and the last segment under a file facet is presentational only; `Cache-Control: no-store` on every artifact response; and a body type that can be text, bytes, or a stream so a large event log is not buffered.
+The fix: a `GET /_runvil/{*path}` dispatcher over an `ArtifactProvider` slot, with four rules from the field: registering a provider for an already-registered kind is an error, never a shadow; a provider keys on id and facet, and the last segment under a file facet is presentational only; `Cache-Control: no-store` on every artifact response; and a body type that can be text, bytes, or a stream so a large event log is not buffered.
 
 Confidence: high on the route shape, medium on the streaming body, which only one reference shows.
 

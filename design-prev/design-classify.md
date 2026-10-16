@@ -1,12 +1,12 @@
-<!-- STATUS: crate doc - promptforge-ext-classify - behind Cargo feature `classify` - see design.md for the system -->
+<!-- STATUS: crate doc - runvil-ext-classify - behind Cargo feature `classify` - see design.md for the system -->
 
-# `promptforge-ext-classify`: in-process classifiers as Lua host objects
+# `runvil-ext-classify`: in-process classifiers as Lua host objects
 
 ## Scope
 
 This crate is the first real `Extension` implementation and the reference other extension authors copy. It runs text classifiers and embedders in-process on the GPU through ONNX Runtime and exposes them to prompt authors as Lua host objects. It contributes four functions, three ONNX-backed model kinds, and one startup self-check. That is the whole crate.
 
-It is not part of the core library. `promptforge` knows no domain, and a classifier is a domain: it has a label vocabulary, a hypothesis template, a checkpoint, and a device. All of that lives here, behind the `classify` Cargo feature. Built without the feature the binary is self-contained, no CUDA shared library is loaded, and no prompt may name a `classify` function. Built with it, CUDA shared libraries become a deployment dependency, which costs nothing because both target environments already have CUDA installed and a shared library is ordinary native practice rather than the interpreter-and-package-tree dependency the single-binary goal exists to avoid.
+It is not part of the core library. `runvil` knows no domain, and a classifier is a domain: it has a label vocabulary, a hypothesis template, a checkpoint, and a device. All of that lives here, behind the `classify` Cargo feature. Built without the feature the binary is self-contained, no CUDA shared library is loaded, and no prompt may name a `classify` function. Built with it, CUDA shared libraries become a deployment dependency, which costs nothing because both target environments already have CUDA installed and a shared library is ordinary native practice rather than the interpreter-and-package-tree dependency the single-binary goal exists to avoid.
 
 What this crate does not do, and cannot be made to do without a change to this document:
 
@@ -28,13 +28,13 @@ The test of the boundary: removing this crate from the workspace leaves every ot
 - `ort` at exactly `=2.0.0-rc.12`, with the `cuda` feature, binding ONNX Runtime for the NLI cross-encoder path.
 - `fastembed` at exactly `=5.17.2`, for text embedding and cross-encoder rerank. It re-exports `ort`, which is why the `ort` pin is not independently chosen.
 - `tokenizers` at exactly `=0.23.1`, HuggingFace's own Rust implementation, for preprocessing. No Python enters the runtime.
-- `promptforge`, `serde`, `serde_json`, `schemars`, `thiserror`, and `tokio` from the workspace, at whatever the workspace pins. Notably not `mlua`: the core owns every Lua binding.
+- `runvil`, `serde`, `serde_json`, `schemars`, `thiserror`, and `tokio` from the workspace, at whatever the workspace pins. Notably not `mlua`: the core owns every Lua binding.
 
 Every version is an exact `=` pin rather than a caret range. The reason is in `## Carrying the ort release-candidate risk` below and it is not a general workspace habit.
 
 ## The `Extension` impl
 
-The trait is `promptforge::Extension`, reproduced from the core doc without modification. `ClassifyExt` implements all eight methods, including all four the trait defaults, because a reader of this file should see every decision made rather than inherited. Two of those defaults are restated here rather than inherited and both are the empty answer: `holds_section_state` returns false, because a classification is a call and a result with nothing held past it, so this extension has no savepoint a nested section could interleave with and never costs a deployment its fan-out concurrency; `summarize` returns `None`, because this crate commits nothing and a run summary reporting how many times a classifier was called would be noise rather than information.
+The trait is `runvil::Extension`, reproduced from the core doc without modification. `ClassifyExt` implements all eight methods, including all four the trait defaults, because a reader of this file should see every decision made rather than inherited. Two of those defaults are restated here rather than inherited and both are the empty answer: `holds_section_state` returns false, because a classification is a call and a result with nothing held past it, so this extension has no savepoint a nested section could interleave with and never costs a deployment its fan-out concurrency; `summarize` returns `None`, because this crate commits nothing and a run summary reporting how many times a classifier was called would be noise rather than information.
 
 ```rust
 pub struct ClassifyExt {
@@ -332,7 +332,7 @@ classify_embed = "onnx"
 classify_rank = "onnx"
 
 [extensions.onnx]
-model_root = "/srv/promptforge/models"
+model_root = "/srv/runvil/models"
 verify = "hash"
 self_check_max_ms = 20
 
@@ -630,15 +630,15 @@ Under the system's rerun-everything principle this is enough for a rerun of the 
 
 ## Feature gating and the dependency tree
 
-In the two host binaries, `promptforge-mcp` and `promptforge-cli`:
+In the two host binaries, `runvil-mcp` and `runvil-cli`:
 
 ```toml
 [features]
 default = []
-classify = ["dep:promptforge-ext-classify"]
+classify = ["dep:runvil-ext-classify"]
 
 [dependencies]
-promptforge-ext-classify = { path = "../promptforge-ext-classify", optional = true }
+runvil-ext-classify = { path = "../runvil-ext-classify", optional = true }
 ```
 
 Registration is explicit, in the central `register_all`, gated by the same feature:
@@ -658,7 +658,7 @@ In this crate:
 
 ```toml
 [dependencies]
-promptforge = { path = "../promptforge" }
+runvil = { path = "../runvil" }
 ort = { version = "=2.0.0-rc.12", default-features = false, features = ["cuda", "load-dynamic"] }
 fastembed = { version = "=5.17.2", default-features = false }
 tokenizers = { version = "=0.23.1", default-features = false, features = ["onig"] }

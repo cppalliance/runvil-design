@@ -26,7 +26,7 @@ Recorded at the Phase 3 live rerun:
 - `response_format = "wav"` returns `Content-Type: audio/wav` with a byte-nonempty RIFF/WAVE body.
 - An input carrying `<laugh>` returns 200 with audio: angle-bracket emotion tags pass through the gateway untouched.
 - `GET /v1/audio/voices` returns 200 with `{"voices": [...]}` holding the eight configured voices as sorted `{"id", "name"}` objects with `name` mirroring `id`.
-- The named optional `instructions` field is forwarded and tolerated with a 2xx, and fields outside the gateway's named wire set (`sample_rate`, a bogus `promptforge_probe`) ride the verbatim passthrough and come back 2xx.
+- The named optional `instructions` field is forwarded and tolerated with a 2xx, and fields outside the gateway's named wire set (`sample_rate`, a bogus `runvil_probe`) ride the verbatim passthrough and come back 2xx.
 
 ## Observed dialect (filled in at the Phase 3 live rerun)
 

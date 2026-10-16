@@ -1,11 +1,11 @@
-# Building the promptforge-tool-picker crate
+# Building the runvil-tool-picker crate
 
-Building this crate gives a promptforge prompt two ways to obtain an MCP tool for a capability
+Building this crate gives a runvil prompt two ways to obtain an MCP tool for a capability
 described in plain English: a static, launch-time binding declared in Lua, and a dynamic,
 runtime discovery tool the model can call. Both are backed by one local, deterministic
 sentence-embedding engine over the connected servers' tool catalog, and both resolve through a
 single four-outcome policy (bind / duplicate / foreign-ambiguous / absent). The crate holds the
-resolution semantics and the Lua-facing API; it depends on a separate thin `promptforge-mcp-client`
+resolution semantics and the Lua-facing API; it depends on a separate thin `runvil-mcp-client`
 for protocol.
 
 ## Executive summary
@@ -54,7 +54,7 @@ own machinery.
 9. On dynamic resolution the harness rewrites the context (chosen descriptor before the prose,
    discovery episode excised) so the dynamic path converges onto the static execution state. One
    execution model, regardless of surface.
-10. The crate depends on a separate thin `promptforge-mcp-client` for protocol and owns only the
+10. The crate depends on a separate thin `runvil-mcp-client` for protocol and owns only the
     semantics. Protocol consumers (such as the CLI) must not pull the embedding model, and each crate
     stays small enough for a coding LLM to hold whole.
 11. An optional model-tiered configuration (strong-model select -> context-clearing goto ->
@@ -101,16 +101,16 @@ excising the call, and the main model calls the tool. The retriever result is ca
 
 ## Configuration, normative shape
 
-- Connected MCP servers: list of `{ name, url|command, auth }` (delegated to `promptforge-mcp-client`).
+- Connected MCP servers: list of `{ name, url|command, auth }` (delegated to `runvil-mcp-client`).
 - Embedding model id (default `bge-small-en-v1.5`), bundled weights path.
 - Resolution thresholds: similarity floor, margin, duplicate threshold, top-k.
 - Context-rewrite opt-out (per prompt/section).
 
 ## Crate boundaries
 
-- Depends on `promptforge-core` for the `Tool` trait and on `promptforge-mcp-client` for protocol.
+- Depends on `runvil-core` for the `Tool` trait and on `runvil-mcp-client` for protocol.
 - Owns: the embedding engine, the four-outcome policy, the Lua verbs, and the context-rewrite hook.
-- Does not own: MCP transport/JSON-RPC (that is `promptforge-mcp-client`), the model that does dynamic
+- Does not own: MCP transport/JSON-RPC (that is `runvil-mcp-client`), the model that does dynamic
   selection (that is the author's main-context model).
 
 ## Evidence (reconciled from RESULTS.md; 29,226 cases over the full 9,922-tool catalog, bge-small)

@@ -5,13 +5,13 @@ title: Workshop Terminals panel assessment - real PTY substrate over WebSocket w
 
 # Build the Workshop Terminals panel on a real PTY substrate, and give Bashkit to the agent rather than the user
 
-Report type: analytical / recommendation. Audience: the PromptForge project lead and the Workshop maintainers. Decision served: how PromptForge Workshop should implement a VS Code-style Terminals panel, which shell substrate should sit behind it, and whether Bashkit belongs in the user's panel, in the agent's toolset, or in neither. Evidence: a read of the Workshop crates and SPA on 2026-09-19, a read of the Bashkit source tree at `bashkit/` (version 0.18.0), and four web surveys of existing terminal implementations run the same day. Web-sourced facts were verified by the surveying agents against GitHub, crates.io, npm, and vendor documentation on 2026-09-19; this report did not independently re-verify each one and marks them as web-sourced.
+Report type: analytical / recommendation. Audience: the Runvil project lead and the Workshop maintainers. Decision served: how Runvil Workshop should implement a VS Code-style Terminals panel, which shell substrate should sit behind it, and whether Bashkit belongs in the user's panel, in the agent's toolset, or in neither. Evidence: a read of the Workshop crates and SPA on 2026-09-19, a read of the Bashkit source tree at `bashkit/` (version 0.18.0), and four web surveys of existing terminal implementations run the same day. Web-sourced facts were verified by the surveying agents against GitHub, crates.io, npm, and vendor documentation on 2026-09-19; this report did not independently re-verify each one and marks them as web-sourced.
 
 ## Executive summary
 
-Build the Terminals panel as a real pseudo-terminal (PTY) substrate: a new `workshop-terminals` feature crate spawns the user's shell in a PTY through `portable-pty`, streams bytes to an xterm.js panel in the bottom dock over one WebSocket per tab, and adopts the protocol that every mature web terminal converged on: typed binary frames, byte-count acknowledgement flow control, a sequence-numbered replay buffer, and two-tier grace timers. Do not put Bashkit behind the user's terminal. Do adopt Bashkit as the agent's sandboxed file shell through the `promptforge/bashkit` capability the runtime already names, with its git feature left off.
+Build the Terminals panel as a real pseudo-terminal (PTY) substrate: a new `workshop-terminals` feature crate spawns the user's shell in a PTY through `portable-pty`, streams bytes to an xterm.js panel in the bottom dock over one WebSocket per tab, and adopts the protocol that every mature web terminal converged on: typed binary frames, byte-count acknowledgement flow control, a sequence-numbered replay buffer, and two-tier grace timers. Do not put Bashkit behind the user's terminal. Do adopt Bashkit as the agent's sandboxed file shell through the `runvil/bashkit` capability the runtime already names, with its git feature left off.
 
-The codebase is closer to ready than expected. The layout reserves a `bottom` zone, the menu already lists the terminal commands as stubs, the `/agents/ws` socket is the streaming template, and the capability trait already declares `promptforge/bashkit` and `promptforge/terminal` as mutually exclusive filesystem realities. Nothing in `workshop-*` or `harness-*` spawns an interactive process today, so the PTY layer is greenfield, and the one shared-code change with real design weight is in the keybinding dispatcher, which currently swallows every registered chord before it can reach a terminal.
+The codebase is closer to ready than expected. The layout reserves a `bottom` zone, the menu already lists the terminal commands as stubs, the `/agents/ws` socket is the streaming template, and the capability trait already declares `runvil/bashkit` and `runvil/terminal` as mutually exclusive filesystem realities. Nothing in `workshop-*` or `harness-*` spawns an interactive process today, so the PTY layer is greenfield, and the one shared-code change with real design weight is in the keybinding dispatcher, which currently swallows every registered chord before it can reach a terminal.
 
 Bashkit fails as a user shell because it runs no processes and has no TTY model: `cargo build`, `vim`, `less`, real `git`, and mid-command input do not exist. Those same properties make it a strong agent tool: no sandbox escape, identical behavior on every platform, resource limits, static script analysis for approval prompts, and snapshotting for run records. Its git builtin is a ledger of commit messages with no content storage, so `checkout` moves nothing and `diff` returns a placeholder; it must not be presented to a model as git.
 
@@ -38,7 +38,7 @@ First, implement the Terminals panel as a real PTY substrate. A `workshop-termin
 
 Second, do not build a Bashkit-backed terminal for the user, in v1 or later. A virtual shell that cannot run the user's toolchain fails the reason a developer opens a terminal, and the client-side line discipline it would need is work with no reuse. Confidence high: the limitation is structural, not a missing feature.
 
-Third, give Bashkit to the agent as the `promptforge/bashkit` capability, feature-gated, with `default-features = false` and the `git` feature off, after the VFS adapter spike proves the `shared-vfs` trait subsumes Bashkit's `FileSystem`. Keep the real PTY substrate as the future backing for the `promptforge/terminal` capability, so the user's Terminals panel and the agent's terminal share one process-owning layer with different owners and lifecycles. Confidence medium: the trait surfaces on both sides are documented for this purpose, but the adapter has not been compiled.
+Third, give Bashkit to the agent as the `runvil/bashkit` capability, feature-gated, with `default-features = false` and the `git` feature off, after the VFS adapter spike proves the `shared-vfs` trait subsumes Bashkit's `FileSystem`. Keep the real PTY substrate as the future backing for the `runvil/terminal` capability, so the user's Terminals panel and the agent's terminal share one process-owning layer with different owners and lifecycles. Confidence medium: the trait surfaces on both sides are documented for this purpose, but the adapter has not been compiled.
 
 ## 2. Criteria the design was judged against
 
@@ -60,7 +60,7 @@ Effort comes last, measured as lines of new code and the number of foreign syste
 
 ## 3. Where Workshop stands today
 
-Workshop already reserves the slot, names the commands, and provides the streaming template. What it lacks is any process-owning layer and a keybinding path that lets keys reach a raw input surface. Every claim in this section is from a direct read of the `promptforge/` tree on 2026-09-19.
+Workshop already reserves the slot, names the commands, and provides the streaming template. What it lacks is any process-owning layer and a keybinding path that lets keys reach a raw input surface. Every claim in this section is from a direct read of the `runvil/` tree on 2026-09-19.
 
 ### 3.1 The layout reserves a bottom zone and the menu lists terminal stubs
 
@@ -86,7 +86,7 @@ This is the one shared-code change with design weight. `ui/layout/keybinding-dis
 
 ### 3.5 The runtime already names the two shell realities
 
-`crates/promptforge-api-types/src/capabilities.rs` lines 295 to 300 document `Capability::conflicts` with one example: "bashkit and a terminal are two filesystem realities, and a context gets one or the other, never both." `crates/promptforge-api-runtime/tests/suite/prepare.rs` lines 599 to 608 exercise a prompt declaring `promptforge/bashkit` and `promptforge/terminal` and assert that preparation names both. `RunServices` holds `vfs: VfsRef` and `cancel: CancelHandle`, and `Contribution` holds `tools`, which is what a Bashkit capability needs. The 2026-09-11 VFS foundation plan (`promptforge/vibe/2026-09-11-3-vfs-foundation.md`) lists a `bashkit-adapter` spike whose deliverable is "evidence, not integration" and records that the workspace toolchain (stable 1.98) is compatible with Bashkit's 1.95 pin. `shared-vfs/src/host.rs` line 11 defers "Stage 2 hardening (the Bashkit RealFs resolver trio, symlink policies, Windows long paths and device names)." No adapter code exists in the tree; `2026-09-12-everruns-integration-paths.md` line 56 calls the spike "completed," which this report could not confirm and treats as unverified.
+`crates/runvil-api-types/src/capabilities.rs` lines 295 to 300 document `Capability::conflicts` with one example: "bashkit and a terminal are two filesystem realities, and a context gets one or the other, never both." `crates/runvil-api-runtime/tests/suite/prepare.rs` lines 599 to 608 exercise a prompt declaring `runvil/bashkit` and `runvil/terminal` and assert that preparation names both. `RunServices` holds `vfs: VfsRef` and `cancel: CancelHandle`, and `Contribution` holds `tools`, which is what a Bashkit capability needs. The 2026-09-11 VFS foundation plan (`runvil/vibe/2026-09-11-3-vfs-foundation.md`) lists a `bashkit-adapter` spike whose deliverable is "evidence, not integration" and records that the workspace toolchain (stable 1.98) is compatible with Bashkit's 1.95 pin. `shared-vfs/src/host.rs` line 11 defers "Stage 2 hardening (the Bashkit RealFs resolver trio, symlink policies, Windows long paths and device names)." No adapter code exists in the tree; `2026-09-12-everruns-integration-paths.md` line 56 calls the spike "completed," which this report could not confirm and treats as unverified.
 
 ## 4. What fourteen existing implementations agree on
 
@@ -131,7 +131,7 @@ VS Code's `terminalInstance.ts` installs `xterm.raw.attachCustomKeyEventHandler`
 
 ### 4.7 Cursor's panel is stock VS Code; its agent shell is a separate path
 
-Cursor's interactive Terminals panel is VS Code's, unchanged in architecture. Its agent runs commands through a different channel: Cursor staff described on the community forum (2026-03-13) an initialization phase that starts the configured profile, sources the rc file, and captures a shell-state snapshot, followed by per-command non-interactive execution with the snapshot restored. Background commands surface as read-only `∞ Cursor (command…)` rows in the same panel, and output goes to per-command record files the agent reads back. In Auto-review and Allowlist run modes the command runs under a sandbox helper that does not exist on Windows, which the forum thread on "no exit status" attributes as the cause of that bug. The separation of a human-owned PTY from an agent-owned, capturable, sandboxable execution channel, shown in one panel, is the same distinction the PromptForge capability trait already draws.
+Cursor's interactive Terminals panel is VS Code's, unchanged in architecture. Its agent runs commands through a different channel: Cursor staff described on the community forum (2026-03-13) an initialization phase that starts the configured profile, sources the rc file, and captures a shell-state snapshot, followed by per-command non-interactive execution with the snapshot restored. Background commands surface as read-only `∞ Cursor (command…)` rows in the same panel, and output goes to per-command record files the agent reads back. In Auto-review and Allowlist run modes the command runs under a sandbox helper that does not exist on Windows, which the forum thread on "no exit status" attributes as the cause of that bug. The separation of a human-owned PTY from an agent-owned, capturable, sandboxable execution channel, shown in one panel, is the same distinction the Runvil capability trait already draws.
 
 ## 5. Bashkit fits the agent, not the user
 
@@ -158,7 +158,7 @@ A user who opens a terminal in an agentic development environment wants their to
 
 ### 5.2 As an agent shell, the runtime is already shaped for it
 
-The capability contract in section 3.5 needs three things from a Bashkit capability: build the interpreter over `RunServices.vfs`, wire `RunServices.cancel` to the cancellation flag, and contribute one tool under `promptforge/bashkit/run`. `shared-vfs`'s `Vfs` trait (`shared-vfs/src/router.rs` lines 190 to 281) exposes `read`, `read_range`, `write`, `append`, `remove`, `exists`, `glob`, `list`, `stat`, `mkdir`, `rename`, `copy`, `str_replace`, and `grep`, which covers Bashkit's `FileSystem` needs with `symlink` and `chmod` returning Bashkit's unsupported error. Bashkit's `realfs` feature is unnecessary, because host directories arrive through `shared-vfs`'s `HostBackend::rooted`, keeping containment in one place.
+The capability contract in section 3.5 needs three things from a Bashkit capability: build the interpreter over `RunServices.vfs`, wire `RunServices.cancel` to the cancellation flag, and contribute one tool under `runvil/bashkit/run`. `shared-vfs`'s `Vfs` trait (`shared-vfs/src/router.rs` lines 190 to 281) exposes `read`, `read_range`, `write`, `append`, `remove`, `exists`, `glob`, `list`, `stat`, `mkdir`, `rename`, `copy`, `str_replace`, and `grep`, which covers Bashkit's `FileSystem` needs with `symlink` and `chmod` returning Bashkit's unsupported error. Bashkit's `realfs` feature is unnecessary, because host directories arrive through `shared-vfs`'s `HostBackend::rooted`, keeping containment in one place.
 
 Dependency weight is manageable. `bashkit/crates/bashkit/Cargo.toml` line 147 sets `default = ["bash_tool", "ring", "tzdata"]`; the `tzdata` comment at lines 151 to 154 calls chrono-tz "by far the largest single artifact in the tree (an 18.6 MB rlib)," and `bash_tool` pulls `tower`. With `default-features = false` plus `jq`, the graph is tokio, regex, chrono, serde, flate2, bzip2, clap, and the checksum crates, all permissive. Everruns ships this in production as `everruns-integrations-bashkit` 0.18.5 (`everruns/integrations/bashkit/Cargo.toml`).
 
@@ -168,7 +168,7 @@ The gate is the adapter spike. `Bash` requires an async `FileSystem`; `shared-vf
 
 The `git` feature is `git = []` at `Cargo.toml` line 214: it adds no dependency because there is no git implementation behind it. `bashkit/crates/bashkit/src/builtins/git/client.rs` stores commits as pipe-separated metadata lines in `.git/commits`; `commit()` at line 422 derives the hash as `format!("{:08x}", timestamp as u32 ^ 0xdeadbeef)`, eight hex digits from the clock, so two commits in one second collide. `checkout()` at lines 1216 to 1257 writes `HEAD` and touches no working-tree file. `diff()` at line 1278 returns the literal `# Diff output (simplified in virtual mode)`. The restore path at line 1581 comments "Since we don't store per-commit snapshots, this is a no-op message." `clone`, `fetch`, `push`, and `pull` (lines 858 to 968) validate the URL against an HTTPS allowlist and return "network operations not supported in virtual mode." `docs/git.md` line 42 lists `merge`, `rebase`, and `stash` as not implemented, and the design doc describes the storage as "foundation for future gitoxide (gix) integration."
 
-A model that runs `git checkout main` and sees no file change, or `git diff` and gets a placeholder, will act on a false picture of the repository. That is worse than the command being absent, because the tool contract asserts the command exists. Leave the feature off. When an agent needs repository operations, that is a `promptforge/terminal` prompt today and possibly a `gix`-backed structured capability later.
+A model that runs `git checkout main` and sees no file change, or `git diff` and gets a placeholder, will act on a false picture of the repository. That is worse than the command being absent, because the tool contract asserts the command exists. Leave the feature off. When an agent needs repository operations, that is a `runvil/terminal` prompt today and possibly a `gix`-backed structured capability later.
 
 ## 6. Options and trade-offs
 
@@ -246,7 +246,7 @@ Add a `terminalFocus` context key set by the panel. Teach `keybinding-dispatcher
 
 ### 7.6 The agent capability shares the substrate later
 
-The `promptforge/terminal` capability, when built, should construct its PTY through the same `workshop-terminals` substrate (or a harness-owned copy of its process layer, since `harness-*` may not depend on workshop crates), with the agent as owner and per-command capture as the lifecycle, and surface its sessions as read-only rows in the same panel. That is Cursor's split, and it is what the conflict rule in the capability trait anticipates.
+The `runvil/terminal` capability, when built, should construct its PTY through the same `workshop-terminals` substrate (or a harness-owned copy of its process layer, since `harness-*` may not depend on workshop crates), with the agent as owner and per-command capture as the lifecycle, and surface its sessions as read-only rows in the same panel. That is Cursor's split, and it is what the conflict rule in the capability trait anticipates.
 
 ## 8. Feasibility, risks, and alternatives set aside
 
@@ -298,22 +298,22 @@ No code was compiled and no prototype was run. Web-sourced facts (star counts, v
 
 The owner is the project lead, with the Workshop maintainers as implementers. The next steps, in order, each shippable on its own:
 
-1. Write a vibe plan for the `workshop-terminals` crate and the `bottom` zone, in the format of `promptforge/vibe/2026-09-18-*.md`, covering the protocol frames, the profile table, the ConPTY protections, and behavior tests (echo round trip, streamed loop ordering, cancel during `sleep`, cwd containment refusal, origin refusal, ring replay from a mid-stream `since`, Windows child reaping).
+1. Write a vibe plan for the `workshop-terminals` crate and the `bottom` zone, in the format of `runvil/vibe/2026-09-18-*.md`, covering the protocol frames, the profile table, the ConPTY protections, and behavior tests (echo round trip, streamed loop ordering, cancel during `sleep`, cwd containment refusal, origin refusal, ring replay from a mid-stream `since`, Windows child reaping).
 2. Land the dispatcher `terminalFocus` change and the `bottom` zone independently, each with tests, before the panel depends on them.
 3. Land the `ui/terminal/` feature, delete the terminal stubs from `stubs.contribution.ts`, and add xterm.js 6.0.0 pinned exactly to `crates/workshop/server/ui/package.json`.
-4. Run the Bashkit adapter spike from the 2026-09-11 VFS plan and record the result in `promptforge-design/research/`; on success, plan the `promptforge/bashkit` capability with `default-features = false`, `jq`, and no `git`.
-5. Defer the headless-emulator replay tier, split terminals, and the `promptforge/terminal` capability's shared substrate to follow-on plans.
+4. Run the Bashkit adapter spike from the 2026-09-11 VFS plan and record the result in `runvil-design/research/`; on success, plan the `runvil/bashkit` capability with `default-features = false`, `jq`, and no `git`.
+5. Defer the headless-emulator replay tier, split terminals, and the `runvil/terminal` capability's shared substrate to follow-on plans.
 
 ## 10. References
 
 Codebase reads, 2026-09-19, all under `c:\Users\Vinnie\cursor\`:
 
-- `promptforge/AGENTS.md` (principles, structure, tier rules, verification).
-- `promptforge/crates/workshop/server/ui/src/ui/layout/zones.ts`, `services/zone-state-service.ts`, `services/panel-registry.ts`, `ui/layout/keybinding-dispatcher.ts`, `services/keybinding-resolver.ts`, `ui/menu/stubs.contribution.ts`, `services/menu-registry.ts`, `build.mjs`, `package.json`.
-- `promptforge/crates/workshop/sessions/src/lib.rs` and `src/session.rs`; `crates/workshop/registry/src/traits.rs`; `crates/workshop/user-state/src/store.rs`; `crates/workshop/server/src/app.rs` and `src/routes/realtime.rs`; `crates/workshop/shell/src/gateway/boot.rs`; `crates/build-xtask/src/tidy.rs`.
-- `promptforge/crates/promptforge-api-types/src/capabilities.rs`; `crates/promptforge-api-runtime/tests/suite/prepare.rs`; `crates/shared-vfs/src/router.rs` and `src/host.rs`; `promptforge/vibe/2026-09-11-3-vfs-foundation.md`.
+- `runvil/AGENTS.md` (principles, structure, tier rules, verification).
+- `runvil/crates/workshop/server/ui/src/ui/layout/zones.ts`, `services/zone-state-service.ts`, `services/panel-registry.ts`, `ui/layout/keybinding-dispatcher.ts`, `services/keybinding-resolver.ts`, `ui/menu/stubs.contribution.ts`, `services/menu-registry.ts`, `build.mjs`, `package.json`.
+- `runvil/crates/workshop/sessions/src/lib.rs` and `src/session.rs`; `crates/workshop/registry/src/traits.rs`; `crates/workshop/user-state/src/store.rs`; `crates/workshop/server/src/app.rs` and `src/routes/realtime.rs`; `crates/workshop/shell/src/gateway/boot.rs`; `crates/build-xtask/src/tidy.rs`.
+- `runvil/crates/runvil-api-types/src/capabilities.rs`; `crates/runvil-api-runtime/tests/suite/prepare.rs`; `crates/shared-vfs/src/router.rs` and `src/host.rs`; `runvil/vibe/2026-09-11-3-vfs-foundation.md`.
 - `bashkit/README.md`, `bashkit/crates/bashkit/Cargo.toml`, `bashkit/crates/bashkit/src/builtins/git/client.rs`, `bashkit/docs/git.md`, `bashkit/knowledge/integrations/git-support.md`; `everruns/integrations/bashkit/README.md`.
-- `promptforge-design/research/2026-09-12-everruns-integration-paths.md`; `promptforge-design/research/2026-09-19-capabilities-promptforge-bashkit.md`.
+- `runvil-design/research/2026-09-12-everruns-integration-paths.md`; `runvil-design/research/2026-09-19-capabilities-runvil-bashkit.md`.
 
 Web sources, verified by the surveying agents on 2026-09-19 (quality: primary repositories and vendor documentation unless noted):
 

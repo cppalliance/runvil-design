@@ -36,7 +36,7 @@
 
 **[p128]** 200 tokens is small though, like a 7 billion parameter model has what, 8K token context window? And you're only doing 200? Why?
 
-**[p129]** create a rust program to generate the training dataset. For now only work on @promptforge/study/make-dataset/peter.md as input. we just want to validate that we can blur at multiple levels, and get the data set generation harness in place. give me some choices for the model. I have a 24GB video car
+**[p129]** create a rust program to generate the training dataset. For now only work on @runvil/study/make-dataset/peter.md as input. we just want to validate that we can blur at multiple levels, and get the data set generation harness in place. give me some choices for the model. I have a 24GB video car
 
 **[p130]** Blur Dataset Generator
 
@@ -48,9 +48,9 @@
 
 **[p134]** To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
 
-**[p135]** apply @tools-public/how-to/how-to-write-prompts.md to @promptforge/study/make-dataset/peter-v2.md rewriting it in place
+**[p135]** apply @tools-public/how-to/how-to-write-prompts.md to @runvil/study/make-dataset/peter-v2.md rewriting it in place
 
-**[p136]** @promptforge/study/make-dataset/papergate.md lets use this instead of peter.md
+**[p136]** @runvil/study/make-dataset/papergate.md lets use this instead of peter.md
 
 **[p137]** This is a problem because I was hoping to be able to use the human outputs. papergate.md is AI output. So now I have to go through all my prompts and figure out which ones are first generation
 
@@ -96,7 +96,7 @@
 
 **[p158]** before you do that you should test your own prior. see if a sharpening of a tool that was produced sharp actually strips the thing you said it would strip.
 
-**[p159]** sounds like this @promptforge/study/make-dataset/sharpen-instrument.md is a fucking rock star
+**[p159]** sounds like this @runvil/study/make-dataset/sharpen-instrument.md is a fucking rock star
 
 **[p160]** the problem is now we are faced with a tough decision. for each prompt do we sharpen it first to make sure its already sharp? I mean, for my prompts... tutor.md clearly had some bloat. maybe you should compare line by line the original vs. the sharpened version I mean really make sure because this is a high-value high-leverage audit
 
@@ -106,7 +106,7 @@
 
 **[p163]** @tools-public/how-to/how-to-write-prose.md which of these would be easy to piggyback in
 
-**[p164]** question: would we add the safe rules into the @promptforge/study/make-dataset/sharpen-instrument.md  ?
+**[p164]** question: would we add the safe rules into the @runvil/study/make-dataset/sharpen-instrument.md  ?
 
 **[p165]** I dont see how the prose rules can be mechanical. not all of them anyway. this is becoming more trouble than it is worth.
 

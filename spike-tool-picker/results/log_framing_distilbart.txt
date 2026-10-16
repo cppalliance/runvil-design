@@ -42,5 +42,5 @@ TOP 5 framings by top1:
   top1=0.915 tool_premise/name_desc/t0: This tool can {need}
   top1=0.915 tool_premise/name_desc/t2: This is useful to {need}
   top1=0.898 tool_premise/description/t2: This is useful to {need}
-wrote C:\Users\Vinnie\src\cursor\promptforge-design\mcp-classifier-spike\results\framing_distilbart.json
+wrote C:\Users\Vinnie\src\cursor\runvil-design\mcp-classifier-spike\results\framing_distilbart.json
 EXIT=0

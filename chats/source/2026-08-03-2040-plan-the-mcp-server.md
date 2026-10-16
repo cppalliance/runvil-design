@@ -4,9 +4,9 @@
 
 ## Prompts
 
-let's plan the mcp server @promptforge
+let's plan the mcp server @runvil
 
-Okay, the purpose of this MCP server is to serve PromptGPT prompts, and I think that's it. And so the design might be a little over-engineered. So the whole point of this is so that agentic harnesses like Cursor or Claude Code, they can call in and they can run a PromptForge prompt, and the user configures how they want to expose the, the prompts. They can have the, all the prompts just exposed at runtime, like one big list, or what they can do is there's gonna be a built-in tool. Which is gonna be like the tool picker. The chooser and choose mcp tool and it's gonna use the classifier and. It can be, it can offer advice like a frontier model can say, "Hey, do you have any tools that would like help? " And then another possibility is, is that it can just have like the listing. So progressive tool revelation.
+Okay, the purpose of this MCP server is to serve PromptGPT prompts, and I think that's it. And so the design might be a little over-engineered. So the whole point of this is so that agentic harnesses like Cursor or Claude Code, they can call in and they can run a Runvil prompt, and the user configures how they want to expose the, the prompts. They can have the, all the prompts just exposed at runtime, like one big list, or what they can do is there's gonna be a built-in tool. Which is gonna be like the tool picker. The chooser and choose mcp tool and it's gonna use the classifier and. It can be, it can offer advice like a frontier model can say, "Hey, do you have any tools that would like help? " And then another possibility is, is that it can just have like the listing. So progressive tool revelation.
 
 apply @tools-public/tools/architect.md and @tools-public/how-to/vibe-how-to.md
 
@@ -20,7 +20,7 @@ wait a sec, can't the developer just start a new chat? when does Cursor build th
 
 but run_prompt wants the prompt name and this is fuzzy no?
 
-what if we use the mcp-tool-picker crate and instruct the mode to pass the need string to a need_prompt tool @promptforge-design/study-mcp-toolpicker/design-mcp-toolpicker.md
+what if we use the mcp-tool-picker crate and instruct the mode to pass the need string to a need_prompt tool @runvil-design/study-mcp-toolpicker/design-mcp-toolpicker.md
 
 I'm going to build the tool picker package first but I want to talk about the design of the mcp server first
 
@@ -30,7 +30,7 @@ What in the fuck does this even mean? I do not understand any of it:
 
 wtf? I have to choose a number?
 
-tool picker is done @promptforge/crates/promptforge-tool-picker
+tool picker is done @runvil/crates/runvil-tool-picker
 
 The description for need_prompt should be such that a querying model will state it in tool author register is that possible?
 
@@ -52,7 +52,7 @@ Briefly inform the user about the task result and perform any follow-up actions 
 
 so can I try it now
 
-What promptforge prompts do I have?
+What runvil prompts do I have?
 
 Run research person on Vinnie Falco
 
@@ -86,7 +86,7 @@ does Cursor support the new thing?
 
 This is the first one:
 
-Here's the research summary PromptForge produced:
+Here's the research summary Runvil produced:
 
 **Sean Baxter** is an American software engineer and compiler developer best known for creating the **Circle compiler**, a next-generation C++ compiler, and for authoring the **Safe C++ proposal** (ISO paper P3390) aimed at introducing memory-safety guarantees to the C++ language.
 
@@ -126,11 +126,11 @@ Note: the tool returned this in-context only and did not write a file. If you wa
 
 it went straight to the web, no mcp
 
-Okay, I don't know about this, because no, no, no, no, no, the purpose of the MCP is to just be able to, like. We're not gonna be exposing all the tools. Like this, first of all, this report person, like this isn't, this isn't the intention of how PromptForge is supposed to work. PromptForge is very specific. It's like, it's like a command. You don't just invoke a PromptForge prompt in conversation. It's very specific. The purpose of the MCP is for a user to explicitly invoke a PromptForge tool. So I would even go so far as to say that the word PromptForge has to appear in order for the PromptForge MCP to kick in. It's not, it's, it's not like normal tools. The PromptForge is about a pipeline that usually produces a type of report. It's a special, it's not a general purpose prompting language. It's a specific thing. The purpose of the MCP is so that the developer can invoke the scripts for the purposes of usually of testing, but it's also useful locally. But PromptForge is really a system designed to go like on a server, for example, a twenty-four seven process that's constantly running reports, like running a staker report on every company in the Fortune five hundred every month. That's what it's for.
+Okay, I don't know about this, because no, no, no, no, no, the purpose of the MCP is to just be able to, like. We're not gonna be exposing all the tools. Like this, first of all, this report person, like this isn't, this isn't the intention of how Runvil is supposed to work. Runvil is very specific. It's like, it's like a command. You don't just invoke a Runvil prompt in conversation. It's very specific. The purpose of the MCP is for a user to explicitly invoke a Runvil tool. So I would even go so far as to say that the word Runvil has to appear in order for the Runvil MCP to kick in. It's not, it's, it's not like normal tools. The Runvil is about a pipeline that usually produces a type of report. It's a special, it's not a general purpose prompting language. It's a specific thing. The purpose of the MCP is so that the developer can invoke the scripts for the purposes of usually of testing, but it's also useful locally. But Runvil is really a system designed to go like on a server, for example, a twenty-four seven process that's constantly running reports, like running a staker report on every company in the Fortune five hundred every month. That's what it's for.
 
-No, developer console undersells it. Like, there's a legitimate use case if a user wants to run a report, like, for example, the dossier system. Like, the dossier system might work better as a prompt gate prompt. Because it's so deterministic and it works, like, has the context isolation, it's got all that good stuff. However, it has to be explicit. Like, it's like a command, it's like the user says, "Run this specific prompt, " that's how it's supposed to work. I think that has to be baked into the design of the MCP. And I also, I wanna rename it to MCP Server. And I've moved the design document, so I think we need a plan, we need a top-to-bottom revision of this whole thing, and we need to look at the other crates, we need to look at the design documents, we need to look at everything top to bottom using sub-agents for cleanliness, and we need to bake a plan to fix the whole thing in one go.@promptforge/crates/promptforge-mcp rename to promptforge-mcp-server. @promptforge/crates/promptforge-mcp/design-promptforge-mcp.md rename that too and fix the contents. @promptforge-design review everything here too
+No, developer console undersells it. Like, there's a legitimate use case if a user wants to run a report, like, for example, the dossier system. Like, the dossier system might work better as a prompt gate prompt. Because it's so deterministic and it works, like, has the context isolation, it's got all that good stuff. However, it has to be explicit. Like, it's like a command, it's like the user says, "Run this specific prompt, " that's how it's supposed to work. I think that has to be baked into the design of the MCP. And I also, I wanna rename it to MCP Server. And I've moved the design document, so I think we need a plan, we need a top-to-bottom revision of this whole thing, and we need to look at the other crates, we need to look at the design documents, we need to look at everything top to bottom using sub-agents for cleanliness, and we need to bake a plan to fix the whole thing in one go.@runvil/crates/runvil-mcp rename to runvil-mcp-server. @runvil/crates/runvil-mcp/design-runvil-mcp.md rename that too and fix the contents. @runvil-design review everything here too
 
-I think there's a confusion because we're talking about the the technology to calc to calculate the tool from the need, and we're we, we still have to have that. I think we still want that feature, but the feature is in the, is in the harness, it's in the executor, it's in the PromptForge core, because a prompt speci a prompt specifies the need strings in its front matter or in the initial Lua of the H1 block, and it says, it says, "Here's the need" in a sentence or two, and then it associates that with The ID, and the ID is internal to the prompt, and what we this, this solves the indirection problem, because we don't want the prompts to have to we don't want the prompts to specify specific tools. So that we have to keep. But we can lose the need string in the MCP server. Maybe, I mean, it's still kinda nice. To have, because if someone asks explicitly like which PromptGATE tool would be best for this need, then it'd be nice to be able to get an answer, but it might, it might not be strictly necessary. For now, the only thing we really need is for the developer to be able to specific execute a specific prompt. However, we've already built out this code, like MCP server already has the packages and everything, so what are we gonna do?
+I think there's a confusion because we're talking about the the technology to calc to calculate the tool from the need, and we're we, we still have to have that. I think we still want that feature, but the feature is in the, is in the harness, it's in the executor, it's in the Runvil core, because a prompt speci a prompt specifies the need strings in its front matter or in the initial Lua of the H1 block, and it says, it says, "Here's the need" in a sentence or two, and then it associates that with The ID, and the ID is internal to the prompt, and what we this, this solves the indirection problem, because we don't want the prompts to have to we don't want the prompts to specify specific tools. So that we have to keep. But we can lose the need string in the MCP server. Maybe, I mean, it's still kinda nice. To have, because if someone asks explicitly like which PromptGATE tool would be best for this need, then it'd be nice to be able to get an answer, but it might, it might not be strictly necessary. For now, the only thing we really need is for the developer to be able to specific execute a specific prompt. However, we've already built out this code, like MCP server already has the packages and everything, so what are we gonna do?
 
 So I think an overarching principle of the whole entire project is we should do more with less. That means if there's an established facility that can implement the new feature, we should use the established facility rather than building out more infrastructure. The fact is that Lua already works, so we should keep using it rather than inventing new front matter. So that's like, that's the litmus test. Like, can we im can something be implemented using what's already there? We want this, we want the core to be minimal. We want a small set of primitives that we could reuse over and over and over again.
 
@@ -139,7 +139,7 @@ design documents for crates belong in the root of the crate not the root of the 
 I want this whole thing to be, I want this plan has to proceed in steps. Like, you can't just do everything at once. I want individual steps, like one design document at a time, and even for a design document, break it down, like re-refactor the old, refactor the big one in place, then transfer over what's there, and then do the thing, right? And then just basically follow the vibe coding rules, but do it for the reorg. @tools-public/how-to/vibe-how-to.md
 
 the residue, the design stuff left over i want in a "residue" sidecar design-core-residue.md for example.
-For design docs with no crate, create a folder at crate level with the proper name (e.g. promptforge-mcp-client) and move the design doc from the design repo into there.
+For design docs with no crate, create a folder at crate level with the proper name (e.g. runvil-mcp-client) and move the design doc from the design repo into there.
 
 actually leave the residue in the design repo as well
 
@@ -182,19 +182,19 @@ can you first collect all the whys as a list of bulleted statements extracted fr
 
 Can you reverse engineer the rationale? Like for a given feature, for example, for a public function, come up, just use the model's reasoning and come up with like three or four plausible reasons for why it was done that way. I mean, a frontier model can do that. And then as you go, you'll find eventually, s there'll be some subsets of, of reasons that, like, they'll cancel each other out in a way that leaves behind only one possible reason. Like you come across a piece of code that's written a certain way and that collapses some of the reasons for other choices. So we have like a running list of design choices and as we go through the code, we collapse them when we, as we make discoveries, and then whatever's left, we can assume that those are the actual reasons. Then we don't need the why file. This is a genuinely useful tool. Reverse engineering a design doc from an already written codebase is useful.
 
-I like this. This is, we should do this. We should try this. I wanna try this. And let's do this in the core crate. I wanna try it. We're gonna put together a plan, and you're gonna do it. And when you when you collapse, you state that confidently. But then when you can't collapse, keep those design elements separate. And then what we'll do is then we'll do a combination of a human guided answers plus hypothesis collapse using the other stuff in the repo, right? So the first pass, we don't look at the existing design. We, it's a pure reverse engineer. In the second pass, we look at what's there, and then the AI will propose collapses based on what's there. It won't never do it automatically. The, it'll ask the human, and the human The human will say, "Yeah, this makes sense, " and then the human can also provide additional rationale. Just a few sentences from a human can probably collapse a huge amount. So let's do this. Let's go into plan mode. We're gonna do this right now. And when you make the plan, I want it to be ready to run in a fresh context, 'cause we're about at the limit. So make sure you inline everything.@promptforge/crates/promptforge-core
+I like this. This is, we should do this. We should try this. I wanna try this. And let's do this in the core crate. I wanna try it. We're gonna put together a plan, and you're gonna do it. And when you when you collapse, you state that confidently. But then when you can't collapse, keep those design elements separate. And then what we'll do is then we'll do a combination of a human guided answers plus hypothesis collapse using the other stuff in the repo, right? So the first pass, we don't look at the existing design. We, it's a pure reverse engineer. In the second pass, we look at what's there, and then the AI will propose collapses based on what's there. It won't never do it automatically. The, it'll ask the human, and the human The human will say, "Yeah, this makes sense, " and then the human can also provide additional rationale. Just a few sentences from a human can probably collapse a huge amount. So let's do this. Let's go into plan mode. We're gonna do this right now. And when you make the plan, I want it to be ready to run in a fresh context, 'cause we're about at the limit. So make sure you inline everything.@runvil/crates/runvil-core
 
 ## Plans
 
-### promptforge mcp server
+### runvil mcp server
 
-*Build `promptforge-mcp`, a small MCP server that publishes PromptForge prompts to agentic harnesses (Cursor, Claude Code) as tools - some prompts exposed directly, the rest reachable through a progressive listing pair - and add a minimal Observer/Event stream to the core so a run reports live progress.*
+*Build `runvil-mcp`, a small MCP server that publishes Runvil prompts to agentic harnesses (Cursor, Claude Code) as tools - some prompts exposed directly, the rest reachable through a progressive listing pair - and add a minimal Observer/Event stream to the core so a run reports live progress.*
 
-# PromptForge MCP server
+# Runvil MCP server
 
 ## Scope
 
-The only job is serving prompts to a calling harness. Against [design-mcp.md](c:\Users\Vinnie\src\cursor\promptforge-design\design\design-mcp.md), this build keeps the MCP surface, progress notifications, bearer auth, run admission, and boot validation, and drops the Django fire/status/prompts/validate endpoints, the run registry, extensions and `[tools]` bindings, output roots, hot reload, and service installation. Those were written for a deployment that does not exist yet.
+The only job is serving prompts to a calling harness. Against [design-mcp.md](c:\Users\Vinnie\src\cursor\runvil-design\design\design-mcp.md), this build keeps the MCP surface, progress notifications, bearer auth, run admission, and boot validation, and drops the Django fire/status/prompts/validate endpoints, the run registry, extensions and `[tools]` bindings, output roots, hot reload, and service installation. Those were written for a deployment that does not exist yet.
 
 Two deviations from that document, both forced by what the core actually does today:
 
@@ -210,13 +210,13 @@ Each entry in `prompts.toml` carries `expose`, and the two modes coexist in one 
 
 When any prompt is `list`, the server also publishes `list_prompts` (no arguments; returns every enabled prompt as name, description, version, and whether it also has a direct tool) and `run_prompt` (`{prompt, args}`; runs any enabled prompt). Direct prompts appear in `list_prompts` too, so a caller walking the list sees the whole catalog.
 
-The classifier-backed chooser from [design-mcp-toolpicker.md](c:\Users\Vinnie\src\cursor\promptforge-design\study-mcp-toolpicker\design-mcp-toolpicker.md) is the third mode and is deliberately not in this build. It slots in later as a fourth built-in tool over the same catalog, with no change to what is built here.
+The classifier-backed chooser from [design-mcp-toolpicker.md](c:\Users\Vinnie\src\cursor\runvil-design\study-mcp-toolpicker\design-mcp-toolpicker.md) is the third mode and is deliberately not in this build. It slots in later as a fourth built-in tool over the same catalog, with no change to what is built here.
 
 ## Core changes
 
-Two, both in [crates/promptforge-core](c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-core).
+Two, both in [crates/runvil-core](c:\Users\Vinnie\src\cursor\runvil\crates\runvil-core).
 
-New `promptforge_core::observe`:
+New `runvil_core::observe`:
 
 ```rust
 pub trait Observer: Send + Sync { fn on_event(&self, ev: &Event); }
@@ -235,7 +235,7 @@ pub enum Event {
 pub struct NullObserver;
 ```
 
-`completed` never decreases; that guarantee is what lets the MCP side latch it. Events are emitted from the section loop and from `run_tool_loop` in [execute.rs](c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-core\src\execute.rs).
+`completed` never decreases; that guarantee is what lets the MCP side latch it. Events are emitted from the section loop and from `run_tool_loop` in [execute.rs](c:\Users\Vinnie\src\cursor\runvil\crates\runvil-core\src\execute.rs).
 
 `execute::run` grows one options argument rather than two positional ones, so this is a single breaking change:
 
@@ -249,17 +249,17 @@ pub struct RunOptions<'a> {
 pub async fn run(prompt: &Prompt, args: &str, tools: &[&dyn Tool], store: &Store, opts: RunOptions<'_>) -> Result<String>;
 ```
 
-The explicit client matters because the server configures the gateway in TOML and `std::env::set_var` is unsafe under edition 2024 while the workspace forbids unsafe. [promptforge-cli/src/main.rs](c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-cli\src\main.rs) updates its one call site and passes `&NullObserver`.
+The explicit client matters because the server configures the gateway in TOML and `std::env::set_var` is unsafe under edition 2024 while the workspace forbids unsafe. [runvil-cli/src/main.rs](c:\Users\Vinnie\src\cursor\runvil\crates\runvil-cli\src\main.rs) updates its one call site and passes `&NullObserver`.
 
 ## The crate
 
-`crates/promptforge-mcp`, binary `promptforge-mcp serve prompts.toml`, matching the gateway's shape.
+`crates/runvil-mcp`, binary `runvil-mcp serve prompts.toml`, matching the gateway's shape.
 
-- `config.rs` - `prompts.toml`, with a `Secret` newtype and `${VAR}` interpolation copied from [gateway/src/config.rs](c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-gateway\src\config.rs). A third copy of this would justify a shared crate; two does not.
+- `config.rs` - `prompts.toml`, with a `Secret` newtype and `${VAR}` interpolation copied from [gateway/src/config.rs](c:\Users\Vinnie\src\cursor\runvil\crates\runvil-gateway\src\config.rs). A third copy of this would justify a shared crate; two does not.
 - `catalog.rs` - boot validation and the `Catalog` of `CatalogEntry { prompt, tool_def, expose }`, held in an `Arc` (no `ArcSwap`, since nothing reloads).
 - `server.rs` - the `rmcp` `ServerHandler`: `list_tools`, `call_tool`, `get_info`.
 - `observer.rs` - `McpObserver` plus the pump task.
-- `tools.rs` - resolving a prompt's frontmatter tool names to `WebFetch`/`WebSearch`, ~20 lines duplicated from [cli/src/tools.rs](c:\Users\Vinnie\src\cursor\promptforge\crates\promptforge-cli\src\tools.rs).
+- `tools.rs` - resolving a prompt's frontmatter tool names to `WebFetch`/`WebSearch`, ~20 lines duplicated from [cli/src/tools.rs](c:\Users\Vinnie\src\cursor\runvil\crates\runvil-cli\src\tools.rs).
 - `error.rs`, `lib.rs`, `main.rs`.
 
 Dependencies: `rmcp` pinned exactly, plus `axum 0.8`, `tokio`, `serde`/`serde_json`, `toml`, `thiserror`, `tracing`, `humantime-serde`. Pin `rmcp = "=3.1.0"` (features `server`, `schemars`, `transport-streamable-http-server`): the design doc chose `=2.2.0` on 2026-07-25 because 3.x was then a one-day-old beta, but 3.0.0 went stable 2026-07-28 and 3.1.0 on 07-31, and starting greenfield code on 2.x buys a migration in a few weeks (medium confidence - 3.1.0 is only two days old, so if its `ServerHandler` surface fights us, fall back to `=2.2.0`, which the design doc verified).
@@ -269,16 +269,16 @@ Dependencies: `rmcp` pinned exactly, plus `axum 0.8`, `tokio`, `serde`/`serde_js
 ```toml
 [server]
 bind = "127.0.0.1:9310"
-token = "${PROMPTFORGE_MCP_TOKEN}"
+token = "${RUNVIL_MCP_TOKEN}"
 max_concurrent_runs = 4
 admission_timeout = "30s"
 
 [paths]
-prompts = 'C:\ProgramData\promptforge\prompts'
+prompts = 'C:\ProgramData\runvil\prompts'
 
 [gateway]
 url = "http://127.0.0.1:8081/v1"
-token = "${PROMPTFORGE_TOKEN}"
+token = "${RUNVIL_TOKEN}"
 model = "claude-sonnet-4-6"        # optional; the core default otherwise
 
 [prompts.greet]
@@ -302,7 +302,7 @@ Admission is one `Semaphore` of `max_concurrent_runs`; a call that waits past `a
 ```mermaid
 sequenceDiagram
     participant Client as MCP client
-    participant Server as PromptForge handler
+    participant Server as Runvil handler
     participant Obs as McpObserver
     participant Pump as pump task
     participant Exec as execute::run
@@ -339,7 +339,7 @@ pub struct RunResult {
 
 ## Boot validation
 
-Read the config, then for each `[prompts.NAME]`: read the file, confirm it declares a `promptforge:` version, `Prompt::parse`, check the frontmatter `name` matches the table key, check the derived tool name matches `^[a-z][a-z0-9_]{0,47}$` and is unique across the catalog. Failures accumulate and are all printed before a nonzero exit; one bad prompt refuses the whole service, so a client never sees a silently missing tool.
+Read the config, then for each `[prompts.NAME]`: read the file, confirm it declares a `runvil:` version, `Prompt::parse`, check the frontmatter `name` matches the table key, check the derived tool name matches `^[a-z][a-z0-9_]{0,47}$` and is unique across the catalog. Failures accumulate and are all printed before a nonzero exit; one bad prompt refuses the whole service, so a client never sees a silently missing tool.
 
 ## Tests
 
@@ -358,8 +358,8 @@ The classifier chooser, `notifications/tools/list_changed` and hot reload, the D
 
 Todos:
 
-- Add promptforge_core::observe with Observer, Event, NullObserver; emit events from the section loop and tool loop; change execute::run to take RunOptions { observer, client } and update the CLI call site
-- Create crates/promptforge-mcp: Cargo manifest with rmcp pinned, lib/main skeleton, error types, and workspace membership
+- Add runvil_core::observe with Observer, Event, NullObserver; emit events from the section loop and tool loop; change execute::run to take RunOptions { observer, client } and update the CLI call site
+- Create crates/runvil-mcp: Cargo manifest with rmcp pinned, lib/main skeleton, error types, and workspace membership
 - Implement prompts.toml parsing: [server], [paths], [gateway], [prompts.NAME] with expose, Secret newtype and ${VAR} interpolation
 - Implement the boot validation pass and Catalog: parse each prompt, check name match and tool-name legality/uniqueness, accumulate failures, build tool definitions
 - Implement the ServerHandler: direct per-prompt tools, list_prompts and run_prompt, argument handling, RunResult, and error mapping
@@ -367,17 +367,17 @@ Todos:
 - Wire the axum router with streamable HTTP at /mcp, bearer middleware, /healthz outside the layer, the admission semaphore, and the --stdio transport
 - Write the test suite: golden tools/list, boot failures, progress sequences, run_prompt routing, auth, and admission
 
-### promptforge mcp server correction
+### runvil mcp server correction
 
-*Correct the MCP server from a surface that competes for a model's tool selection into one that only executes prompts a caller names explicitly, rename the crate and its design document to `promptforge-mcp-server`, and reconcile every design document in both repositories with what is actually true.*
+*Correct the MCP server from a surface that competes for a model's tool selection into one that only executes prompts a caller names explicitly, rename the crate and its design document to `runvil-mcp-server`, and reconcile every design document in both repositories with what is actually true.*
 
-# PromptForge MCP server: correction and coherence
+# Runvil MCP server: correction and coherence
 
 ## 1. What is wrong
 
-A PromptForge prompt is a command. It is invoked because someone named it - a user asking for a report, a developer testing a pipeline, or eventually a scheduler firing a run. It is never something a model reaches for because it noticed a tool that looked relevant.
+A Runvil prompt is a command. It is invoked because someone named it - a user asking for a report, a developer testing a pipeline, or eventually a scheduler firing a run. It is never something a model reaches for because it noticed a tool that looked relevant.
 
-The system was built on the opposite assumption, and not only in the server. `design.md` line 147 states that "a calling model selects from names, descriptions, and typed input schemas." `design-mcp.md` lines 65 to 73 reject a `list_prompts`/`run_prompt` dispatcher *because* it would collapse forty descriptions into one and leave the model unable to choose. `design-promptforge.md` line 120 says a prompt's description "steers a calling model's tool selection." The code follows: per-prompt tools published for direct selection, an `expose` field and a promotion workflow to decide which prompts compete, `need_prompt` to help a model discover a prompt it did not know it wanted, and two decisions built entirely around clients caching the tool list.
+The system was built on the opposite assumption, and not only in the server. `design.md` line 147 states that "a calling model selects from names, descriptions, and typed input schemas." `design-mcp.md` lines 65 to 73 reject a `list_prompts`/`run_prompt` dispatcher *because* it would collapse forty descriptions into one and leave the model unable to choose. `design-runvil.md` line 120 says a prompt's description "steers a calling model's tool selection." The code follows: per-prompt tools published for direct selection, an `expose` field and a promotion workflow to decide which prompts compete, `need_prompt` to help a model discover a prompt it did not know it wanted, and two decisions built entirely around clients caching the tool list.
 
 `notes.md` line 32 records the design that was rejected - "two MCP tools: `list_prompts`, `run_prompt`". That rejected design is the correct one.
 
@@ -391,13 +391,13 @@ This plan is correction and coherence only. It does not add output files, and it
 
 3. **`expose`, the promotion workflow, and the direct/listed distinction are removed, not defaulted off.** An opt-in would preserve the ambient-selection path and its caching problem while leaving the design two shapes to explain. The cost is real and accepted: a prompt can never be called under its own name as a tool, and per-prompt typed argument schemas are permanently off the table, since every call goes through one tool with one schema.
 
-4. **`need_prompt` resolves an inexact name, it does not discover a capability.** Its purpose is the caller who says "run the promptforge prompt that builds a stakeholder report" without knowing it is called `staker`. That is still explicit invocation - the intent came from the user - so the tool survives, with its description rewritten to say what it is for. What it must never read as is an invitation to go looking for something useful.
+4. **`need_prompt` resolves an inexact name, it does not discover a capability.** Its purpose is the caller who says "run the runvil prompt that builds a stakeholder report" without knowing it is called `staker`. That is still explicit invocation - the intent came from the user - so the tool survives, with its description rewritten to say what it is for. What it must never read as is an invitation to go looking for something useful.
 
 5. **The tool text is written in the register of a command interpreter.** It says what this server executes and that a caller names what to run. It carries no trigger phrasing, no "use this when", and nothing that competes for selection against a client's own tools. A model that ignores this and never calls the server is behaving correctly.
 
 6. **A prompt named after a built-in still fails at boot.** Nothing shadows a tool name any more, so the collision is no longer structural, but "run `check_run`" is ambiguous to a human and to a model, and a boot refusal naming the file is the only version of that a prompt author can act on.
 
-7. **The crate is `promptforge-mcp-server` and the binary matches.** The old name described a protocol; the new one describes a process, which is what it is and what the design documents already call it in prose. The rename reaches the library name (`promptforge_mcp_server`), the binary, `serverInfo.name` (which derives from `CARGO_PKG_NAME`), the test harness's `CARGO_BIN_EXE_*` variable, and the design document's filename.
+7. **The crate is `runvil-mcp-server` and the binary matches.** The old name described a protocol; the new one describes a process, which is what it is and what the design documents already call it in prose. The rename reaches the library name (`runvil_mcp_server`), the binary, `serverInfo.name` (which derives from `CARGO_PKG_NAME`), the test harness's `CARGO_BIN_EXE_*` variable, and the design document's filename.
 
 8. **Every design document in both repositories says the same true thing when this is done.** A corpus where three documents argue for model selection and the code does the opposite is worse than either position; the argument in `design-mcp.md` for rejecting the dispatcher has to be replaced by the argument for accepting it, not merely deleted.
 
@@ -434,7 +434,7 @@ Worth stating, because the reframe could be read as wider than it is. The catalo
 - `check_run` - `{run_id}`. Unchanged.
 - `need_prompt` - `{capability}`. Present with the `picker` feature. Rewritten as name resolution for a caller who described the prompt instead of naming it.
 
-Each description states that this server executes named PromptForge prompts and that the caller supplies the name. The finished-artifact sentence stays on `run_prompt` and `check_run`.
+Each description states that this server executes named Runvil prompts and that the caller supplies the name. The finished-artifact sentence stays on `run_prompt` and `check_run`.
 
 ### `prompts.toml`
 
@@ -442,29 +442,29 @@ Each description states that this server executes named PromptForge prompts and 
 
 ## 5. Steps
 
-Each step is one commit with its code, tests, and doc comments. House rules are unchanged from the previous plan: `c:\Users\Vinnie\src\cursor\tools-public\how-to\rust-how-to.md` binds every change, `promptforge/AGENTS.md` is the repository's own, `STATUS.md` and `README.md` move with every commit, and a step whose implementation contradicts a decision here revises this plan in the same commit.
+Each step is one commit with its code, tests, and doc comments. House rules are unchanged from the previous plan: `c:\Users\Vinnie\src\cursor\tools-public\how-to\rust-how-to.md` binds every change, `runvil/AGENTS.md` is the repository's own, `STATUS.md` and `README.md` move with every commit, and a step whose implementation contradicts a decision here revises this plan in the same commit.
 
-The gate for every step is `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, the same clippy for `-p promptforge-mcp-server --no-default-features`, `cargo test --locked --workspace --all-features`, and `cargo test -p promptforge-mcp-server --no-default-features`. Note that a running server holds a lock on its own binary on Windows; stop it before building.
+The gate for every step is `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, the same clippy for `-p runvil-mcp-server --no-default-features`, `cargo test --locked --workspace --all-features`, and `cargo test -p runvil-mcp-server --no-default-features`. Note that a running server holds a lock on its own binary on Windows; stop it before building.
 
-1. **Publish only the built-ins.** Remove per-prompt tool definitions from `crates/promptforge-mcp/src/tools.rs`, delete the `Expose` enum and `Entry::is_direct`, drop `direct` from the `list_prompts` payload, and rewrite every description and the session `instructions` in the command register of decisions 4 and 5. Test: the golden `tools/list` is exactly the four built-ins for a catalog of three prompts, and a separate assertion that no prompt name ever appears as a tool name for any catalog; the descriptions carry no trigger or selection language; `list_prompts` still reports `problem`.
+1. **Publish only the built-ins.** Remove per-prompt tool definitions from `crates/runvil-mcp/src/tools.rs`, delete the `Expose` enum and `Entry::is_direct`, drop `direct` from the `list_prompts` payload, and rewrite every description and the session `instructions` in the command register of decisions 4 and 5. Test: the golden `tools/list` is exactly the four built-ins for a catalog of three prompts, and a separate assertion that no prompt name ever appears as a tool name for any catalog; the descriptions carry no trigger or selection language; `list_prompts` still reports `problem`.
 
-2. **Delete the list-changed machinery.** Remove `watch/sessions.rs`, the `Sessions` type and its threading through `PromptForgeServer::new`, `serve_http`, `serve_stdio`, and `Reloader`, the `ListChanged` trait, and `Reload::published_changed`. Keep `ranking_changed`, which the picker rebuild uses. Test: a reload still swaps the catalog and rebuilds the picker; a prompt added mid-session is callable through `run_prompt` with no notification sent and no reconnect; the capability is no longer advertised.
+2. **Delete the list-changed machinery.** Remove `watch/sessions.rs`, the `Sessions` type and its threading through `RunvilServer::new`, `serve_http`, `serve_stdio`, and `Reloader`, the `ListChanged` trait, and `Reload::published_changed`. Keep `ranking_changed`, which the picker rebuild uses. Test: a reload still swaps the catalog and rebuilds the picker; a prompt added mid-session is callable through `run_prompt` with no notification sent and no reconnect; the capability is no longer advertised.
 
 3. **Remove `expose` from the configuration.** Delete `default_expose` and the per-prompt `expose` field, and update the shipped `prompts.toml` and its comments. Test: a config carrying either key fails the load naming it; the shipped config still resolves against the repository's `prompts/` directory through the boot rule.
 
-4. **Rename to `promptforge-mcp-server`.** The directory, the package, the binary, the library name and every `use promptforge_mcp::`, the workspace members list, `Cargo.lock`, `CARGO_BIN_EXE_promptforge-mcp` in `tests/it/stdio.rs`, the `serverInfo.name` assertions at `tests/it/stdio.rs:155` and `:206`, the usage text in `src/main.rs`, the log lines in `src/transport.rs`, the doc comments the survey lists in `config.rs`, `progress.rs`, `retrieval.rs`, and `tools.rs`, and the `design-promptforge-mcp.md` filename. Test: the whole gate passes, the stdio test asserts the new server name, and no occurrence of the old crate name remains outside a historical note.
+4. **Rename to `runvil-mcp-server`.** The directory, the package, the binary, the library name and every `use runvil_mcp::`, the workspace members list, `Cargo.lock`, `CARGO_BIN_EXE_runvil-mcp` in `tests/it/stdio.rs`, the `serverInfo.name` assertions at `tests/it/stdio.rs:155` and `:206`, the usage text in `src/main.rs`, the log lines in `src/transport.rs`, the doc comments the survey lists in `config.rs`, `progress.rs`, `retrieval.rs`, and `tools.rs`, and the `design-runvil-mcp.md` filename. Test: the whole gate passes, the stdio test asserts the new server name, and no occurrence of the old crate name remains outside a historical note.
 
-5. **Correct the stale doc comments the audit found.** `promptforge-core/src/client.rs` lines 3 to 4 claim "no tools, no streaming" while `complete()` sends tools; `promptforge-core/src/execute.rs` lines 25 to 28 say the tool-call loop is "still to come" when it is implemented below; `promptforge-gateway/src/lib.rs` lines 9 to 12 list `web_search` as deferred when it ships. Verified by reading rather than by a new test, with `cargo doc` clean.
+5. **Correct the stale doc comments the audit found.** `runvil-core/src/client.rs` lines 3 to 4 claim "no tools, no streaming" while `complete()` sends tools; `runvil-core/src/execute.rs` lines 25 to 28 say the tool-call loop is "still to come" when it is implemented below; `runvil-gateway/src/lib.rs` lines 9 to 12 list `web_search` as deferred when it ships. Verified by reading rather than by a new test, with `cargo doc` clean.
 
-6. **Reconcile `promptforge-design`.** `design.md` line 147, `design-mcp.md` lines 59 to 73 where the dispatcher is rejected, and `design-promptforge.md` line 120 all state the model-selection model and must state explicit invocation instead - replacing the argument, not deleting it, so a reader learns why one tool per prompt lost. Also `design-mcp.md` line 624, whose `positions = { extension = "paperstore" }` example contradicts `design-core.md` lines 445 to 447 removing `Root::Extension`, and `notes.md` line 32, whose dispatcher sketch is now the shipped design. Note in each document that the crate is now `promptforge-mcp-server`.
+6. **Reconcile `runvil-design`.** `design.md` line 147, `design-mcp.md` lines 59 to 73 where the dispatcher is rejected, and `design-runvil.md` line 120 all state the model-selection model and must state explicit invocation instead - replacing the argument, not deleting it, so a reader learns why one tool per prompt lost. Also `design-mcp.md` line 624, whose `positions = { extension = "paperstore" }` example contradicts `design-core.md` lines 445 to 447 removing `Root::Extension`, and `notes.md` line 32, whose dispatcher sketch is now the shipped design. Note in each document that the crate is now `runvil-mcp-server`.
 
-7. **Revise the crate's design document.** Rename to `design-promptforge-mcp-server.md` and rewrite it from the finished work: the eleven passages the audit lists at lines 15, 29, 35, 37, 96, 109, 151, 165, 169, 171, and 214 all assume model selection, and choices 2, 3, 12, and 13 in its numbered list are about exposure modes and steering that no longer exist. Fold in the four facts it lags - the finished-artifact sentence, run logging at info, the Windows path fix in the watcher, and the optional token - and follow the block tagged design-doc at the end of this plan. Slug: `promptforge-mcp-server`.
+7. **Revise the crate's design document.** Rename to `design-runvil-mcp-server.md` and rewrite it from the finished work: the eleven passages the audit lists at lines 15, 29, 35, 37, 96, 109, 151, 165, 169, 171, and 214 all assume model selection, and choices 2, 3, 12, and 13 in its numbered list are about exposure modes and steering that no longer exist. Fold in the four facts it lags - the finished-artifact sentence, run logging at info, the Windows path fix in the watcher, and the optional token - and follow the block tagged design-doc at the end of this plan. Slug: `runvil-mcp-server`.
 
 ## 6. Deliberately not in this plan
 
-**Somewhere to put a report.** Both repositories specify it - `outputs` in frontmatter at `design-promptforge.md` lines 161 to 165, output roots in `prompts.toml` at `design-mcp.md` lines 621 to 624, and a result carrying a path rather than a body. Nothing implements it, so a run's product exists only in the reply, and in testing a model noticed and offered to save the report itself. This is a `promptforge-core` feature before it is a server one, and it is the obvious next plan.
+**Somewhere to put a report.** Both repositories specify it - `outputs` in frontmatter at `design-runvil.md` lines 161 to 165, output roots in `prompts.toml` at `design-mcp.md` lines 621 to 624, and a result carrying a path rather than a body. Nothing implements it, so a run's product exists only in the reply, and in testing a model noticed and offered to save the report itself. This is a `runvil-core` feature before it is a server one, and it is the obvious next plan.
 
-**The continuously running report runner.** The real deployment is a process producing reports at scale, a stakeholder report over every company in a list, monthly. Neither repository designs a scheduler: `design-mcp.md` assumes Django's Celery task is the durable queue and fan-out over subjects happens outside PromptForge entirely. What exists inside a prompt is `fanout()` over sections, which is one run doing many things, not many runs over many subjects. This needs a design conversation before it can be planned.
+**The continuously running report runner.** The real deployment is a process producing reports at scale, a stakeholder report over every company in a list, monthly. Neither repository designs a scheduler: `design-mcp.md` assumes Django's Celery task is the durable queue and fan-out over subjects happens outside Runvil entirely. What exists inside a prompt is `fanout()` over sections, which is one run doing many things, not many runs over many subjects. This needs a design conversation before it can be planned.
 
 **The dossier system as a prompt.** A strong candidate - its phases are already gather, extract, synthesize, finalize, with fan-out at two levels and a fixed output schema at `umbra/dossiers/_SCHEMA.md`. The frictions are real: the rules live across three files and ad hoc plans rather than one executable spec, its acquisition phase is open-ended and judgment-driven, its Executive Summary is written last from everything before it which fights context clearing, and it needs private sources through several MCP servers rather than the open web. Also its own next step, once outputs exist.
 
@@ -582,16 +582,16 @@ Todos:
 - Step 1: publish only the four built-ins; delete Expose and is_direct; rewrite descriptions and instructions in the command register
 - Step 2: delete the tools/list_changed machinery - Sessions, ListChanged, published_changed
 - Step 3: remove expose and default_expose from the configuration and the shipped prompts.toml
-- Step 4: rename the crate, binary, library, and design document to promptforge-mcp-server
-- Step 5: correct the stale doc comments in promptforge-core and promptforge-gateway
-- Step 6: reconcile the promptforge-design documents with explicit invocation
+- Step 4: rename the crate, binary, library, and design document to runvil-mcp-server
+- Step 5: correct the stale doc comments in runvil-core and runvil-gateway
+- Step 6: reconcile the runvil-design documents with explicit invocation
 - Step 7: rewrite the crate's design document from the finished work
 
 ### recover core design rationale
 
-*Recover the design rationale of `promptforge-core` from the code alone by generating competing explanations for each design element and killing the ones the evidence refutes, then let the repository's documents and history propose further collapses that only a human approves, and write a design document from what survives.*
+*Recover the design rationale of `runvil-core` from the code alone by generating competing explanations for each design element and killing the ones the evidence refutes, then let the repository's documents and history propose further collapses that only a human approves, and write a design document from what survives.*
 
-# Recovering the design of promptforge-core from its code
+# Recovering the design of runvil-core from its code
 
 ## 1. What this is and why it might work
 
@@ -631,9 +631,9 @@ An element whose hypotheses were never seriously competing is a failure of the m
 
 ## 3. Pass 1 is blind, and the isolation is the experiment
 
-Pass 1 may read: everything under `crates/promptforge-core/src` and its tests; `crates/promptforge-core/Cargo.toml`; the workspace `Cargo.toml`, `clippy.toml`, and `rustfmt.toml`; and the `src` of sibling crates, but only to see how core's API is *used*, since call sites are legitimate structural evidence.
+Pass 1 may read: everything under `crates/runvil-core/src` and its tests; `crates/runvil-core/Cargo.toml`; the workspace `Cargo.toml`, `clippy.toml`, and `rustfmt.toml`; and the `src` of sibling crates, but only to see how core's API is *used*, since call sites are legitimate structural evidence.
 
-Pass 1 may not read: `crates/promptforge-core/design-core.md`; any other `design-*.md` in any crate; anything in the `promptforge-design` repository; `README.md`, `STATUS.md`, or `AGENTS.md`, all of which carry rationale; and any git history - no `log`, `show`, `blame`, or commit message.
+Pass 1 may not read: `crates/runvil-core/design-core.md`; any other `design-*.md` in any crate; anything in the `runvil-design` repository; `README.md`, `STATUS.md`, or `AGENTS.md`, all of which carry rationale; and any git history - no `log`, `show`, `blame`, or commit message.
 
 **Comments are treated as absent.** Every `//`, `///`, and `//!` is invisible in pass 1. This is deliberately blunt: deciding which comments merely describe and which give reasons is itself a judgement call, and pass 1 is meant to have none. Identifiers survive, including test names, which are often the best evidence in the crate.
 
@@ -641,7 +641,7 @@ The cost is real and worth accepting. This crate's comments are unusually good, 
 
 ## 4. Pass 2 opens the archive, and the human holds the pen
 
-Everything forbidden above becomes available: the design documents and residues in `promptforge-design`, the crate's existing `design-core.md`, `README.md`, `STATUS.md`, `AGENTS.md`, and the full git history.
+Everything forbidden above becomes available: the design documents and residues in `runvil-design`, the crate's existing `design-core.md`, `README.md`, `STATUS.md`, `AGENTS.md`, and the full git history.
 
 For every element that came out narrowed or open, search that material for anything bearing on it and write a **proposal**: the collapse it would justify, the evidence, and the evidence's provenance - a file and line, or a commit hash and its date.
 
@@ -662,11 +662,11 @@ flowchart TD
 
 ## 5. The ledger, and its record format
 
-One file, `cabinet/_research/2026-08-03-recover-rationale-promptforge-core.md`, holding one record per element in this shape:
+One file, `cabinet/_research/2026-08-03-recover-rationale-runvil-core.md`, holding one record per element in this shape:
 
 ```
 ### E-014  The gateway client is passed in, never read from the environment
-Element:    RunOptions::client, crates/promptforge-core/src/execute.rs
+Element:    RunOptions::client, crates/runvil-core/src/execute.rs
 Kind:       public API
 Hypotheses: H1 injection for testability
             H2 a file-configured caller cannot set the environment
@@ -698,7 +698,7 @@ Each step is one commit. Dispatch every step to a fresh subagent by reference - 
 
 8. **Adjudication.** Present the proposals to the author in batches of at most five and apply only what the author decides, recording author rationale with provenance. This step is a conversation, not a dispatch; it ends when every proposal is confirmed, rejected, or answered.
 
-9. **Write `crates/promptforge-core/design-core-recovered.md`** from the settled ledger, following the `design-doc` block at the end of `c:\Users\Vinnie\src\cursor\tools-public\tools\architect.md`. Leave the existing `design-core.md` untouched so the two can be read against each other. Forced elements state their constraint. Narrowed elements name both survivors. Open elements say the code does not determine the choice - unless the author answered, in which case the reason is attributed to them.
+9. **Write `crates/runvil-core/design-core-recovered.md`** from the settled ledger, following the `design-doc` block at the end of `c:\Users\Vinnie\src\cursor\tools-public\tools\architect.md`. Leave the existing `design-core.md` untouched so the two can be read against each other. Forced elements state their constraint. Narrowed elements name both survivors. Open elements say the code does not determine the choice - unless the author answered, in which case the reason is attributed to them.
 
 10. **Report the comparison.** In the commit message and to the author: how many elements were forced by code alone, how many the archive settled, how many the author settled, and how many remain open. That ratio is the experiment's actual result and the thing worth knowing before pointing this at a codebase nobody here wrote.
 
@@ -749,13 +749,13 @@ Todos:
 
 ## Design Documents Written
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\_scratch-watch-check.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\_scratch-watch-check.md
 
 ---
 name: watch_check
 description: Return the input unchanged, to prove the watcher picked up a new file.
 version: 1
-promptforge: 1
+runvil: 1
 ---
 
 ## Echo
@@ -765,13 +765,13 @@ return "watcher saw me: " .. args
 ```
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\watch-check.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\watch-check.md
 
 ---
 name: watch_check
 description: Return the input unchanged, to prove the watcher picked up a new file.
 version: 1
-promptforge: 1
+runvil: 1
 ---
 
 ## Echo
@@ -781,16 +781,16 @@ return "watcher saw me: " .. args
 ```
 
 
-### c:\Users\Vinnie\src\cursor\promptforge\prompts\watch-check.md
+### c:\Users\Vinnie\src\cursor\runvil\prompts\watch-check.md
 
 ---
 name: watch_check
 description: Return the input unchanged, to prove the watcher picked up a new file.
 version: 1
-promptforge: 1
+runvil: 1
 ---
 
 Prose with no H2 section at all, which is a parse failure.
 
 
-StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\promptforge\README.md`, `c:\Users\Vinnie\src\cursor\promptforge\STATUS.md`
+StrReplace-edited design docs (path only): `c:\Users\Vinnie\src\cursor\runvil\README.md`, `c:\Users\Vinnie\src\cursor\runvil\STATUS.md`

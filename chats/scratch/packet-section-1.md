@@ -23,7 +23,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - The author removed tool frontmatter because the H1 block already declared tools.
   - `infer()` was kept strictly different from prose: if infer were "just another version of Prose" the language would inherit all the same questions (how do you set the tools, what happens if you jump) for both.
   - During the store redesign, "no parallel mechanisms" was stated verbatim as "a general principle."
-  - Author-verbatim: in 2026-08-09-1058-promptforge-core-large-part1.md [p26] the author states "design rule number one" (smallest facility, don't invent a new facility when an existing one handles it) and "design rule number two" (never two ways of doing the same thing) in one breath.
+  - Author-verbatim: in 2026-08-09-1058-runvil-core-large-part1.md [p26] the author states "design rule number one" (smallest facility, don't invent a new facility when an existing one handles it) and "design rule number two" (never two ways of doing the same thing) in one breath.
 - Merge/derivation notes:
   - Merged from purpose-cluster records 1 ("Do more with less"), 2 ("Never provide two ways of doing the same thing"), and 3 ("No parallel mechanisms") - one shared purpose: keep the core minimal by reusing existing facilities.
   - Record 4 ("A small set of flexible, multi-purpose primitives compose into maximum possibility while keeping the prompt author brief") is a borderline candidate for the group; it adds the distinct brevity purpose.
@@ -43,7 +43,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - Example of a constraint that should fall out on its own: "model locked after first Lua block."
 - Merge/derivation notes:
   - Single record (purpose-cluster record 5; grouped-draft "Minimal mechanism" group, fifth record). Kept separate from the minimal-mechanism group because its purpose is predictability of behavior, not minimality of features.
-  - Citations: 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p20-p21]; 2026-08-18-1126-promptforge-md-aug18-morning.md [p176-p178]. Endorsement n/a; source user-stated.
+  - Citations: 2026-08-16-1431-runvil-md-aug16-afternoon.md [p20-p21]; 2026-08-18-1126-runvil-md-aug18-morning.md [p176-p178]. Endorsement n/a; source user-stated.
 
 ## Principle 3: A prompt must be readable on its face
 
@@ -94,7 +94,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
 - Merge/derivation notes:
   - Merged from two records deliberately kept distinct in the purpose pass: record 8 (choosing names the model and reader understand) and record 9 (using one term consistently everywhere, enforced repo-wide). The final principle joins them: names come from owned vocabulary AND each term holds one meaning everywhere.
   - Grouped-draft sources: "Legibility and naming" group, third and fourth records; endorsements n/a; sources user-stated.
-  - Citations: 2026-07-30-0534-promptforge-design-context.md [p30-p31]; 2026-08-14-1613-promptforge-core-largest-part5.md [p473], [p393], [p395]; 2026-08-02-2331-mcp-client-evening.md [plans section]; 2026-08-09-1058-promptforge-core-large-part5.md [p393].
+  - Citations: 2026-07-30-0534-runvil-design-context.md [p30-p31]; 2026-08-14-1613-runvil-core-largest-part5.md [p473], [p393], [p395]; 2026-08-02-2331-mcp-client-evening.md [plans section]; 2026-08-09-1058-runvil-core-large-part5.md [p393].
 
 ## Principle 6: No defaults
 
@@ -105,14 +105,14 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
   - A prompt always knows its minimum context and whether it needs thinking, so it can always say what it needs.
   - Grouped-draft framing, verbatim: "implicit configuration is the enemy of precision."
 - Rejected alternatives and stated costs:
-  - `DEFAULT_MODEL` and `PROMPTFORGE_MODEL` environment-variable fallbacks - removed; cost: invisible settings that silently change behavior.
+  - `DEFAULT_MODEL` and `RUNVIL_MODEL` environment-variable fallbacks - removed; cost: invisible settings that silently change behavior.
   - A default recursion limit of 24 - rejected for the same reason.
 - Concrete incidents:
-  - The author removed the `DEFAULT_MODEL` and `PROMPTFORGE_MODEL` environment fallbacks.
+  - The author removed the `DEFAULT_MODEL` and `RUNVIL_MODEL` environment fallbacks.
   - Author-verbatim: a prompt that specifies nothing "doesn't make sense."
 - Merge/derivation notes:
   - Single record (purpose-cluster record 10; grouped-draft "Explicitness and consent" group, first record). Kept separate.
-  - Citations: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62]; 2026-08-16-1431-promptforge-md-aug16-afternoon.md [p66]. Endorsement n/a; source user-corrective.
+  - Citations: 2026-08-08-1223-gateway-local-inference.md [p58], [p60], [p62]; 2026-08-16-1431-runvil-md-aug16-afternoon.md [p66]. Endorsement n/a; source user-corrective.
   - Open-questions note: the design document's Open Questions list records an unresolved tension between "No defaults, everything explicit" and "implement all features and let the caller decide, with sensible defaults."
 
 ## Principle 7: Every restriction has an explicit escape
@@ -131,7 +131,7 @@ Facts only. Sources: purpose-cluster-1.md (purpose notes, merge map), grouped-dr
 - Merge/derivation notes:
   - Merged from two records deliberately kept distinct in the purpose pass: record 11 (the prompt author consenting to a capability by writing it) and record 12 (the embedder needing an off-switch for every protection). The final principle joins both directions of escape.
   - Grouped-draft sources: "Explicitness and consent" group, second and third records; endorsements n/a; sources user-stated.
-  - Citations: 2026-08-14-1613-promptforge-core-largest-part4.md [p372-p374]; 2026-08-02-1134-mcp-client-large-part5.md [p353-p354]; 2026-07-30-1046-compaction-algorithm-large-part5.md [p354].
+  - Citations: 2026-08-14-1613-runvil-core-largest-part4.md [p372-p374]; 2026-08-02-1134-mcp-client-large-part5.md [p353-p354]; 2026-07-30-1046-compaction-algorithm-large-part5.md [p354].
 
 ## Stanza facts (Section I as a whole)
 

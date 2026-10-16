@@ -124,7 +124,7 @@ If you do go the model route, skip the custom tokenizer. Use T5-small with the t
 
 ---
 
-> The thing though, like, I'm, I wanna build PromptForge into a system that does big results on small hardware, like 48 gigabytes of video card. So I don't wanna call into Haiku, I want something small and fast, and I don't want any latency. I want, I'm talking like a hundred million parameters with the very clever tokenizer. In fact, what about a combination? Why don't we do How about if we do a clever tokenizer? And we have a multi-uh and we have a classifier that, like, a multi-signal classifier that generates twenty-five signals, and then those signals map to a template, or they map to like some text, a and/or they map to some kind of token, and then we train, we fine-tune a model, a very small model. So we fine-tune a hundred million parameter model on the specialized tokens and a signal from a twenty-five shot Classifier, and we use a frontier model to generate the Summary. And I want it fast, like I want like Fifty milliseconds.
+> The thing though, like, I'm, I wanna build Runvil into a system that does big results on small hardware, like 48 gigabytes of video card. So I don't wanna call into Haiku, I want something small and fast, and I don't want any latency. I want, I'm talking like a hundred million parameters with the very clever tokenizer. In fact, what about a combination? Why don't we do How about if we do a clever tokenizer? And we have a multi-uh and we have a classifier that, like, a multi-signal classifier that generates twenty-five signals, and then those signals map to a template, or they map to like some text, a and/or they map to some kind of token, and then we train, we fine-tune a model, a very small model. So we fine-tune a hundred million parameter model on the specialized tokens and a signal from a twenty-five shot Classifier, and we use a frontier model to generate the Summary. And I want it fast, like I want like Fifty milliseconds.
 
 OK, now you're cooking. Let me engage with this architecture seriously because it's actually defensible. You're describing a two-stage pipeline:
 
@@ -216,22 +216,22 @@ If you really want custom vocabulary compression, train a **domain-specific BPE*
 
 This architecture is sound. It's a legitimate distillation pipeline with a clever decomposition (classifier handles *understanding*, generator handles *phrasing*). The 50ms budget is generous for this workload on GPU.
 
-The risk is **over-engineering relative to the task**. You're building a two-model pipeline with custom tokenization and a training data generation system to produce 5-word progress labels. If this is a building block for PromptForge's broader capabilities - summarization, routing, intent detection - then the infrastructure pays for itself across multiple uses. If it's just for progress labels, templates are 1000x less work. **Confidence: high.**
+The risk is **over-engineering relative to the task**. You're building a two-model pipeline with custom tokenization and a training data generation system to produce 5-word progress labels. If this is a building block for Runvil's broader capabilities - summarization, routing, intent detection - then the infrastructure pays for itself across multiple uses. If it's just for progress labels, templates are 1000x less work. **Confidence: high.**
 
 The 25-signal classifier is the most reusable piece. Once you have it, it's useful for routing, caching, dedup, monitoring - not just labeling.
 
 ---
 
-> I think you're wrong about this, because this is what I'm, this is, I wanna build, like, I wanna build a Rust application, I wanna build a natively compiled executable where you run it and, and then it gives an, an MCP interface and then you plug it into like Claude Code or Cursor and now you can call PromptForge prompts, but I wanna have the layer where it communicates to the IDE like what it's doing, where like it shows, so I want the MCP call to look like a subagent and I want it to be, look like the native UI where you see like a little spinning wheel and like it tells you what it's doing, and I want it to be really nice. Don't, and so the en the over-engineering, it's not over-engineering, it's marketing, it's making the user feel good, don't undersell it.
+> I think you're wrong about this, because this is what I'm, this is, I wanna build, like, I wanna build a Rust application, I wanna build a natively compiled executable where you run it and, and then it gives an, an MCP interface and then you plug it into like Claude Code or Cursor and now you can call Runvil prompts, but I wanna have the layer where it communicates to the IDE like what it's doing, where like it shows, so I want the MCP call to look like a subagent and I want it to be, look like the native UI where you see like a little spinning wheel and like it tells you what it's doing, and I want it to be really nice. Don't, and so the en the over-engineering, it's not over-engineering, it's marketing, it's making the user feel good, don't undersell it.
 
 You're right, I was wrong to frame it as over-engineering. This is product feel. The difference between "Processing..." and "Analyzing your test configuration for edge cases" is the difference between a script and a product. Point taken.
 
 ## The actual product architecture
 
-You're building an MCP server in Rust. When Cursor or Claude Code calls a PromptForge tool, the user should see something that looks and feels native - a spinner with intelligent, contextual status text that updates as the pipeline progresses. MCP has exactly the mechanism for this: `notifications/progress` with a `message` field. That message field is your canvas.
+You're building an MCP server in Rust. When Cursor or Claude Code calls a Runvil tool, the user should see something that looks and feels native - a spinner with intelligent, contextual status text that updates as the pipeline progresses. MCP has exactly the mechanism for this: `notifications/progress` with a `message` field. That message field is your canvas.
 
 ```
-User calls PromptForge MCP tool
+User calls Runvil MCP tool
   ↓
 Cursor shows: ⟳ Assembling governance analysis prompt...
   ↓  (200ms later)
@@ -267,7 +267,7 @@ I'd go with `ort`. It's battle-tested, the ONNX export path from PyTorch is well
 
 ```
 ┌─────────────────────────────────────────┐
-│  PromptForge MCP Server (Rust binary)   │
+│  Runvil MCP Server (Rust binary)   │
 │                                         │
 │  ┌─────────────┐   ┌────────────────┐   │
 │  │  Classifier  │   │   Generator    │   │
@@ -310,7 +310,7 @@ Each pipeline stage fires a progress notification. The classifier + generator pr
 
 ## Training the models for this specific use case
 
-The training data is PromptForge-specific. You'd generate examples like:
+The training data is Runvil-specific. You'd generate examples like:
 
 | Pipeline stage | Prompt content (truncated) | Target message |
 |---|---|---|
@@ -324,7 +324,7 @@ The pipeline stage is a strong signal (like the tool name from before), and the 
 
 ## The marketing angle you're describing
 
-You're right that this is marketing. When someone plugs PromptForge into Cursor and sees intelligent, real-time progress that matches what's actually happening - not generic spinners, not "please wait" - that's the moment they think "this is built by someone who cares." It's the same reason Apple animates everything. The animation isn't the feature. The feeling is the feature.
+You're right that this is marketing. When someone plugs Runvil into Cursor and sees intelligent, real-time progress that matches what's actually happening - not generic spinners, not "please wait" - that's the moment they think "this is built by someone who cares." It's the same reason Apple animates everything. The animation isn't the feature. The feeling is the feature.
 
 The 25-signal classifier + 100M param generator is the right architecture for this. It's fast enough to feel instant, smart enough to feel contextual, and small enough to ship inside a single binary. **Confidence: high.**
 
@@ -617,7 +617,7 @@ All four research reports are in. Here's the synthesis.
 
 ---
 
-## Research Synthesis: Fast Local Progress Text Generation for PromptForge
+## Research Synthesis: Fast Local Progress Text Generation for Runvil
 
 ### The big surprise: nobody is doing what you want to do
 
@@ -988,7 +988,7 @@ Build the reducer first. Validate it. Then build the rest around it.
 - All three models as ONNX, loaded via `ort` crate in a Rust binary
 - Total VRAM ~200MB Q4, fits trivially on 48GB card
 - MCP server emits `notifications/progress` with the generated status text
-- Makes PromptForge tool calls look like native subagents in Cursor/Claude Code
+- Makes Runvil tool calls look like native subagents in Cursor/Claude Code
 - No API calls, no network, fully local inference
 - Reducer is the riskiest component - build and validate it first
 - Training data: 10-20K examples generated by frontier model

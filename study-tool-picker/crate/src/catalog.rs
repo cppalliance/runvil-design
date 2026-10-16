@@ -15,7 +15,7 @@
 
 use serde_json::Value;
 
-pub use promptforge_api_types::tools::ToolId;
+pub use runvil_api_types::tools::ToolId;
 
 /// The MCP behavioural hints a tool may advertise about itself.
 ///
@@ -27,7 +27,7 @@ pub use promptforge_api_types::tools::ToolId;
 /// # Examples
 ///
 /// ```
-/// use promptforge_tool_picker::ToolAnnotations;
+/// use runvil_tool_picker::ToolAnnotations;
 ///
 /// let hints = ToolAnnotations::new().with_read_only(true);
 /// assert_eq!(hints.read_only(), Some(true));
@@ -133,7 +133,7 @@ impl ToolAnnotations {
 /// # Examples
 ///
 /// ```
-/// use promptforge_tool_picker::{ToolDescriptor, ToolId};
+/// use runvil_tool_picker::{ToolDescriptor, ToolId};
 /// use serde_json::json;
 ///
 /// let tool = ToolDescriptor::new(
@@ -286,7 +286,7 @@ pub type CatalogIntoIter = std::vec::IntoIter<ToolDescriptor>;
 /// # Examples
 ///
 /// ```
-/// use promptforge_tool_picker::{Catalog, ToolDescriptor, ToolId};
+/// use runvil_tool_picker::{Catalog, ToolDescriptor, ToolId};
 /// use serde_json::json;
 ///
 /// let catalog = Catalog::new(vec![ToolDescriptor::new(
@@ -392,7 +392,7 @@ impl From<Vec<ToolDescriptor>> for Catalog {
 #[cfg(test)]
 mod tests {
     use super::{Catalog, ToolAnnotations, ToolDescriptor, ToolId};
-    use promptforge_api_types::tools::ToolIdErrorKind;
+    use runvil_api_types::tools::ToolIdErrorKind;
     use serde_json::{Value, json};
 
     /// Parses a test identity: every test id is a valid global tool name.
@@ -483,7 +483,7 @@ mod tests {
         assert_eq!(id.name(), "read_file");
         assert_eq!(
             id.capability(),
-            promptforge_api_types::capabilities::CapabilityId::parse("tests/files")
+            runvil_api_types::capabilities::CapabilityId::parse("tests/files")
                 .expect("a valid capability id")
         );
         assert_eq!(id.to_string(), "tests/files/read_file");
@@ -495,8 +495,8 @@ mod tests {
         // underscore-joined built-ins.
         for legacy in [
             "files/read_file",
-            "promptforge/web_fetch",
-            "promptforge/web_search",
+            "runvil/web_fetch",
+            "runvil/web_search",
         ] {
             let error = ToolId::parse(legacy).expect_err("a 2-segment legacy id is not a tool id");
             assert_eq!(error.kind(), ToolIdErrorKind::SegmentCount);

@@ -121,7 +121,7 @@ Scope: a test, not a product. One file, one pass, no fixed-point iteration, no t
 
 ### blur compression report
 
-*Write a research-type report in promptforge covering the measured prompt degradation, its mechanism, the plan-as-source maintenance architecture, the compression experiment, and the full prior-art survey for building a compressor.*
+*Write a research-type report in runvil covering the measured prompt degradation, its mechanism, the plan-as-source maintenance architecture, the compression experiment, and the full prior-art survey for building a compressor.*
 
 The mechanism, corrected during the inquiry: blur is proportional to how much of the conditioning input is model-generated, not to how much output is generated. This is why v1 is sharp despite being fully generated - its input was human intent - and why every rewrite is blander, since its input is the previous model-generated file plus a small human delta.
 
@@ -269,7 +269,7 @@ Explicitly excluded:
 
 ## Design Documents Written
 
-### sharpen-instrument.md (promptforge/study/make-dataset/)
+### sharpen-instrument.md (runvil/study/make-dataset/)
 
 # Sharpening Instrument
 
@@ -466,7 +466,7 @@ Run on the sharpened target; each answers yes or no, each no returns to its rule
 - One term names each concept.
 - The meaning an executing model would follow is unchanged from the original.
 
-### experiment-log.md (promptforge/study/make-dataset/)
+### experiment-log.md (runvil/study/make-dataset/)
 
 Append-only record of the experiment battery; each experiment tests one variable in the sharpen-strip-gate pipeline. This file is the reload point: a fresh session reads it to see which experiments are done and resumes from the first incomplete one.
 
@@ -474,7 +474,7 @@ Baseline from the prior validation run: 20 bloated inputs, Gate 1 PASS 13/20, Ga
 
 [Entry format template and the E0 infrastructure entry dropped.]
 
-### findings.md (promptforge/study/make-dataset/experiments/)
+### findings.md (runvil/study/make-dataset/experiments/)
 
 Optimal configuration: Gate 1 (execution-equivalence) alone - drop Gate 2 (gate1-only yields 90% vs 10% strict; narrowed gate2 caught zero defects beyond gate1, so it is pure redundant cost). Minimal-change sharpen for a safety-first compressor, or aggressive-then-minimal two-pass for more compression (minimal recovers 72% of aggressive failures). Effort medium. Input size irrelevant to quality; slice only to multiply volume. Source: the user's own prompts and blurred versions of them, not web prompts.
 
@@ -488,7 +488,7 @@ Scale path: blur all 85 first-gen prompts at 2-3 variants x 3 passes for on the 
 
 [Tooling change list dropped.]
 
-### semantic-blur-report.md (promptforge/study/make-dataset/)
+### semantic-blur-report.md (runvil/study/make-dataset/)
 
 Thesis: an LLM asked to "revise" or "rewrite" a prompt does not edit it; it regenerates it, resampling from the training distribution. Each pass moves the text toward the mean: blander, more hedged, more exhaustive, less specific. This is semantic blur, the text analog of pushing an image through latent space and back. The goal of good prompting is the opposite direction, toward the argmax and the tail of the distribution, where the sharp, specific, load-bearing tokens live. Blur is irreversible from within the chain: by the data processing inequality, mutual information with the original intent only decreases with each regeneration, so no amount of further regeneration recovers what was lost.
 

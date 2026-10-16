@@ -1,12 +1,12 @@
-<!-- STATUS: residue - promptforge-mcp-server - forward design, almost none of it built; the crate's as-built document is crates/promptforge-mcp-server/design-mcp-server.md - see design.md for the system -->
+<!-- STATUS: residue - runvil-mcp-server - forward design, almost none of it built; the crate's as-built document is crates/runvil-mcp-server/design-mcp-server.md - see design.md for the system -->
 
-# `promptforge-mcp-server` residue: the service the MCP server was designed to be, and is not
+# `runvil-mcp-server` residue: the service the MCP server was designed to be, and is not
 
 This is forward design. Almost nothing specified below is built: one MCP tool per prompt and the exposure modes and promotion workflow around it, Django's fire-and-poll HTTP surface and the three other routes beside it, declared outputs and the `OutputRef` that would carry one, a `Queued` run state, slot and extension wiring, output roots, run limits, remote MCP clients as extensions, the boot probe, the designed error taxonomy, service installation, and the `_meta` event payload are all designed and unimplemented. The exception is a passage the separation could not split, so it still shows built shape: the router below carries four things the code has exactly as written - `/mcp` nested as a streamable HTTP service, a 15-second SSE keep-alive, sessions rather than stateless JSON, and `/healthz` registered after the bearer layer so its exemption is structural - and only its four Django routes are designed and absent. Two of the unbuilt items - the fire-and-poll surface and output roots - are what a continuously running deployment would need, so this is where a plan for one starts reading.
 
-What exists today is a server whose whole surface is four fixed built-ins: `list_prompts`, `run_prompt`, `check_run`, and `need_prompt` when the ranking engine is compiled in. A prompt is a command reached by naming it to `run_prompt` and is never published as a tool of its own, and boot resolves a catalog from globs, refuses to serve on an incomplete one, and re-resolves per prompt on save. That crate's own `design-mcp-server.md`, at `crates/promptforge-mcp-server/design-mcp-server.md`, is written from its code and is the document to read for what the server does.
+What exists today is a server whose whole surface is four fixed built-ins: `list_prompts`, `run_prompt`, `check_run`, and `need_prompt` when the ranking engine is compiled in. A prompt is a command reached by naming it to `run_prompt` and is never published as a tool of its own, and boot resolves a catalog from globs, refuses to serve on an incomplete one, and re-resolves per prompt on save. That crate's own `design-mcp-server.md`, at `crates/runvil-mcp-server/design-mcp-server.md`, is written from its code and is the document to read for what the server does.
 
-Nothing was deleted in the separation and no argument was rewritten. Where a passage had to be split - a scope list whose boundaries are half kept, a configuration file whose keys are mostly unbuilt, a progress path whose events do not all exist - the built half went to the crate's document, every reference below to Part I now means that document, and the rest stays here under the heading it had before. The text still calls the crate `promptforge-mcp` throughout, which is the name it carried until the rename.
+Nothing was deleted in the separation and no argument was rewritten. Where a passage had to be split - a scope list whose boundaries are half kept, a configuration file whose keys are mostly unbuilt, a progress path whose events do not all exist - the built half went to the crate's document, every reference below to Part I now means that document, and the rest stays here under the heading it had before. The text still calls the crate `runvil-mcp` throughout, which is the name it carried until the rename.
 
 Seven things the separation had to settle rather than sort, because this document and the code disagree rather than merely lag:
 
@@ -15,7 +15,7 @@ Seven things the separation had to settle rather than sort, because this documen
 - **A reload is judged per prompt, not per candidate.** "At boot, refuse to start; on reload, refuse the change" is the document's rule. `Catalog::resolve` takes an `OnBroken` parameter and the watcher passes `Retain`, so a prompt that fails revalidation stays in the catalog as a broken entry carrying its error while every other prompt reloads; only a candidate that cannot be resolved at all keeps the previous catalog whole. This one is worth naming twice, because the audit summary in the plan lists per-prompt reload among the things this document gets right, and this document does not get it right - the crate's own document does.
 - **Nothing announces `tools/list_changed`.** The capability is built with `enable_tools()` alone, and `Reload` no longer carries a published-changed signal. The published set is the same four entries for the life of the process, so there is nothing a client could be told.
 - **`rmcp` is pinned at `=3.1.0`, not `=2.2.0`.** The workspace pins the 3.x line. The document's argument for the 2.x pin - that 3.0.0-beta.2 was one day old and had 83 downloads - is history rather than a live decision, and the `Open` entry asking whether to follow 3.x has been answered by doing it. The crate's own document names no version at all, so the plan's claim that both documents say `2.2.0` holds only for this one.
-- **The CLI is not a client of this server.** "Every run executes here. The CLI is purely a client of this server and has no in-process path" is refuted by `promptforge-cli`, which is an in-process runner over a markdown file path and never speaks to this server at all.
+- **The CLI is not a client of this server.** "Every run executes here. The CLI is purely a client of this server and has no in-process path" is refuted by `runvil-cli`, which is an in-process runner over a markdown file path and never speaks to this server at all.
 - **The search credential is not in `prompts.toml`.** The document keeps every non-LLM secret here and off the gateway. `prompts.toml` has no `[extensions]` table and no key of any kind; `server/bind.rs` binds `web_search` to a client that posts to the gateway on the gateway's own token, and only `web_fetch` runs in this process. Two claims fall together: the secret's location, and the boundary that says a canonical tool is an extension's compiled-in function.
 
 ---
@@ -24,14 +24,14 @@ Seven things the separation had to settle rather than sort, because this documen
 
 ## The scope as designed
 
-This crate is the process a client talks to. It loads configuration, resolves logical names to concrete ones, links and registers extensions, publishes the enabled prompt catalog on an MCP surface, serves a fire endpoint and a status endpoint for the Django site, constructs a `promptforge::Executor` per run, and forwards the executor's event stream to whichever caller is watching. It is the only MCP server in the system and it is the only process that reads `prompts.toml`.
+This crate is the process a client talks to. It loads configuration, resolves logical names to concrete ones, links and registers extensions, publishes the enabled prompt catalog on an MCP surface, serves a fire endpoint and a status endpoint for the Django site, constructs a `runvil::Executor` per run, and forwards the executor's event stream to whichever caller is watching. It is the only MCP server in the system and it is the only process that reads `prompts.toml`.
 
 What it does not do, and cannot be made to do without a change to this document. The two boundaries the code keeps outright - no LLM backend, and no persisted run history - are in Part I:
 
 - Publish a tool from the canonical vocabulary. `web_search`, `web_fetch`, the `paper_` family, and the `classify_` family are compiled-in Rust functions inside extensions, called directly by the executor. They never appear on the MCP surface, so Cursor is never offered a second web search.
-- Parse a prompt, walk a section, run Lua, or resolve an output name to a path. That is `promptforge`, and this crate hands it the resolved maps.
+- Parse a prompt, walk a section, run Lua, or resolve an output name to a path. That is `runvil`, and this crate hands it the resolved maps.
 - Own a domain. No schema, no table, no paper, no search provider. Every domain-shaped thing arrives as an `Extension` this binary chose to link.
-- Hand execution to `promptforge-cli`. Every run executes here. The CLI is purely a client of this server and has no in-process path.
+- Hand execution to `runvil-cli`. Every run executes here. The CLI is purely a client of this server and has no in-process path.
 - Hold a job table. Django's Celery task is the durable queue; this crate holds run state in memory for the life of the run plus a retention window.
 - Queue LLM work. Admission for model turns belongs to the gateway. This crate caps how many runs execute at once, which is a different limit for a different reason.
 
@@ -66,7 +66,7 @@ Versions confirmed against crates.io on 2026-07-25, and the `rmcp` line has sinc
 - `rmcp` at exactly `=2.2.0`, with features `server`, `schemars`, and `transport-streamable-http-server`. Exact rather than caret: the `ServerHandler` signatures, the `Tool` field set, and the capability builder have each changed across minor releases, so an upgrade is a diff to read rather than a number to bump. `2.2.0` was published 2026-07-08 and is the current stable line.
 - `axum` at `0.8.9`, already a dependency through the streamable HTTP service. There is no 0.9 line; 0.8.9 is current.
 - `tokio` at `1`, with `rt-multi-thread`, `macros`, `signal`, and `fs`.
-- `serde` and `serde_json` at `1`, with the wire types themselves deriving in `promptforge` rather than here.
+- `serde` and `serde_json` at `1`, with the wire types themselves deriving in `runvil` rather than here.
 - `toml` at `0.9` for configuration, `notify` at `8` for the hot-reload watcher.
 - `tracing` and `tracing-subscriber` at `0.3`, with a rolling file appender because a Windows service has no console.
 
@@ -155,7 +155,7 @@ Three of this shape's parts are built and are described in Part I: the catalog b
 
 ```rust
 #[derive(Clone)]
-pub struct PromptForge {
+pub struct Runvil {
     /// Validated catalog, swapped whole on hot reload. A run holds its snapshot for its lifetime.
     catalog: Arc<ArcSwap<Catalog>>,
     runs: Arc<RunRegistry>,
@@ -181,12 +181,12 @@ pub struct Catalog {
     tools: Vec<Tool>,
 }
 
-impl ServerHandler for PromptForge {
+impl ServerHandler for Runvil {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::LATEST,
             capabilities: ServerCapabilities::builder().enable_tools().enable_tool_list_changed().build(),
-            server_info: Implementation { name: "promptforge".into(), version: env!("CARGO_PKG_VERSION").into() },
+            server_info: Implementation { name: "runvil".into(), version: env!("CARGO_PKG_VERSION").into() },
             instructions: Some("Each tool runs one prompt to completion and returns the path it wrote. Do not re-emit the document body; read the file if you need it.".into()),
         }
     }
@@ -210,10 +210,10 @@ sequenceDiagram
     participant Client as MCP client
     participant Router as axum router
     participant Auth as bearer check
-    participant Server as PromptForge
+    participant Server as Runvil
     participant Obs as McpObserver
     participant Pump as progress pump task
-    participant Exec as promptforge Executor
+    participant Exec as runvil Executor
 
     Client->>Router: POST /mcp with tools/call staker
     Router->>Auth: Authorization header
@@ -337,9 +337,9 @@ Six events exist, and the table names eleven. `RunStarted`, `SectionStarted`, `S
 
 ### The serialized event, for a client that wants more than a line
 
-Every notification additionally carries the full `Event` under a `_meta` key of `dev.promptforge/event`, serialized by the derives `promptforge` provides on `Event`. A reverse-DNS-style key is what the MCP specification reserves for implementation-defined `_meta` entries, so this cannot collide with a future protocol field.
+Every notification additionally carries the full `Event` under a `_meta` key of `dev.runvil/event`, serialized by the derives `runvil` provides on `Event`. A reverse-DNS-style key is what the MCP specification reserves for implementation-defined `_meta` entries, so this cannot collide with a future protocol field.
 
-Cursor ignores it and renders the three standard fields. `promptforge-cli` reads it under `--verbose` to print one structured line per event including the variants that produce no frame, which is why the key exists: without it the CLI's verbose mode degrades to reprinting the same message text the plain mode already showed. Tension: this puts the `Event` enum on the wire for real, so adding a variant is a compatible change while renaming a field is not, and the CLI has to tolerate an unknown variant rather than fail on it.
+Cursor ignores it and renders the three standard fields. `runvil-cli` reads it under `--verbose` to print one structured line per event including the variants that produce no frame, which is why the key exists: without it the CLI's verbose mode degrades to reprinting the same message text the plain mode already showed. Tension: this puts the `Event` enum on the wire for real, so adding a variant is a compatible change while renaming a field is not, and the CLI has to tolerate an unknown variant rather than fail on it.
 
 ### When the client does not support progress
 
@@ -468,7 +468,7 @@ There is no denominator here either, for the reason given under the observer, so
 
 An unknown id returns `404` with `{ "status": "unknown" }`. Celery treats that as a failure and refires, which is safe because a rerun is a replace-all write from deterministic content.
 
-`GET /v1/prompts` returns the enabled catalog as name, description, keywords, params schema, and declared outputs, so the site can populate a form without reading `prompts.toml` or duplicating the frontmatter. That full frontmatter is what `promptforge-cli`'s `list` renders, so the field set here is the one the CLI depends on rather than a superset chosen for the site.
+`GET /v1/prompts` returns the enabled catalog as name, description, keywords, params schema, and declared outputs, so the site can populate a form without reading `prompts.toml` or duplicating the frontmatter. That full frontmatter is what `runvil-cli`'s `list` renders, so the field set here is the one the CLI depends on rather than a superset chosen for the site.
 
 ```json
 {
@@ -503,7 +503,7 @@ The body is an object holding one `prompts` array rather than a bare array, beca
 }
 ```
 
-The status is `200` whether `ok` is `true` or `false`. A configuration full of problems is the answer to the question that was asked, not a failed request: this endpoint reports a verdict about files on disk, and delivering an accurate verdict of `false` is the endpoint working. A `4xx` would tell the caller its own call was malformed and a `5xx` would tell it to retry later, and neither is true of a prompt with an unbound tool. So the status code says only that the pass ran, `ok` carries the verdict, and `problems` carries the evidence. `promptforge-cli validate` reads `ok` rather than the status, which is what makes its nonzero exit mean the service rejected these prompts rather than that the service could not be asked. The only non-200 responses are the ones genuinely about the request: `401` for a missing or wrong token, and `500` if the pass itself cannot run. Tension: a monitoring probe pointed here reads a healthy `200` for a broken deployment and has to parse the body to learn otherwise, which is part of why `/healthz` is a separate route.
+The status is `200` whether `ok` is `true` or `false`. A configuration full of problems is the answer to the question that was asked, not a failed request: this endpoint reports a verdict about files on disk, and delivering an accurate verdict of `false` is the endpoint working. A `4xx` would tell the caller its own call was malformed and a `5xx` would tell it to retry later, and neither is true of a prompt with an unbound tool. So the status code says only that the pass ran, `ok` carries the verdict, and `problems` carries the evidence. `runvil-cli validate` reads `ok` rather than the status, which is what makes its nonzero exit mean the service rejected these prompts rather than that the service could not be asked. The only non-200 responses are the ones genuinely about the request: `401` for a missing or wrong token, and `500` if the pass itself cannot run. Tension: a monitoring probe pointed here reads a healthy `200` for a broken deployment and has to parse the body to learn otherwise, which is part of why `/healthz` is a separate route.
 
 `kind` is a closed set, and the rule that closes it is that every `kind` is the snake_case name of the `StartupError` variant that produced it. A boot rejection with no `kind` would be a fault the service refuses to start on that this endpoint cannot name, which is the one thing `validate` exists to prevent.
 
@@ -528,11 +528,11 @@ The status is `200` whether `ok` is `true` or `false`. A configuration full of p
 | `missing_output_root` | `PromptNotValid`, `ValidateError::MissingOutputRoot` | A declared output name has no root in the merged `[outputs]` table. |
 | `state_name_collision` | `PromptNotValid`, `ValidateError::StateNameCollision` | A declared state-filing tool collides with a canonical name, a core name, or another declared name. |
 
-`PromptNotValid` is the one variant that is not itself a `kind`. It wraps `promptforge::ValidateError`, and a caller handed `prompt_not_valid` would have to parse `detail` to learn which of the core's checks failed, so they appear directly and the wrapper does not. `Multiple` is absent for the same reason inverted: it is the accumulator, and the `problems` array is what it serializes to. `BindFailed` is the only boot rejection with no `kind` at all, because the pass called here runs steps 1 through 8 and never reaches the listener, which the live service is already holding.
+`PromptNotValid` is the one variant that is not itself a `kind`. It wraps `runvil::ValidateError`, and a caller handed `prompt_not_valid` would have to parse `detail` to learn which of the core's checks failed, so they appear directly and the wrapper does not. `Multiple` is absent for the same reason inverted: it is the accumulator, and the `problems` array is what it serializes to. `BindFailed` is the only boot rejection with no `kind` at all, because the pass called here runs steps 1 through 8 and never reaches the listener, which the live service is already holding.
 
 `prompt` is present on every kind attributable to one catalog entry and absent on the two that are not: `config` and `token_missing` describe the file itself. Those two also stop the pass where boot stops it, so a response carrying either holds exactly one problem and reports `checked` as zeros, which is honest about the fact that nothing else was examined. `detail` is the variant's `Display` text, so the message a caller reads over HTTP is the message boot would have printed for the same fault, from the same `thiserror` attribute.
 
-This exists because `promptforge-cli validate` has no other honest implementation. The question the command answers is whether this service would accept these prompts, and the service is the only thing that knows: which extensions were linked, what `[tools]` binds each canonical name to, whether a declared output root exists, and whether each extension's own `validate` hook passes against a reachable database and readable weights. A local implementation would have to reimplement the whole resolution path, and a second implementation of resolution is exactly what the CLI being a client exists to avoid.
+This exists because `runvil-cli validate` has no other honest implementation. The question the command answers is whether this service would accept these prompts, and the service is the only thing that knows: which extensions were linked, what `[tools]` binds each canonical name to, whether a declared output root exists, and whether each extension's own `validate` hook passes against a reachable database and readable weights. A local implementation would have to reimplement the whole resolution path, and a second implementation of resolution is exactly what the CLI being a client exists to avoid.
 
 It reuses the boot pass rather than reimplementing it: the same function, called with the freshly read files instead of the live snapshot, which is what keeps `validate` and startup from ever disagreeing. It is read-only and does not swap the live configuration, so it is safe to call against a running service and is distinct from the hot-reload path. Tension: a `200` with `ok: true` means the configuration on disk is coherent, not that the running service is serving it, and a caller that wanted the second thing has to compare against `/v1/prompts`.
 
@@ -579,7 +579,7 @@ Every run enters the registry, whether fired over HTTP or invoked over MCP, so s
 Part I lists the keys that exist. Everything this file adds beyond them is the resolution machinery: slots, classifier slots, canonical tool bindings and their per-tool permits, output roots, executor limits, extension configuration, and remote MCP clients, each inheritable and overridable per prompt. The file also holds a secret it does not hold in the code, and enables a prompt by presence where the code globs a directory.
 
 ```toml
-# prompts.toml - deployment scope for promptforge-mcp.
+# prompts.toml - deployment scope for runvil-mcp.
 # Pairs with gateway.toml, which owns backends, LLM credentials, and the GPU
 # concurrency budget and is read by a different process. This file holds every
 # non-LLM credential, so it is mode 0600 on Unix and ACL-restricted on Windows.
@@ -587,15 +587,15 @@ Part I lists the keys that exist. Everything this file adds beyond them is the r
 
 [server]
 bind = "0.0.0.0:9310"            # a network interface, not loopback: Cursor connects from a workstation
-token = "pf_7Qk2xR9vLm4TdW0aBn"  # the one shared bearer token, checked on both surfaces
+token = "rv_7Qk2xR9vLm4TdW0aBn"  # the one shared bearer token, checked on both surfaces
 max_concurrent_runs = 4          # run permits; per-turn admission still bottoms out at the gateway
 admission_timeout = "30s"        # how long an MCP call waits for a run permit before refusing
 retain_completed = "1h"          # how long a finished run stays readable at the status endpoint
 retain_completed_max = 512       # hard cap on retained records, oldest evicted first
-log_dir = 'C:\ProgramData\promptforge\logs'
+log_dir = 'C:\ProgramData\runvil\logs'
 
 [paths]
-prompts = 'C:\ProgramData\promptforge\prompts'
+prompts = 'C:\ProgramData\runvil\prompts'
 
 [gateway]
 url = "http://10.0.0.12:8081/v1"
@@ -645,7 +645,7 @@ report    = { dir = 'D:\wg21\reports' }
 digest    = { dir = 'D:\wg21\digests' }
 positions = { extension = "paperstore" }
 
-[limits]                         # field names mirror promptforge::Limits one to one
+[limits]                         # field names mirror runvil::Limits one to one
 max_turns_per_section = 24
 max_tool_calls_per_section = 30
 max_lua_calls_per_section = 200
@@ -669,7 +669,7 @@ endpoint = "https://api.search.brave.com/res/v1"
 
 [extensions.paperstore]
 backend = "postgres"             # "sqlite" on a developer machine, which then needs WAL mode
-url = "postgres://promptforge@10.0.0.11/paperstore"
+url = "postgres://runvil@10.0.0.11/paperstore"
 
 [extensions.onnx]                # the name ClassifyExt reports, not its Cargo feature
 model_root = 'D:\models\onnx'    # export directories hang off this; design-classify.md owns the layout
@@ -688,7 +688,7 @@ self_check_max_ms = 20           # device self-check ceiling; a silent CPU fallb
 [[mcp_clients]]
 name = "corpsearch"
 url = "http://10.0.0.30:9310/mcp"
-token = "pf_9Rf1cE8sVy2QhJ7pXz"
+token = "rv_9Rf1cE8sVy2QhJ7pXz"
 provides = ["web_search"]        # checked at boot against the remote's own tools/list
 
 # ---------------------------------------------------------------------------
@@ -745,7 +745,7 @@ That boot either produces a resolved catalog or refuses to serve, that failures 
 
 Registration is one explicit function, gated by Cargo features. No `inventory`, no build script, no dynamic loading.
 
-`promptforge::Extensions` exposes no lookup by name, so this crate keeps its own list beside it and builds a fresh `Extensions` per run from `new` and `add`. The list is a `Vec` rather than a map because the core orders section lifecycle events by registration order, and that order has to survive.
+`runvil::Extensions` exposes no lookup by name, so this crate keeps its own list beside it and builds a fresh `Extensions` per run from `new` and `add`. The list is a `Vec` rather than a map because the core orders section lifecycle events by registration order, and that order has to survive.
 
 ```rust
 pub struct Linked(Vec<(String, Arc<dyn Extension>)>);
@@ -763,31 +763,31 @@ pub fn register_all(cfg: &Config) -> Result<Linked, StartupError> {
 
     #[cfg(feature = "search")]
     if let Some(c) = &cfg.extensions.brave {
-        exts.add(Arc::new(promptforge_ext_search::SearchExt::new(c)?));
+        exts.add(Arc::new(runvil_ext_search::SearchExt::new(c)?));
     }
 
     #[cfg(feature = "paperstore")]
     if let Some(c) = &cfg.extensions.paperstore {
-        exts.add(Arc::new(promptforge_ext_paperstore::PaperstoreExt::new(c)?));
+        exts.add(Arc::new(runvil_ext_paperstore::PaperstoreExt::new(c)?));
     }
 
     #[cfg(feature = "classify")]
     if let Some(c) = &cfg.extensions.onnx {
-        exts.add(Arc::new(promptforge_ext_classify::ClassifyExt::new(c)?));
+        exts.add(Arc::new(runvil_ext_classify::ClassifyExt::new(c)?));
     }
 
     // A remote MCP service is an extension like any other. Its `name` is the
     // client name, so a tool binding cannot tell a remote backing from a local one.
     #[cfg(feature = "mcp")]
     for c in &cfg.mcp_clients {
-        exts.add(Arc::new(promptforge_ext_mcp::RemoteExt::connect(c)?));
+        exts.add(Arc::new(runvil_ext_mcp::RemoteExt::connect(c)?));
     }
 
     Ok(exts)
 }
 ```
 
-A Cargo feature is named for the thing itself and carries no redundant qualifier, so the features are `search`, `paperstore`, `classify`, and `mcp` while the crates behind them keep their `promptforge-ext-` prefix. The types are `SearchExt`, `PaperstoreExt`, `ClassifyExt`, and `RemoteExt`, because the `Ext` suffix is what keeps every extension type uniform and distinguishes the type from the provider name it reports through `Extension::name`.
+A Cargo feature is named for the thing itself and carries no redundant qualifier, so the features are `search`, `paperstore`, `classify`, and `mcp` while the crates behind them keep their `runvil-ext-` prefix. The types are `SearchExt`, `PaperstoreExt`, `ClassifyExt`, and `RemoteExt`, because the `Ext` suffix is what keeps every extension type uniform and distinguishes the type from the provider name it reports through `Extension::name`.
 
 A configured binding selects among the linked extensions by name:
 
@@ -824,8 +824,8 @@ The first two rules are built and Part I states them: the run permits with their
 
 - Per-run work still bottoms out at the gateway. Every model turn takes a gateway permit, eight per endpoint and sixteen globally, and `fanout` is sequential, so a run has one turn in flight at a time. Raising `max_concurrent_runs` therefore does not raise LLM throughput; it raises the number of runs waiting at the gateway and the number of connections held while they wait. Sixteen is the ceiling above which nothing can possibly overlap, and 4 is the default because a run's non-LLM work - search calls, fetches, classifier calls at a section boundary - is where extra concurrency actually pays, and it pays much sooner than the queue depth costs.
 - A gateway 503 with `Retry-After` is retried `[gateway].retries` times with backoff, and only then surfaced. Every client of the gateway must back off and this crate is a client.
-- An extension doing CPU-bound or GPU-bound work must use `spawn_blocking`. `promptforge-ext-classify` calls into ONNX Runtime synchronously, and a classifier call on the async runtime's worker thread would stall every other run's polling. That contract belongs to the extension; this crate raises `max_blocking_threads` to accommodate it.
-- Per-tool rate limits are process-local semaphores in the `ToolMap`, shared across every concurrent run because the `ResolvedTool` entries are `Arc` and the catalog is shared. This is precisely why `promptforge-cli` runs as a client by default: a second process would get a second set of permits and the upstream would see double the configured rate.
+- An extension doing CPU-bound or GPU-bound work must use `spawn_blocking`. `runvil-ext-classify` calls into ONNX Runtime synchronously, and a classifier call on the async runtime's worker thread would stall every other run's polling. That contract belongs to the extension; this crate raises `max_blocking_threads` to accommodate it.
+- Per-tool rate limits are process-local semaphores in the `ToolMap`, shared across every concurrent run because the `ResolvedTool` entries are `Arc` and the catalog is shared. This is precisely why `runvil-cli` runs as a client by default: a second process would get a second set of permits and the upstream would see double the configured rate.
 
 ## Authentication
 
@@ -862,10 +862,10 @@ None of the installation is built: the binary takes `serve [--stdio] <prompts.to
 Installation goes through `daemon-kit`, covering Windows Service Control Manager, launchd, and systemd:
 
 ```
-promptforge-mcp install --config C:\ProgramData\promptforge\prompts.toml
-promptforge-mcp uninstall
-promptforge-mcp start | stop | status
-promptforge-mcp run --config <path>     # foreground, for development and for diagnosing a failed install
+runvil-mcp install --config C:\ProgramData\runvil\prompts.toml
+runvil-mcp uninstall
+runvil-mcp start | stop | status
+runvil-mcp run --config <path>     # foreground, for development and for diagnosing a failed install
 ```
 
 The installer writes the absolute config path into the service command line. A Windows service starts with `%SystemRoot%\system32` as its working directory and cannot walk up a tree to discover a config file, so path discovery relative to the working directory is not merely fragile here, it cannot work. There is no default search path and no environment-variable fallback: `--config` is required, and `run` fails with a message naming the flag rather than guessing.
@@ -889,18 +889,18 @@ pub enum StartupError {
     Config { path: PathBuf, source: toml::de::Error },
     TokenMissing,
     PromptUnreadable { prompt: String, path: PathBuf, source: io::Error },
-    PromptParse { prompt: String, source: promptforge::ParseError },
+    PromptParse { prompt: String, source: runvil::ParseError },
     PromptNameMismatch { key: String, frontmatter: String },
     ToolNameIllegal { prompt: String, derived: String },
     ToolNameDuplicated { name: String, prompts: [String; 2] },
     ParamsNotObjectSchema { prompt: String },
     ExtensionNotLinked { binding: ToolName, extension: String, linked: Vec<String>, feature: Option<&'static str> },
     ExtensionDoesNotProvide { extension: String, name: ToolName },
-    ExtensionInvalid { extension: String, source: promptforge::ExtError },
+    ExtensionInvalid { extension: String, source: runvil::ExtError },
     RemoteUnreachable { name: String, url: String, source: rmcp::ServiceError },
     RemoteMissingTool { name: String, tool: ToolName },
     OutputRootUnwritable { output: String, path: PathBuf, source: io::Error },
-    PromptNotValid { prompt: String, source: promptforge::ValidateError },
+    PromptNotValid { prompt: String, source: runvil::ValidateError },
     BindFailed { addr: SocketAddr, source: io::Error },
     /// Boot reports everything it found. This is the variant that reaches `main`.
     Multiple(Vec<StartupError>),
@@ -915,7 +915,7 @@ pub enum RequestError {
     AdmissionTimeout { waited: Duration },
     GatewayBusy { retry_after: Duration },
     UnknownRun { run: RunId },
-    Run { run: RunId, source: promptforge::RunError },
+    Run { run: RunId, source: runvil::RunError },
     Internal(#[from] anyhow::Error),
 }
 ```
@@ -954,7 +954,7 @@ The core crate's fake gateway and recording extension are the fixtures, so nothi
 - Gateway backpressure: a fake gateway answering 503 with `Retry-After` is retried the configured number of times and then surfaced as `GatewayBusy`.
 - Hot reload: an invalid candidate leaves the old catalog serving and logs every error; a valid candidate swaps and emits `tools/list_changed`; a run in flight across a swap finishes under its original snapshot; a rotated token rejects the next request on an established session.
 - Extension wiring: a canonical name provided by two linked extensions resolves to the bound one, and the per-prompt override reaches a different extension than the global binding.
-- Loopback: `promptforge-cli run` against this server in a test, asserting the terminal sees the same event sequence Cursor sees.
+- Loopback: `runvil-cli run` against this server in a test, asserting the terminal sees the same event sequence Cursor sees.
 
 ## Confidence
 
@@ -988,6 +988,6 @@ These are the confidences the design held in itself, not the crate's. Two rows h
 - Whether the run registry should persist to a small local database. Purely a function of observed Celery polling behaviour across restarts, and currently unobserved.
 - Whether `GET /v1/prompts` should also carry `version` and the prompt's declared `tools`. The five fields published today are the ones enumerated above, and `design-cli-residue.md` renders a `VERSION` column and a `tools:` line from what it calls the full frontmatter, so one of the two documents is wrong about the field set. Three ways out: publish both, which puts canonical tool names in an HTTP response after this document kept them off the MCP surface on purpose; publish `version` only, which is inert metadata no client can act on and closes the visible half of the gap; or publish neither and let the CLI degrade to fewer columns, which it already specifies as its behaviour for an absent field. Unresolved because the first option reopens a settled boundary for the sake of a display line.
 - Whether Django should be permitted output-root overrides at all. The mechanism is specified and cheap, and the site may turn out to want the configured root every time, in which case the field should go.
-- Whether a Windows service account running under Service Control Manager can reach the GPU that `promptforge-ext-classify` needs. This is a platform question with a plain answer that nobody has looked up yet, and it only bites the classifier build.
+- Whether a Windows service account running under Service Control Manager can reach the GPU that `runvil-ext-classify` needs. This is a platform question with a plain answer that nobody has looked up yet, and it only bites the classifier build.
 
 *2026-07-25 - design-mcp-server*
