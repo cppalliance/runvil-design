@@ -1,5 +1,6 @@
 # Runvil's Plugin and Tool Names: The Rename Plan Fixes Seven Problems, and Seven Remain Open
 
+- Superseded: the 2026-10-19 Pack and Plugin rename supersedes this report's package and Plugin names.
 - Type: evaluation / review of the naming around Plugins, packages, tools, and models
 - Audience: the owner (Vinnie Falco), and the agents that will run the rename plan and design the dynamic-library Plugin API
 - Decision served: which naming problems the "Plugin Registry and Info Rename" plan fixes, which remain open, and what to decide before the dynamic-library work starts
