@@ -3,155 +3,141 @@ produced: 2026-10-20
 title: "Runvil tool offering foundation: fixed and dynamic offers of Packs and filtered views, the dynamic set, GetDynamicTools and CallDynamicTool as Engine built-ins, a render-once tool catalog attached to the section conversation, one messages list per section and compaction by swap, model-shaped Packs and filters, readOnlyHint metadata and Host trust, MCP as a catalog-providing Pack or a language feature, MCP catalogs and the rendezvous, read-only reflection, dispatch refusals, migration inventory, and recommendations for a new maintainer"
 ---
 
-# Tooling and MCP in Runvil: Lua Places Packs Fixed or Dynamic, the Engine Renders One Catalog per Section Conversation, and MCP Becomes a Catalog-Providing Pack
+# Tool Offering and MCP in Runvil
 
-- Type: analytical / recommendation.
-- Audience: a new Runvil maintainer, and Vinnie Falco as the decider.
-- Decision served: how Runvil offers tools to models, how models discover tools held back from them, and how Runvil integrates MCP.
-- Inputs: `runvil` at `b1bbe33eb`, `runvil-docs` at `62ae759`, and `wg21-paperflow` at `693ef8ab`; the Runvil Slack thread, the huddle with Jason, and the design discussion with Vinnie Falco, all on 2026-10-20; Runvil plan notes and design reports from 2026-08-08 to 2026-10-20; and ten research collections gathered on 2026-10-20.
-- Status: 29 settled decisions reported as decided, 23 open questions with recommendations, and nothing implemented.
+- Sources: code at `runvil` `b1bbe33eb`, `runvil-docs` `62ae759`, and `wg21-paperflow` `693ef8ab`; three conversations on 2026-10-20; plan notes and reports since 2026-08-08; and ten research collections (References).
 
-Runvil should treat every source of tools as a Pack and let each section's Lua place whole Packs, or filtered views of them, fixed or dynamic. The Engine then renders the tool catalog once and attaches it to the section's single conversation, where any later change is a hard error. Vinnie Falco settled that design on 2026-10-20, and this report presents it as decided. The two discovery tools are Engine built-ins that appear only when the dynamic set is not empty. The MCP client builds one MCP catalog per configured server, connecting in the background and making the first use wait at a rendezvous. Of the 23 questions that remain, the largest is where MCP lives. This report recommends a Pack that provides catalogs at run time through a capability any Pack may use, rather than an Engine feature with its own front-matter key, which was Vinnie's first instinct. Confidence in that recommendation is medium, because it departs from that instinct and the general capability is untested beyond MCP.
+Runvil should handle every source of tools the same way. Each section's Lua offers whole Packs, which are named sets of tools, or filtered subsets of them. An offer is either fixed, so the model sees the tools' schemas, or dynamic, so the model finds the tools through two discovery tools, `GetDynamicTools` and `CallDynamicTool`. The Engine adds those two only when something is dynamic. At the section's first model call, the Engine renders the offers into one tool list and attaches it to `messages`, the section's only conversation. The list then stays fixed, because changing it invalidates the prompt cache, and an offer that would change it is a hard error. To compact, a Lua function fills an empty staging list, which the Engine checks and swaps in. Vinnie Falco, who owns Runvil, settled this design on 2026-10-20. Fitting it into today's code leaves four choices open (Part 2).
 
-**Before the terms: people, products, and Runvil basics.**
+Twenty-three questions remain open (Table 1). The largest is whether MCP should be a Pack or part of the Engine. Make the MCP client a Pack that adds one tool catalog per MCP server at run time, through a capability any Pack may use. Each server's tools then form a filtered view of the `mcp` Pack, with ids like `mcp/<server>/<tool>`, and a prompt that needs a server checks for it in its H1 section, which runs before every other section. Confidence: medium, because the general capability is untested beyond MCP. Shaped Packs, whose tools render in the form a vendor trained its models on, should stay fixed, and any cut-down form of those tools should wait for an evaluation.
 
-- **People.** Vinnie Falco owns Runvil and makes every design decision. Jason writes the Paperweight and Agora prompts and is the suggested drafter for MCP work. Greg was assigned the 2026-10-14 prototypes of the discovery tools and of a frozen tool list, and is planning a prompt debugger. Andrew Wheeler took part in the 2026-10-14 huddle.
-- **Products.** Workshop is Runvil's desktop app, and its built-in chat agent is the main interactive prompt. Paperweight is a prompt, with its own command-line Host, that reports on the evidence a WG21 paper gives for standardization. Agora is a web-research prompt Jason works on, described here from the huddle. The paper store is an MCP server that serves WG21 papers. Vinnie's Briefer analysis tool is the example of a prompt that gets better when optional data sources exist.
-- **Sections.** Each section, a heading and its body, runs in a fresh Lua VM, so no Lua value survives into the next section, and `jump` moves control to another section. The H1 block runs first, as section 0. At its end, the H1 freeze, only `var` and `argv` survive, as JSON; `var` is the JSON state that sections pass along.
-- **Extras and task built-ins.** Extras are the Packs a run has without the prompt declaring them, listed by `packs.extras()`, with their tools listed by `tools.extras()`. The task built-ins are four model-facing tools for starting and managing subagent tasks; today they are offered while `tools.allow_tasks` is set, and they are planned to become the `subagents` Pack.
-- **Split and reduced.** A split offer places one Pack partly fixed and partly dynamic. A split shaped tool is a trained tool cut by a filter, rendered reduced to its allowed parts. Table 2 defines these and the other terms.
+One fix comes before any of this: Paperweight, the prompt Jason writes to judge the evidence a WG21 paper gives for standardization, fails to compile against current `runvil` until it imports the renamed Host types (Part 5). Among the open questions, the MCP decision reaches furthest: the offer verbs, loading and requirements, and the remaining MCP questions all depend on it (Figure 6).
 
-**Reading guide.** The lead, the primer above, the short version, and Table 1 give every answer in about three pages. A new maintainer should then read Table 2 and the settled design in Part 1 (Table 4 and Figure 2), because the rest of the report uses those words and assumes those decisions. Implementers of the section conversation can go straight to Part 2, which is written as a specification. Part 4 is for deciding: each question stands alone, so read the ones you own.
-
-**The short version**
-
-- **Offering is whole Packs, placed fixed or dynamic.** A fixed offer puts schemas in the rendered catalog; a dynamic offer puts tools behind `GetDynamicTools` and `CallDynamicTool`, which appear only when something is dynamic. Filtered views select subsets by metadata or name (Part 1; questions A1 to A3).
-- **The rendered catalog is built once per section and sticks.** It attaches to `messages`, survives compaction and model changes, and an offer that would change it is a hard error (questions B1 and B2). Claude Code, the one harness that documents why it keeps its tool list fixed, says changing tools would break the prompt cache (Table 5).
-- **Each section has exactly one conversation.** `messages` is created with the section's VM, has no constructor, and is compacted by filling a staging list that the Engine validates and swaps in. Part 2 specifies it, and its pre-flight found no blocker in the code.
-- **MCP becomes a Pack that provides catalogs at run time.** Each server's MCP catalog is a filtered view of the `mcp` Pack, with ids of the form `mcp/<server>/<tool>`, and a prompt requires a server with a check in its H1 block (Part 3; questions D2 and E1). The MCP client should also adopt MCP's newer `server/discover` handshake, with a fallback, because today it speaks only the older `initialize` handshake (question E5).
-- **Shaped Packs stay fixed, and evidence gates any reduced rendering.** Every surveyed harness keeps file tools loaded, and no source measures a reduced trained tool against its full form (questions F1 to F3).
-- **Two things need attention first.** Paperweight will not compile against current `runvil` until it imports the renamed Host types (Part 5), and the MCP design choice shapes four other groups of questions (Figure 6).
-
-Table 1 lists every open question with the recommended answer and the confidence in it. Part 4 gives the options and reasons, and Table 11 in Part 5 groups the answers into twelve pieces of work with owners and next steps.
-
-**Table 1.** The 23 open questions, the recommended answer to each, and the confidence in it.
+**Table 1.** Open questions and recommended answers.
 
 | Id | Question | Recommended answer | Confidence |
 |-|-|-|-|
-| A1 | Names of the two offer verbs | `packs.offer` and `packs.offer_dynamic` | Low |
-| A2 | Values the offer verbs accept | Packs and filtered views only; MCP catalogs are views of the `mcp` Pack | Medium |
-| A3 | Filter syntax | A declarative table: metadata keys, `names`, and `except`, combined by AND, with no negation operator | Medium |
-| B1 | When the hard error fires, and when it may loosen | At an offer call that would change the attached catalog; loosen only with a vendor append mechanism and an evaluation | Medium |
-| B2 | What the attached catalog holds | Schemas, shape mapping, dynamic-set snapshot, and the discovery flag, recorded at first render | Medium |
-| C1 | What the model sees of the dynamic set | Names, one-line summaries, tool names, and server instructions inside `GetDynamicTools`'s description, under a cap | Medium |
-| C2 | The discovery tools' contract | Cursor's arguments, search over names and descriptions, refusals naming an alternative; wire names `get_dynamic_tools` and `call_dynamic_tool` | Low |
+| A1 | Names of the offer verbs | `packs.offer` and `packs.offer_dynamic` | Low |
+| A2 | What the offer verbs accept | Packs and filtered views only; MCP catalogs are views of the `mcp` Pack | Medium |
+| A3 | Filter syntax | A table of metadata keys, `names`, and `except`, combined by AND; exclusion only through `except` | Medium |
+| B1 | When the hard error fires | At an offer that would change the rendered catalog; loosen only when a vendor API can append tools and an evaluation supports it | Medium |
+| B2 | What the rendered catalog stores | Schemas, shape mapping, dynamic-set snapshot, and whether discovery tools are present | Medium |
+| C1 | What the model sees of the dynamic set | Names, one-line summaries, tool names, and server instructions, capped, in `GetDynamicTools`'s description | Medium |
+| C2 | What the discovery tools accept | Cursor's arguments; search over names and descriptions; refusals name an alternative; wire names `get_dynamic_tools` and `call_dynamic_tool` | Low |
 | D1 | Loading only named Packs | A front-matter opt-out, such as `extras: false` | Low |
-| D2 | Requiring one MCP server | A Lua check in the H1 block, at a cost to criterion 4 | Medium |
-| D3 | A required Pack or server missing | Refuse at start; a required server triggers the rendezvous at run start | Medium |
-| E1 | Which MCP design | A linked Pack providing catalogs through a capability any Pack may use (P-general) | Medium |
-| E2 | MCP ids and naming rules | `mcp/<server>/<tool>`, lowercase, collisions refused loudly, every wire name capped at 64 with a hash | Medium |
-| E3 | Rendezvous wait | Host-wide connections; a per-server cap, default 30 seconds | Medium |
-| E4 | What an MCP call returns | Data for declared output schemas, otherwise a string; one size cap | Medium |
-| E5 | MCP features beyond tools | Tools; then `server/discover` with fallback, resources, and elicitation; no sampling or roots | Medium |
-| F1 | Shaped Packs offered dynamic | Never; a hard error | Medium |
-| F2 | Where shapes live | In each shaped Pack, keyed by family resolved from provider and model-id prefix | Medium |
-| F3 | Evidence for reduced rendering | An offline per-family A/B first; Anthropic's native editor starts from full rendering | Medium |
-| G1 | Tool metadata and trust | MCP's five annotations plus an open bag; MCP's defaults; trusted only on the Host's word | Medium |
-| G2 | Dispatch checks and refusals | A fixed order; every refusal a tool result that names an alternative | Medium |
+| D2 | Requiring one MCP server | A Lua check in the H1 section, so the requirement lives in Lua rather than front matter | Medium |
+| D3 | A required Pack or server is missing | Refuse at start; a required server triggers the rendezvous at run start | Medium |
+| E1 | Whether MCP is a Pack or part of the Engine | MCP as a Pack the Host links, and any Pack can provide catalogs | Medium |
+| E2 | MCP ids and names | `mcp/<server>/<tool>`, lowercased, collisions refused loudly; all wire names capped at 64 characters with a hash | Medium |
+| E3 | How long the rendezvous waits | Host-wide connections; a per-server cap, 30 seconds by default | Medium |
+| E4 | What an MCP call returns | Data if an output schema is declared, else a string; one size cap | Medium |
+| E5 | MCP features beyond tools | Tools; then `server/discover` with fallback, resources, and elicitation; sampling and roots dropped as deprecated | Medium |
+| F1 | Offering a shaped Pack dynamic | A hard error | Medium |
+| F2 | Where shapes live | In each shaped Pack, keyed by model family from provider and model-id prefix | Medium |
+| F3 | Evidence for reduced rendering | An offline A/B per family first; Anthropic's native editor starts at full rendering | Medium |
+| G1 | Tool metadata and trust | MCP's five annotations plus an open bag, with MCP's defaults; trusted only on the Host's word | Medium |
+| G2 | Checks before a tool call | A fixed order; every refusal is a tool result naming an alternative | Medium |
 | H1 | What Lua can read | Read-only userdata extending today's objects | High |
-| H2 | Whether reflection waits | Status at once; catalogs wait | Medium |
-| H3 | What a section can read about its own tools | A read-only catalog view with placements, plus a log of dynamic tools used | Medium |
+| H2 | Whether reflection waits | Status at once; catalogs wait for the rendezvous | Medium |
+| H3 | What a section can read about its tools | A read-only view of its catalog and placements, plus a log of dynamic tools used | Medium |
 
 ## Contents
 
-- Part 1. Background: today's code rebuilds a section's tool list every round, and the settled design renders it once
-- Part 2. The section conversation: one messages list per section, compacted by a swap
-- Part 3. MCP designed two ways: as a Pack that contributes catalogs, or as an Engine feature
-- Part 4. Twenty-three open questions turn on one pivot, the MCP design, and each gets a recommendation
-  - Group A: offer whole Packs with two verbs and a declarative filter
-  - Group B: the attached catalog fails at the offer and stores enough to dispatch and replay
-  - Group C: the discovery tools list the dynamic set compactly and follow Cursor's shape
-  - Group D: loading and requirements stay generic, and missing requirements stop the run at start
-  - Group E: MCP as a catalog-providing Pack, with capped names, a bounded rendezvous, and data only when declared
-  - Group F: shaped Packs stay fixed, shapes live with their Packs, and evidence gates any reduced form
-  - Group G: metadata counts only on the Host's word, and every refusal names an alternative
-  - Group H: reflection is read-only userdata, and the run record keeps what replay needs
-- Part 5. How the answers fit, what changes, and what to do first
+- Part 1. Background and settled design
+  - How Runvil runs a prompt
+  - Key terms
+  - Tool offering today
+  - The settled design
+  - Practice in other harnesses
+  - Runvil's design principles
+- Part 2. The section conversation
+  - One conversation per section
+  - Why one list per section
+  - The Lua surface
+  - Engine behavior
+  - Compaction
+  - Problems in today's code
+  - Migration
+  - Implementation steps
+  - Acceptance tests
+- Part 3. Where MCP lives
+  - MCP as a Pack
+  - MCP built into the Engine
+  - Two hybrids
+  - Example prompts
+  - Trade-offs
+- Part 4. Open questions
+  - Group A: Offer verbs and filters
+  - Group B: The rendered catalog
+  - Group C: The discovery tools
+  - Group D: Loading and requirements
+  - Group E: The MCP client
+  - Group F: Shaped Packs
+  - Group G: Metadata, dispatch, and trust
+  - Group H: Reflection and the run record
+- Part 5. Fit, migration, and next steps
+  - The render path and the call path
+  - Order of decisions
+  - Migration and impact
+  - Deferred topics
+  - Limits and assumptions
+  - Recommendations
 - Appendices
-  - Appendix A. The Slack sketches, mapped to the design
-  - Appendix B. Worked offering examples
-  - Appendix C. One MCP catalog, from configuration to call, in each design
+  - Appendix A. The Slack sketches
+  - Appendix B. Offering examples
+  - Appendix C. One MCP catalog from configuration to call
   - Appendix D. Reflection examples
-  - Appendix E. Per-harness details behind Table 5
-  - Appendix F. Invariants and the tests that pin them
-  - Appendix G. The decision log: Vinnie Falco's statements, verbatim
+  - Appendix E. Per-harness details
+  - Appendix F. Invariants and tests
+  - Appendix G. Decision log
+  - Appendix H. Glossary
+  - Appendix I. How the design developed
 - References
 
-## Part 1. Background: today's code rebuilds a section's tool list every round, and the settled design renders it once
+## Part 1. Background and settled design
 
-Part 1 gives a new maintainer what the rest of the report assumes. It defines the terms, shows how offering works in the code today, traces how the design reached its current shape, lists what Vinnie Falco has settled, and states the ten criteria that Part 4 uses to judge each open question.
+### How Runvil runs a prompt
 
-Runvil runs prompt pipelines written as one Markdown file. Its README puts it in a line: "The Markdown is the program, and the model is the CPU" (`runvil/README.md` line 6). A prompt has YAML front matter, then sections, each a heading and its body of prose and fenced `lua` blocks. Each section runs in its own fresh Lua VM. The Engine is a pure, deterministic state machine that steps the prompt and never performs I/O. The Harness performs every effect the Engine asks for, such as model calls and tool calls, and records the run so it can be replayed without the Plugins present (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 886-888). The Gateway is a separate process that holds every vendor credential and routes model calls by model name.
+Runvil runs prompt pipelines written as one Markdown file: "The Markdown is the program, and the model is the CPU" [C1]. After the YAML front matter come sections, each a heading with prose and fenced `lua` blocks. Each section runs in a fresh Lua VM, so every Lua value dies with its section, and `jump` moves between sections. The H1 section runs first, as section 0. When it ends, at the H1 freeze, only `argv` and `var` survive, as JSON; `var` is the state that sections share.
 
-### One term names each concept, and three different things are called a catalog
+The Engine is a pure, deterministic state machine that steps through the prompt and leaves all I/O to the Harness. The Harness performs the model calls, tool calls, and other effects the Engine asks for, and records the run so it can replay without the Plugins [P1]. The Gateway, a separate process, holds vendor credentials and routes model calls by model name. All of this runs inside a Host, such as Workshop, Runvil's desktop app, and the Host decides which Packs exist.
 
-This report uses one term for each concept. Table 2 defines each term once, lists the older or informal names a reader will meet in earlier documents, and says where the concept lives in the code at `runvil` commit `b1bbe33eb`. Entries marked "not built" are parts of the settled design that have no code yet.
+### Key terms
 
-**Table 2.** Terms used in this report, their older names, and where each lives in the code.
+**Table 2.** Key terms (full glossary in Appendix H).
 
-| Term | Meaning in this report | Older or informal names | Where it lives |
-|-|-|-|-|
-| Host | The application that builds the Pack registry and hands services to Packs, such as Workshop or Paperweight's command-line program | "the host" | `workshop/server/src/agents.rs` |
-| Plugin | A loaded crate or library that inserts zero or more Packs | Before 2026-10-19, what is now a Pack | `crates/plugin-*` |
-| Pack | A set of tools with a one-segment id, such as `web` (`runvil/web`) | "Plugin", `plugins.offer` | `runvil-plugin/src/pack.rs` |
-| Pack registry | The Host's set of Packs | "bag of plug-ins", "tool bag" | `runvil-plugin/src/registry.rs` |
-| Run pick | The Harness choosing a run's Packs: the declared ones plus every undeclared `runvil` Pack | | `runner/src/host.rs` |
-| Extras | The Packs in a run that its front matter did not declare, listed by `packs.extras()` (their tools by `tools.extras()`) | "offered" (2026-10-07) | `lua/src/packs.rs` |
-| Section | A heading and its body, run in its own Lua VM | | `scheduler/walk.rs` |
-| Tool id | Canonical name: lowercase segments, Pack id first, such as `web/fetch` | "canonical id" | `types/src/tools/ids.rs` |
-| Wire name | The name the model sees, such as `web_fetch` | "alias" | `context-bound.rs` |
-| Run catalog | Every tool the run's Packs can serve, read at run start | `ToolCatalog` | `runner/src/host-run.rs` |
-| Offer, offer verbs | A section's Lua choosing tools for its model, with `packs.offer` and its dynamic counterpart | "advertise", "expose" | `tools.offer`, `packs.offer` |
-| Fixed offer | Tools whose schemas go into the rendered catalog | "direct" | Not built |
-| Dynamic offer | Tools that go into the dynamic set | "dynamic", "progressive" | Not built |
-| Split offer | One Pack offered partly fixed and partly dynamic | | Not built |
-| Dynamic set | Tools reachable only through the discovery tools; `DynamicTools` in code | "withheld set", "held back tools" | Not built |
-| Discovery tools | `GetDynamicTools` and `CallDynamicTool`, Engine built-ins present only when the dynamic set is not empty; proposed wire names `get_dynamic_tools` and `call_dynamic_tool` (question C2) | "the facade"; today's two MCP tools | Today in `plugin-mcp/src/dynamic.rs` |
-| Progressive discovery | The whole feature: a dynamic set plus the discovery tools | "progressive tool disclosure" | Not built |
-| Rendered catalog | The tool list sent with a section's requests, rendered once and attached to `messages` | "tools array", "tool catalog", "offer catalog" | Today rebuilt per round, `scheduler/chat.rs` |
-| MCP client, `plugin-mcp`, `mcp` Pack | The component that talks to MCP servers; the crate that holds it; and the Pack it provides, `runvil/mcp` | "the MCP Plugin" | `crates/plugin-mcp` |
-| MCP catalog | One MCP server's tool list | "namespace" | `plugin-mcp/src/server.rs` |
-| Filtered view | A subset of a Pack's tools, by metadata or name | "toolset" | Not built |
-| Shaped Pack | A Pack whose tools render in a vendor-trained form | "model-shaped pack", "dialect" | Not built |
-| Canonical tool, shaped tool | A tool as its Pack defines it, and its vendor form | | Not built |
-| Combined trained tool | One trained tool that both reads and writes, such as an editor with view and edit commands | | Vendor-defined |
-| Split shaped tool, reduced rendering | A shaped tool cut by a filter, and the form that shows only its allowed parts | | Not built |
-| Shape mapping | The record, stored with the rendered catalog, that turns a shaped call back into its canonical tool | | Not built |
-| Section conversation | `messages`, the one message list a section has | "message list" | `lua/src/messages.rs` |
-| Staging list | The empty list the compactor fills | "fresh" | Not built |
-| Swap | Exchanging record contents between the staging list and `messages` | | Not built |
-| Compactor | The Lua function `models.loop` calls on overflow | "compaction policy" | `lua/src/compactors.rs` |
-| Rendezvous | The first need for MCP catalogs waits until every server lists or fails | | Not built |
-| Session | One section's conversation within one run; for MCP connections, the Host's lifetime | | |
-| HostService | A typed object the Host hands to Packs | "Host services" | `runvil-plugin/src/service.rs` |
-| Ask mode | A read-only mode of the Workshop chat agent, provided as a HostService | "read-only mode" | Not built |
-| Dispatch gate | A check before a tool call that can refuse it with text the model reads | "enforced hiding" | Today the scope gate, `scheduler/chat.rs` |
-| Trusted and untrusted text | Text the Engine writes itself, and text from a tool or server, which is marked so the model treats it as data | | `ToolOutput::untrusted` |
-| Error kind | The `kind` field of a Runvil error, such as `lua` for an author's mistake or `context_exhausted` for overflow | | `lua/src/error-value.rs` |
-| Reflection | Lua reading, never writing, descriptions of Packs, tools, and servers | "introspection" | `lua/src/tools/userdata.rs`, `lua/src/packs.rs` |
-| Run record | What the Harness records so a replay needs no Plugins | "run log" | `harness::record` |
+| Term | Meaning |
+|-|-|
+| Pack | A set of tools with a one-segment id, such as `web` |
+| Plugin | A loaded crate or library that adds zero or more Packs |
+| Extras | A run's Packs beyond those its front matter declares |
+| Tool id | A tool's canonical name, lowercase segments with the Pack id first, such as `web/fetch` |
+| Wire name | The name the model sees, such as `web_fetch` |
+| Run catalog | Every tool the run's Packs can serve, fixed at run start |
+| Rendered catalog | The tool list sent with a section's model requests, fixed at the first one and attached to `messages` |
+| MCP catalog | One MCP server's tool list |
+| Fixed offer | Tools whose schemas go into the rendered catalog |
+| Dynamic offer | Tools that go into the dynamic set |
+| Dynamic set | Tools the model reaches only through the discovery tools |
+| Discovery tools | `GetDynamicTools` and `CallDynamicTool`, built into the Engine and present only while the dynamic set holds tools |
+| Filtered view | A subset of a Pack's tools, chosen by metadata or name |
+| Shaped Pack | A Pack whose tools render in the form a vendor trained its models on |
+| Shape mapping | The record, kept with the rendered catalog, that turns a shaped call back into the tool its Pack defines |
+| Section conversation | `messages`, a section's one message list |
+| Compactor | The Lua function `models.loop` calls on overflow; it fills an empty staging list that the Engine swaps into `messages` |
+| Rendezvous | The point where the first use of MCP catalogs waits for every server to list its tools or fail |
+| Ask mode | A read-only mode of the Workshop chat agent, provided as a HostService, a typed object the Host hands to Packs |
+| Dispatch gate | A check before a tool call that can refuse it with text the model reads |
+| Reflection | Lua reading descriptions of Packs, tools, and servers, read-only |
+| Run record | What the Harness records so a run replays without Plugins |
 
-Paths in Table 2 are shortened. Each sits under `crates/` in the `runvil` repository, and Engine paths also sit under `runvil-internal/`, so `scheduler/chat.rs` is `crates/runvil-internal/engine/src/execute/scheduler/chat.rs`.
+### Tool offering today
 
-**Three different things are called a catalog.** The run catalog is every tool the run's Packs can serve, and it is fixed when the run starts (`crates/harness-internal/runner/src/host-run.rs` lines 5-11). The rendered catalog is what one section's model sees, and under the settled design it is fixed the first time the section's model is called. An MCP catalog is one server's tool list. A tool can be in the run catalog without ever reaching a rendered catalog, which is how a prompt calls a tool from Lua that its model never sees.
+Today the Engine re-reads a section's offers before every model round, so an offer made between two `models.loop` calls changes the next request (Figure 1, at commit `b1bbe33eb`).
 
-### Today a section's tool list is rebuilt before every model round
+A run's tools are fixed when it starts. It gets the Packs its front matter declares under `uses:`, plus every `runvil` Pack that no declaration takes, and a `vendor/name` entry can swap in another vendor's Pack [C2]. Declaring a Pack makes it required and runs its prelude in every section; offering is a separate step [C3]. The Harness refuses a run when a required Pack is missing. It reads each Pack's tools once into the run catalog [C4], and the Engine binds each tool under a wire name, which uses only `[A-Za-z0-9_.-]` and may be any length [C5; C6].
 
-Each section picks its tools in Lua today, and the Engine re-reads those picks at every model round, so an offer made between two `models.loop` calls changes what the next round sends. Lua can also call tools its model never sees. Figure 1 shows both paths, and this section walks through them at `runvil` commit `b1bbe33eb`. Every Engine path below is under `crates/runvil-internal/`.
-
-**Which tools a run has.** A run's Packs are the Packs its front matter declares under `uses:`, plus every `runvil` Pack whose id no declaration takes; a `vendor/name` entry can select another vendor's Pack in place of Runvil's (`crates/harness-internal/runner/src/host.rs` lines 12-14). A `uses:` entry marks a Pack as required and runs its prelude in every section, but it offers nothing (`crates/runvil-internal/parser/src/frontmatter.rs` lines 69-71). A missing or unavailable required Pack refuses the run. The Harness reads each Pack's tool list once when the run starts and builds the run catalog, which stays fixed for the run (`crates/harness-internal/runner/src/host-run.rs` lines 5-11). The Engine then binds every catalog tool under its wire name, in tool-id order. It drops a tool, with a log line, when a task built-in already uses its wire name, when its name or schema is invalid, or when an earlier tool took the same wire name (`engine/src/execute/context-bound.rs` lines 40-79).
-
-**How a section offers.** Section Lua has three offering calls. `tools.offer` takes tool ids or tool objects and records each tool once, in first-offer order, and an id the run cannot offer is a hard error (`lua/src/tools.rs` lines 150-170 and 199-225). `packs.offer` takes a Pack id or a Pack object and records the Pack's name, not its tools (`lua/src/packs.rs` lines 1-13 and 142-167). `tools.offer_local` registers a Lua function as a tool for this section (`lua/src/tools.rs` lines 227-265). Workshop's built-in chat agent uses the first two, then keeps one message list across the operator's turns (`crates/workshop/agents/agents/chat.md` lines 28-35):
+Section Lua then offers. `tools.offer` records tools by id or object, and an id the run cannot offer is a hard error [C7]. `packs.offer` records a Pack's name, not its tools [C8], and `tools.offer_local` turns a Lua function into a tool for the section [C7]. Workshop's chat agent offers this way, then keeps one message list across the operator's turns [C9]:
 
 ```lua
 packs.offer("web")
@@ -164,11 +150,9 @@ while true do
 end
 ```
 
-**How a round uses the offers.** Each `models.loop` round reads the section's effective tools at call time: the `tools.offer` tools in first-offer order, then each offered Pack's tools in id order. The function's own documentation says the list is "Rebuilt at each model operation so `tools.offer`, `packs.offer`, and `tools.offer_local` calls between blocks reach the next model turn" (`lua/src/vm/state.rs` lines 128-135). The round then appends the four task built-ins while `tools.allow_tasks` is set, records what it advertised, and sends the schemas with the request (`engine/src/execute/scheduler/chat.rs` lines 141-155, 167-168, and 186-195). When the model calls a tool, the Engine checks the name against what that round advertised. A name outside it ends the `models.loop` call with an `out_of_scope_tool` error (`chat.rs` lines 349-391). `models.infer`, the single-round call, always sends an empty tool list (`engine/src/execute/scheduler/dispatch.rs` lines 242-250).
+Each `models.loop` round rebuilds the list: offered tools in first-offer order, then the offered Packs' tools in id order. The code calls it "Rebuilt at each model operation so `tools.offer`, `packs.offer`, and `tools.offer_local` calls between blocks reach the next model turn" [C10]. While `tools.allow_tasks` is set, the round adds the four task built-ins, the model's tools for subagent tasks, which are planned to become the `subagents` Pack. A model call to a name outside what the round advertised ends `models.loop` with an `out_of_scope_tool` error [C11]. `models.infer`, the single-round call, always sends an empty tool list [C12].
 
-Figure 1 summarizes the two paths. Solid arrows are the offer path the model sees; dotted arrows are paths that bypass it.
-
-**Figure 1.** Offering today: the section's offers are re-read at every `models.loop` round, while `tools.call` and `models.infer` bypass the offer.
+**Figure 1.** Offering today. Dotted arrows bypass the offer path.
 
 ```mermaid
 flowchart LR
@@ -185,83 +169,53 @@ flowchart LR
     L -.->|models.infer| N[Tool-free round]
 ```
 
-**Lua can call more than the model sees.** A script's `tools.call` by canonical id reaches any catalog tool, including one left out of every offer, through bindings that are "never advertised" (`engine/src/execute/context-bound.rs` lines 81-84; `engine/src/execute/scheduler/tool_call.rs` lines 13-16). That is the route a prompt such as Paperweight needs when it wants data from code and not from the model. The two kinds of call fail differently. A model's call always resumes with content, and a tool's own failure becomes untrusted failure text that the model reads. A script's call raises at the call site (`tool_call.rs` lines 19-24).
+Lua can call more than the model sees. A script's `tools.call` reaches any tool in the run catalog by canonical id, offered or not, through bindings that are "never advertised" [C5; C13]. A prompt such as Paperweight can use this route to get data from code rather than from the model. When a tool fails, a model's call still gets content back, as untrusted text, while a script's call raises an error where it was made [C13].
 
-**What Lua can read about tools.** A tool object exposes only `id`, `description`, and `pack` (`lua/src/tools/userdata.rs` lines 43-49), and a Pack object exposes `name` and `tools` (`lua/src/packs.rs` lines 1-13). `packs.get` returns nil for a Pack the run does not know (`packs.rs` lines 66-79). Behind them, `ToolInfo` has five fields: `id`, `description`, `parameters_schema`, `structured_output`, and `survives_stop`, with no annotations such as `readOnlyHint` (`types/src/tools/info.rs` lines 24-43). `structured_output` matters for MCP. When it is true, a script receives the tool's output as data, and otherwise as a string.
+Lua sees only a little of each tool. A tool object has `id`, `description`, and `pack` [C14], and a Pack object has `name` and `tools`; `packs.get` returns nil for a Pack unknown to the run [C8]. `ToolInfo` holds five fields, `id`, `description`, `parameters_schema`, `structured_output`, and `survives_stop`, so annotations such as `readOnlyHint` would be new [C15].
 
-**MCP today.** The MCP client is one Pack, `runvil/mcp`, over every configured server, offering two static tools modeled on Cursor's, `mcp/get_dynamic_tools` and `mcp/call_dynamic_tool` (`crates/plugin-mcp/src/lib.rs` lines 1-24). It connects in the background, reports itself ready at once, lists each server's tools once, and keeps only their names, descriptions, and input schemas, dropping annotations and output schemas (`lib.rs` lines 49-60; `crates/plugin-mcp/src/server.rs` lines 48-68). In Workshop the `mcp` Pack joins every run, so the chat agent's `tools.offer(tools.extras())` very likely offers exactly those two tools, the only path by which a model reaches MCP today. Confidence: medium, because this is read from the code and was not observed in a run. Part 3 covers the client in detail.
+MCP reaches the model through two generic tools. The MCP client is one Pack, `runvil/mcp`, over every configured server, with two static tools modeled on Cursor's, `mcp/get_dynamic_tools` and `mcp/call_dynamic_tool` [C16]. It connects in the background, reports ready at once, lists each server's tools once, and keeps only names, descriptions, and input schemas [C16; C17]. In Workshop the `mcp` Pack joins every run, so the chat agent's `tools.offer(tools.extras())` very likely offers exactly those two tools, the only route from a model to MCP today. Confidence: medium, because this comes from reading the code rather than running it.
 
-**Names.** A wire name must be non-empty and use only `[A-Za-z0-9_.-]`, and nothing caps its length (`crates/runvil-internal/model-client/src/detail.rs` lines 53-95). Tool id segments allow only lowercase ASCII letters, digits, `-`, `_`, and `.` (`types/src/tools/ids.rs` lines 26-32). OpenAI's Chat Completions API caps function names at 64 characters (OpenAI OpenAPI specification, as cited in "What to steal: how popular harnesses handle MCP servers and dynamic tools, and how models are trained for them", 2026-10-14), so a long MCP tool name under a server prefix could exceed it.
+Under the settled design, the run catalog, the wire-name rule, `tools.call`, `tools.offer_local`, and the `tools.calls` counters all stay [P1], though the wire-name rule may gain a length cap. Three things change: the catalog renders once per section, offers place whole Packs and filtered views fixed or dynamic, and tools gain metadata.
 
-**What the settled design changes.** The catalog renders once per section, offering becomes Packs and filtered views placed fixed or dynamic, and tools gain metadata. The run catalog, the wire-name rule, `tools.call`, `tools.offer_local`, and the `tools.calls` counters stay (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 984-987).
+### The settled design
 
-### The design moved from offering single tools to placing whole Packs fixed or dynamic
+The design reached this shape over ten weeks, moving from single tools offered into a list rebuilt every round to whole Packs placed fixed or dynamic and rendered once per section (Figure 2; Appendix I). Vinnie settled its 29 decisions on 2026-10-20 (Table 3), most in the design discussion between 5:27 and 6:57 PM and the rest in his huddle with Jason that afternoon.
 
-Over ten weeks the design moved in one direction. It started from tools offered one at a time into a list rebuilt every round. It has arrived at whole Packs placed fixed or dynamic, a catalog rendered once, and discovery built into the Engine. Table 3 lists the steps a maintainer will meet in older documents, with what each decided and where it stands now. The plan notes are in `runvil/vibe/`, and the reports are in `runvil-design/research/`.
-
-**Table 3.** How the tool offering design developed, from the first dialect plan to the 2026-10-20 design discussion.
-
-| Date | Record | What it decided or proposed | Where it stands |
-|-|-|-|-|
-| 2026-08-08 | Tool-dialect plan | "Dialect" is each model's wire protocol, resolved by the Gateway; "do more with less" | Dialects stay in the Gateway |
-| 2026-09-13 | Capabilities plan | A discovery Pack whose results stay advertised; dispatch refuses unadvertised names | Growth rule overturned; refusal lives on in G2 |
-| 2026-10-07 | Plugin API plan | Every usable Pack reaches every run; the Host decides availability, not exposure | Holds |
-| 2026-10-08 | MCP client plan | One Pack per server; runs wait up to two minutes; no default `mcp.json` | Per-server Packs rejected |
-| 2026-10-09 | Messages plan | `messages.new()` lists; prefix changes "visible and explicit" | One list per section |
-| 2026-10-13 | Offering plan | Whole-Pack offers, resolved each round; "There is no withholding" | Render once replaces per-round |
-| 2026-10-14 | "Tool Offering in runvil..." huddle and report | Ignored, dynamic, or direct; Engine discovery; frozen tools array; Cursor token counts | "Direct" became "fixed" |
-| 2026-10-14 | "What to steal..." report | Three-tool bridge; 64-character cap with hash; measure before renaming | Bridge rejected; cap in E2, measuring in F3 |
-| 2026-10-18 | Plugin naming review | Lua cannot name late-rendered tools; select by traits such as `readOnlyHint` | Became filtered views |
-| 2026-10-19 | Pack and Plugin rename plan | Plugin became Pack; MCP one Pack with two static tools | Static tools to be replaced |
-| 2026-10-20 | Library Plugin loading plan | "Only Packs can be offered"; `subagents` built in; `tools.allow_tasks` removed | Holds |
-| 2026-10-20 | Slack thread and huddle with Jason | Engine discovery; wrapper sections; `promote_server` rejected; reflection | Folded into Table 4 |
-| 2026-10-20 | Design discussion with Vinnie Falco | The settled design | This report |
-
-**Older documents use older words.** A reader of anything dated before 2026-10-19 should read "Plugin" as Pack and `plugins.offer` as `packs.offer`. The 2026-10-14 documents say "direct" for a fixed offer, "the facade" for the discovery tools, and "the tools array" for the rendered catalog. Earlier drafts of this design said "withheld" for the dynamic set, a word Vinnie set aside at 6:20 PM in favor of "dynamic tool set / dynamic set / DynamicTools" (design discussion with Vinnie Falco, 2026-10-20).
-
-**Two parts of the design changed course more than once.** Discovery started as an ordinary optional Pack on 2026-09-13, became an Engine built-in in the 2026-10-14 huddle, moved inside the MCP Pack on 2026-10-19, and returned to the Engine on 2026-10-20. It returned because discovery is independent of MCP (Table 4, row 5). MCP's shape also changed twice. It began as one installed Pack per server, then became one Pack over every server with two static tools, and is now one client that builds one MCP catalog per server, each acting like a Pack. The middle step happened because a per-server Pack needed one install per server, an API the rename removed (`runvil/vibe/2026-10-19-2-pack-plugin-rename.md` line 624).
-
-### Vinnie Falco has settled 29 decisions on offering, the attached catalog, the section conversation, shaping, and MCP
-
-Vinnie Falco owns Runvil and makes every design decision. On 2026-10-20 he settled 29 decisions, most of them in the design discussion between 5:27 and 6:57 PM and the rest in his huddle with Jason earlier that afternoon. This report presents them as decided and does not reopen them. Table 4 lists each with its source, Figure 2 shows how the pieces connect, and the paragraphs after the table give the reasons. Three of his stated preferences are not settled, and one large question, whether MCP is a Pack or a language feature, is open; both are covered at the end of this section.
-
-**Table 4.** The 29 settled decisions. Times are from the design discussion with Vinnie Falco, 2026-10-20; "huddle" offsets are from the huddle with Jason the same day.
+**Table 3.** The settled decisions.
 
 | # | Decision | Source |
 |-|-|-|
-| 1 | Only Packs are offered; filtered views select subsets by metadata or name | Library Plugin loading plan, lines 903-904; 6:15 PM |
-| 2 | Every offer is fixed or dynamic | 6:02 PM; 6:15 PM |
-| 3 | A tool offered fixed is never also discoverable, so one Pack can be partly fixed and partly dynamic (a split offer) | 6:15 PM |
-| 4 | Only offers decide what the model can discover; a Lua call never changes it | 5:54 PM |
-| 5 | Discovery tools are Engine built-ins, present only for a non-empty dynamic set | 5:54 PM; 6:02 PM; huddle 11:39-12:16 |
-| 6 | Any Pack can be offered either way | 6:02 PM |
-| 7 | Front matter declares requirements only and offers nothing | 5:54 PM |
-| 8 | "Dynamic set" and "progressive discovery", never "withheld" | 6:20 PM |
-| 9 | The catalog renders late and once, before tools first reach the endpoint | 5:27 PM |
-| 10 | It attaches to `messages` and sticks, even across a model change | 6:36 PM |
-| 11 | Any change to an attached catalog is a hard error | 6:15 PM |
-| 12 | Compaction keeps the rendered catalog | 6:36 PM; 6:55 PM |
-| 13 | Sections clear history; no conversation moves between sections | 6:49 PM; 6:55 PM |
-| 14 | `messages` is the section's one list, created with the VM; no constructor | 6:50 PM; 6:53 PM; 6:57 PM |
-| 15 | The compactor fills and returns a staging list; the Engine validates and swaps | 6:53 PM; 6:55 PM |
-| 16 | Shaped Packs are few: the core file tools and `subagents` | 5:54 PM; 6:02 PM |
-| 17 | Shaped tools are anonymous to Lua | 5:28 PM; 6:15 PM |
-| 18 | Shaped Packs accept metadata filters | 6:02 PM |
-| 19 | MCP tools are never shaped | 5:54 PM |
-| 20 | A shaped tool cut by a filter (a split shaped tool) renders reduced, with disallowed calls refused at dispatch; if that performs poorly, it renders in full with the same refusals | 6:15 PM |
-| 21 | No servers, no MCP | 6:25 PM |
-| 22 | MCP configuration comes only from the Host | 6:33 PM |
-| 23 | The MCP client connects in the background and builds one MCP catalog per server, each offered fixed or dynamic | 6:02 PM; 6:20 PM |
-| 24 | The first need for MCP catalogs waits at the rendezvous | 6:20 PM |
-| 25 | MCP outputs are not guaranteed to be JSON | huddle 26:14-27:08 |
-| 26 | Every tool can hold MCP-style metadata | 5:54 PM |
-| 27 | Ask mode is a HostService for the chat agent and does not apply to Lua calls | 5:54 PM |
-| 28 | Reflection is read-only and never exposes configuration or credentials | 6:25 PM; 6:33 PM |
-| 29 | Building blocks, not solutions; Lua at 20 percent of a prompt or less | huddle 38:43, 47:32, 48:17-48:44 |
+| 1 | Only Packs are offered; filtered views select subsets by metadata or name | [P1; D 6:15] |
+| 2 | Every offer is fixed or dynamic | [D 6:02, 6:15] |
+| 3 | A tool offered fixed stays out of the dynamic set, so one Pack can be partly fixed and partly dynamic (a split offer) | [D 6:15] |
+| 4 | Offers alone decide what the model can discover; Lua calls leave it unchanged | [D 5:54] |
+| 5 | Discovery tools are Engine built-ins, present only while the dynamic set holds tools | [D 5:54, 6:02; H 11:39-12:16] |
+| 6 | Any Pack can be offered either way | [D 6:02] |
+| 7 | Front matter declares requirements, and Lua does all offering | [D 5:54] |
+| 8 | "Dynamic set" and "progressive discovery" replace "withheld" | [D 6:20] |
+| 9 | The catalog renders late and once, before tools first reach the endpoint | [D 5:27] |
+| 10 | It attaches to `messages` and stays, even across a model change | [D 6:36] |
+| 11 | Any change to the rendered catalog after it is attached is a hard error | [D 6:15] |
+| 12 | Compaction keeps the rendered catalog | [D 6:36, 6:55] |
+| 13 | Sections clear history, and each conversation stays in its section | [D 6:49, 6:55] |
+| 14 | `messages` is the section's one list, created only by the Engine, along with the VM | [D 6:50, 6:53, 6:57] |
+| 15 | The compactor fills and returns a staging list; the Engine validates and swaps | [D 6:53, 6:55] |
+| 16 | Shaped Packs are few: the core file tools and `subagents` | [D 5:54, 6:02] |
+| 17 | Shaped tools are anonymous to Lua | [D 5:28, 6:15] |
+| 18 | Shaped Packs accept metadata filters | [D 6:02] |
+| 19 | MCP tools always render in canonical form | [D 5:54] |
+| 20 | A shaped tool cut by a filter (a split shaped tool) renders reduced, with disallowed calls refused at dispatch; if that performs poorly, it renders in full with the same refusals | [D 6:15] |
+| 21 | MCP exists in a run only when servers are configured | [D 6:25] |
+| 22 | MCP configuration comes only from the Host | [D 6:33] |
+| 23 | The MCP client connects in the background and builds one MCP catalog per server, each offered fixed or dynamic | [D 6:02, 6:20] |
+| 24 | The first use of MCP catalogs waits at the rendezvous | [D 6:20] |
+| 25 | MCP inputs are JSON, and outputs may take any form | [H 26:14-27:08] |
+| 26 | Every tool can hold metadata like MCP's annotations | [D 5:54] |
+| 27 | Ask mode is a HostService for the chat agent and applies only to the model's calls | [D 5:54] |
+| 28 | Reflection is read-only and keeps configuration and credentials hidden | [D 6:25, 6:33] |
+| 29 | Building blocks rather than solutions; Lua at 20 percent of a prompt or less | [H 38:43, 47:32, 48:17-48:44] |
 
-Figure 2 puts the decisions together as one flow, from the Host's Packs to a model request. The MCP client appears beside the Pack registry because whether it is a Pack or an Engine feature is still open.
-
-**Figure 2.** The settled design: Lua offers Packs and MCP catalogs fixed or dynamic, and the Engine builds the rendered catalog once and attaches it to the section's conversation.
+**Figure 2.** The settled design, with the MCP client's place still open.
 
 ```mermaid
 flowchart LR
@@ -273,28 +227,26 @@ flowchart LR
     C ==> L
     L ==>|fixed offer| F[Fixed tools]
     L ==>|dynamic offer| D[Dynamic set]
-    D ==>|if not empty| X[Discovery tools]
+    D ==>|when it holds tools| X[Discovery tools]
     F ==> RC[Render once]
     X ==> RC
     RC ==>|attached| A[messages]
     A ==>|every round| Q[Model request]
 ```
 
-The reasons behind the decisions are short, and Appendix G holds Vinnie's words in full.
+All the decisions follow one principle: "Runville [Runvil] should offer building blocks not solutions" [H 38:43].
 
-**Offering whole Packs fits how Packs are used.** "Usually, when you have a pack, You either want all the tools, or you want none of the tools" (huddle with Jason, 2026-10-20, 29:43), and filters cover the exceptions, such as read-only tools in ask mode, without a second mechanism. A fixed tool is never also discoverable, because discovery "consumes an extra model turn and there are 2 more tools competing for attention" (6:15 PM). The discovery tools moved into the Engine because "progressive tool discovery is independent of MCP" (6:02 PM): any Pack should be offerable for discovery.
+Rendering once keeps the prompt cache valid. Anthropic says "Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache", and OpenAI says cache reuse "requires the entire rendered prefix to match" [R1]. The catalog renders late, so shaped Packs can fit the model in use [D 5:27], and then it stays: "if the model changes, so be it but we can't redo the tools" [D 6:36]. A later model may come from another vendor, so dispatch needs a mapping stored with the catalog to turn a shaped call back into the tool its Pack defines. This follows from the rule that the catalog stays fixed.
 
-**Rendering once protects the prompt cache.** The catalog renders late so that shaped Packs can take the form that suits the model in use (5:27 PM), and then it sticks: "if the model changes, so be it but we can't redo the tools" (6:36 PM). Vendors say a changed tool list discards the cache. Anthropic: "Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache"; OpenAI: cache reuse "requires the entire rendered prefix to match" (both as cited in "Tool Offering in runvil: Three States per Plugin, a Built-in Discovery Facade, and a Frozen Tools Array", 2026-10-14). One consequence is derived, not stated by Vinnie: because a later model may come from another vendor, dispatch must use a mapping stored with the rendered catalog to turn a shaped call back into its canonical tool.
+Whole Packs match how Packs get used: "Usually, when you have a pack, You either want all the tools, or you want none of the tools" [H 29:43]. Filters handle the exceptions, such as ask mode's read-only tools. A tool offered fixed stays out of the dynamic set, because discovery "consumes an extra model turn and there are 2 more tools competing for attention" [D 6:15].
 
-**One conversation per section follows from Runvil's model of sections.** "the whole point of Runvil is that sections clear the history!" (6:55 PM). Part 2 specifies the list, the swap, and the pre-flight that Vinnie asked for as "the starting point for implementation" (6:57 PM).
+Shaping is limited to what vendors train, because the shaped set "is tied to how the closed-weight frontier model vendors decide to train their models" [D 5:54]. Anthropic's built-in tools have "exact tool signatures" that Claude "has been optimized on", and OpenAI's models were "trained to excel" at `apply_patch` [E1; E2]. Shaped Packs hide their tool names from Lua, so Lua selects their tools only through filters, as in "allow ReadFile, disallow WriteFile, disallow StrReplace" [D 6:02, 6:15].
 
-**Shaping is limited to tools vendors trained on.** The shaped set "is tied to how the closed-weight frontier model vendors decide to train their models" (5:54 PM). Vendors say so for their own tools: Anthropic's built-in tools have "exact tool signatures" that Claude "has been optimized on", and OpenAI's models were "trained to excel" at `apply_patch` (research on model-shaped tools, 2026-10-20, citing Anthropic's and OpenAI's docs). A shaped Pack exposes no named tools, so Lua cannot pick one by name and no rule is needed to forbid it (6:15 PM). Filters still apply, as in Vinnie's example "allow ReadFile, disallow WriteFile, disallow StrReplace" (6:02 PM).
+Each remaining choice comes from a single remark. The Engine owns discovery because "progressive tool discovery is independent of MCP" [D 6:02]. One conversation per section follows from "the whole point of Runvil is that sections clear the history!" [D 6:55]. Dynamic MCP configuration was cut: "I forgot about credentials. and security" [D 6:33]. The MCP client is special because it "creates tool catalogs and puts them in the dynamic set which is something a regular tool cannot do" [D 6:20]. MCP outputs stay untyped because "the inputs to the MCP call are required to be Jason [JSON], the outputs are not" [H 26:14].
 
-**MCP has an outline, and its placement is open.** Dynamic MCP configuration was cut because "I forgot about credentials. and security" (6:33 PM). The client "creates tool catalogs and puts them in the dynamic set which is something a regular tool cannot do" (6:20 PM). MCP outputs stay untyped because "the inputs to the MCP call are required to be Jason [JSON], the outputs are not" (huddle, 26:14). Workshop already starts its MCP connections in the background when it builds its agent launcher (`crates/workshop/server/src/agents.rs` lines 234-243).
+The first render, Lua call, or reflection that needs the MCP catalogs waits until every server has listed its tools or failed. That meeting point is the rendezvous (Figure 3). Workshop already connects to its servers in the background when it builds its agent launcher [C18]. Two details are derived rather than stated: a failed server stays out until the Host restarts, and when the Host keeps connections for its lifetime, only the first run after Host startup waits [D 6:20]. Paperweight's command-line Host starts fresh in every process, so every Paperweight run waits.
 
-Figure 3 shows the rendezvous. Three readings of it are derived, and Vinnie did not contradict them when they were stated back to him (6:20 PM). "First need" means the first render that includes MCP tools, a Lua call to an MCP tool, or Lua reflection over the catalogs. A server that fails stays out for the session. With Host-wide connections, only the first run after Host startup pays the wait. Paperweight's command-line Host starts fresh in every process, so every Paperweight run is a first run.
-
-**Figure 3.** The rendezvous: servers connect in the background from Host startup, and the first need for the catalogs waits until every server has listed or failed.
+**Figure 3.** The rendezvous.
 
 ```mermaid
 sequenceDiagram
@@ -307,7 +259,7 @@ sequenceDiagram
     M->>A: connect and list tools
     M->>B: connect and list tools
     S->>M: first need for the catalogs
-    Note over S,M: the caller waits here
+    Note over S,M: caller waits
     A->>M: tools listed
     B->>M: failed
     M->>S: A's catalog; B out for the session
@@ -315,151 +267,136 @@ sequenceDiagram
     M->>S: answered at once
 ```
 
-**Ask mode needs a dispatch gate, by derivation.** Ask mode is a HostService for one kind of prompt, and "it would not need to apply to Lua calls" (5:54 PM). Because the chat agent's catalog cannot change mid-conversation, ask mode must refuse calls at a dispatch gate rather than filter the rendered catalog. This is derived, and established practice agrees: Claude Code keeps its tool list fixed across mode switches and enforces plan mode at call time (research on modes, 2026-10-20). Over the whole design sits the huddle's principle: "Runville [Runvil] should offer building blocks not solutions" (38:43).
+Ask mode needs a dispatch gate. It is a HostService for the chat agent, and "it would not need to apply to Lua calls" [D 5:54]. Because the chat agent's catalog stays fixed for the whole conversation, ask mode must refuse calls at a dispatch gate rather than filter the catalog. This follows from the rule that the catalog stays fixed, and Claude Code works the same way: its tool list stays fixed across mode switches, and it enforces plan mode at call time [E3].
 
-**Eight alternatives were rejected, and the report does not reopen them.**
+Eight alternatives were rejected:
 
-- Dynamic MCP configuration, edited by Lua or the model or found on the internet, for credentials and security (6:33 PM).
-- Moving a conversation into another section: "no one is 'ferrying history to a new section'" (6:55 PM).
-- One Pack per MCP server ("broken" and "a mistake", `runvil/vibe/2026-10-19-2-pack-plugin-rename.md` lines 45 and 623-625).
-- `mcp.promote_server`, as too narrow (huddle, 38:43 and 47:32).
-- `tools.add`, already gone (huddle, 42:05).
-- Offering from front matter (5:54 PM).
-- The word "withheld" (6:20 PM).
-- The three-tool search, describe, and call bridge, in favor of two tools (`runvil/vibe/2026-10-19-2-pack-plugin-rename.md` lines 626-628).
+- Dynamic MCP configuration, edited by Lua or the model or found on the internet, because of credentials and security [D 6:33].
+- Moving a conversation into another section, because "no one is 'ferrying history to a new section'" [D 6:55].
+- One Pack per MCP server, which Vinnie called "broken" and "a mistake" [P2].
+- `mcp.promote_server`, as too narrow [H 38:43, 47:32].
+- `tools.add`, which is already gone [H 42:05].
+- Offering from front matter [D 5:54].
+- The word "withheld" [D 6:20].
+- The three-tool bridge (search, describe, and call), in favor of two tools [P2].
 
-**Four preferences are not settled.** Vinnie proposed the verbs `packs.offer` and `packs.dynamic_offer` with "Maybe?" (6:15 PM), which is question A1. His "instinct is that shaped packs are never progressive" (6:15 PM) is question F1. His dislike of MCP-specific syntax inside `uses:` (6:30 PM) shapes questions D2 and E1. His idea of a flag to "only load named packs" (6:15 PM) is question D1.
+Four of Vinnie's preferences are still open questions. He proposed the offer verbs `packs.offer` and `packs.dynamic_offer` with "Maybe?" [D 6:15]. His "instinct is that shaped packs are never progressive" [D 6:15]. He floated a flag to "only load named packs" [D 6:15]. And he dislikes MCP-specific syntax inside `uses:`, which bears on how a prompt requires a server [D 6:30]. Whether MCP is a Pack or part of the Engine is the largest open question, and Vinnie asked to see MCP worked out both ways [D 6:25, 6:33].
 
-**One question is open at the top level:** whether MCP is a Pack or an Engine feature (6:25 PM and 6:33 PM). Part 3 lays out both, and question E1 recommends one.
+### Practice in other harnesses
 
-### Other harnesses keep a loaded core, hide MCP first, freeze the tools list, and refuse at call time
+Most agent harnesses surveyed on 2026-10-20 do what the settled design does (Table 4; per-harness detail in Appendix E). Most of the figures come from the vendors themselves, and every vendor claim about accuracy or tokens is still unreplicated.
 
-Established practice supports most of the settled design, and it settles several open questions on evidence rather than taste. Table 5 summarizes what the agent harnesses surveyed on 2026-10-20 do in six areas, with the exceptions that matter. Appendix E gives the per-harness detail and the sources. Most figures are vendor-reported; the research found no independent replication of any vendor accuracy or token claim.
-
-**Table 5.** What other harnesses do, as surveyed on 2026-10-20.
+**Table 4.** Practice in other harnesses, 2026-10-20.
 
 | Area | What most do | Exceptions |
 |-|-|-|
 | Always-loaded tools | Keep read, write, edit, search, and shell loaded; hide MCP first | Claude Code deferred its file tools in v2.1.69 and restored them in v2.1.72; Gemini CLI and Cline load everything |
-| Discovery | A lookup tool, with names, one-line summaries, or namespace text up front | Anthropic's API shows nothing up front; Cursor and Qwen Code defer their subagent tools |
+| Discovery | A lookup tool, with names, one-line summaries, or namespace text up front | Anthropic's API reveals deferred tools only through search; Cursor and Qwen Code defer their subagent tools |
 | Mode restriction | Change the list per mode, with a call-time backstop | Claude Code and Codex keep the list fixed and refuse at call time; Claude Code says changing tools would break the prompt cache |
-| MCP naming and startup | A server prefix; caps of 63, 64, or 128; background connection | Only Codex has `required`; no harness pins definitions |
-| Per-model tools | Aider, Codex, OpenCode, and Cline switch tools by model-id match | No harness reduces a combined trained tool |
+| MCP naming and startup | A server prefix; caps of 63, 64, or 128; background connection | Only Codex has `required`; every harness accepts tool definitions as served |
+| Per-model tools | Aider, Codex, OpenCode, and Cline switch tools by model-id match | Every surveyed harness renders a trained tool that both reads and writes, such as an editor, whole |
 | Compaction | Rewrite in place, keep originals, cut at turn boundaries, bound retries, keep tools fixed | Cline validates custom compactors strictly |
 
-Three findings bear directly on Runvil's open questions. First, file tools stay loaded everywhere, and the one product that deferred them reverted within three releases, which supports Vinnie's instinct that shaped Packs are never dynamic (question F1). Second, the harness that keeps its tool list fixed and refuses at call time is also the one that explains why: changed tools break the cache. That is the pattern the attached catalog and the ask-mode dispatch gate already follow (question G2). Third, no surveyed filter syntax has a negation operator; exclusion always comes from a deny list, a priority, or an order rule, which shapes question A3.
+Three findings inform the recommendations. File tools stay loaded everywhere, and the one product that deferred them reverted within three releases, which supports keeping shaped Packs fixed. Claude Code keeps its tool list fixed, refuses at call time, and is the one harness that says why: changed tools break the cache. The rendered catalog and the ask-mode gate follow the same pattern. Every surveyed filter syntax excludes tools through deny lists, priorities, or order rules.
 
-Two findings cut the other way and are named so they are not lost. Hiding a tool costs a turn: Hermes measured `clarify` use falling from 18 of 18 to 7 of 18 when it was deferred, and moved it back (as cited in "What to steal...", 2026-10-14). And small catalogs can cost more deferred than loaded: at 24 tools, a bare bridge cost $0.62 in input per task against $0.40 with every tool loaded (same source). Both argue for placing a small Pack fixed and keeping dynamic offers for large or optional sources, which is a choice the settled design leaves to each prompt's Lua.
+Two findings favor fixed offers for small Packs. Hiding a tool costs a turn: Hermes saw `clarify` use fall from 18 of 18 to 7 of 18 when it was deferred, and moved it back. And a small catalog can cost more deferred than loaded: at 24 tools, a bare bridge cost $0.62 in input per task against $0.40 with every tool loaded [R2]. Large or optional sources suit dynamic offers, and each prompt's Lua decides.
 
-### Ten criteria judge every open question
+### Runvil's design principles
 
-Every open question in Part 4 is judged against the same ten criteria, and each question names the two or three that bite hardest. Each criterion comes from something Vinnie said or from a decision already recorded, so the criteria reflect his priorities rather than the report's. Table 6 lists them with what each asks of a candidate answer and where it comes from.
+**Table 5.** Runvil's design principles.
 
-**Table 6.** The ten criteria, what each asks of an answer, and its source.
+| Principle | Rule | Source |
+|-|-|-|
+| Building blocks | Runvil provides general pieces, and Lua stays at about 20 percent of a prompt or less | [H 38:43, 47:32, 48:26; P3] |
+| One rule for every case | Every tool source, Pack, and section follows the same rules | [P1] |
+| Same behavior under every Host | A prompt behaves the same in Workshop, Paperweight, or any other Host | [P1] |
+| Requirements in front matter | Lua decides what the model sees, and front matter declares what a prompt needs | [D 5:54] |
+| Cache stability | The tools prefix stays byte-identical for a whole conversation | [R1] |
+| Lean context | Tokens and model turns go only where they improve the result | [D 6:15; R1] |
+| Fit with vendor training | Tools take their trained form where it matters | [D 5:27, 5:54; E1; E2] |
+| Safe failure | Errors fire at the mistake, and every refusal names an alternative | [H 30:18-30:53] |
+| Host control over Packs | The Host stays "the master of tools" | [H 46:11-46:35] |
+| Replay from the record | A run replays from its record alone, without Plugins or servers | [P1] |
 
-| # | Criterion | What it asks | Source |
+The sources leave the principles in Table 5 unranked, and two pairs often conflict. Cache stability and lean context both favor rendering the catalog once, but they split on listing the dynamic set up front: a listing costs tokens on every request, and leaving it out costs a turn. Building blocks and one rule for every case diverge when the most general building block needs a special capability, as the MCP client does to add catalogs at run time.
+
+## Part 2. The section conversation
+
+### One conversation per section
+
+`messages` is the section's only conversation, as Vinnie settled [D 6:36, 6:49, 6:50, 6:53, 6:55, 6:57]. The Engine creates it, empty, when it creates the section's Lua VM, so it exists before the first block runs. Only the Engine creates lists, so each section holds exactly one, and each list stays in its section. The first `models.loop` round renders the catalog and attaches it to `messages`, where it stays for the rest of the section. When the conversation overflows the model's context, the Engine hands the compactor an empty staging list. The compactor fills and returns it, and the Engine validates it and swaps its records into `messages`. `messages` stays the same object through the swap, so every Lua reference to it stays valid and the rendered catalog stays attached.
+
+### Why one list per section
+
+Several lists in one section make the rendered catalog ambiguous. The docs show four such sections: two lists built to prove they are independent, records copied into a second list, two loops with an offer between them, and a fresh list built to receive a task notice [C19; C20; C21]. With a catalog attached, each raises two awkward questions: which catalog does the second list get, and is the offer between the loops a change?
+
+The code already keeps every list inside its section, consistent with sections that clear history by design [D 6:55]. Every section entry builds a new VM, `var` refuses userdata, a section can return only a scalar, and the H1 freeze reads back only `var` and `argv`, as JSON, before dropping the VM [C22; C23; C24; C25]. The rule turns that accident of the implementation into the stated contract. It also makes compaction the one explicit point where history is replaced, as Vinnie's rule of 2026-10-09, made for prompt caching, asks: "changes to the prefix of the messages should be visible and explicit" [P4].
+
+The rule costs little. Only `models.loop` uses a list, because `models.infer` sends a single user message [C12]. Tasks and fan-out arms already run in VMs of their own [C22]. Two live prompts create a list, once each: the Workshop chat agent and the research-person prompt [C9; C26]. Workshop's tests already assert that the chat agent's requests accumulate one history, byte for byte [C27].
+
+A section gives up a second multi-turn conversation beside its main one, and three existing tools cover that need. `models.infer` handles a side question, such as a summary. A task or a fan-out arm handles parallel work, each with a fresh history. A `call` to another section handles a sequential side conversation, because the called section runs in a VM of its own, starts with an empty offer list, and gets its own `messages` [C20; C22].
+
+### The Lua surface
+
+For authors, `messages` stops being a namespace with a constructor and becomes the list itself. Everything else a list does stays (Table 6).
+
+**Table 6.** The conversation's Lua surface, today and after.
+
+| Concern | Today | After | Status |
 |-|-|-|-|
-| 1 | Building blocks, small Lua | A general piece, and Lua near 20 percent or less? | Huddle, 38:43, 47:32, 48:26; tool-dialect plan, line 46 |
-| 2 | No exceptions to explain | One rule for every source, Pack, and section? | Library Plugin loading plan, line 900 |
-| 3 | Same behavior under every Host | Identical in Workshop, Paperweight, and any Host? | Same plan, line 939 |
-| 4 | Offering in Lua, requirements in front matter | Lua decides exposure; front matter declares needs? | 5:54 PM |
-| 5 | Cache stability | Tools prefix byte-identical for a conversation? | "Tool Offering in runvil...", 2026-10-14, section 3.1 |
-| 6 | Context and attention economy | Tokens and turns spent only where they pay? | 6:15 PM; 2026-10-14 measurements |
-| 7 | Fit with vendor training | Trained forms where they matter? | 5:27 PM; 5:54 PM; vendor statements |
-| 8 | Safe failure | Hard errors at the mistake; refusals name an alternative? | Huddle, 30:18-30:53 |
-| 9 | The Host controls which Packs exist | The Host stays "the master of tools"? | Huddle, 46:11-46:35 |
-| 10 | Runs replay without Plugins | Replay needs no Plugin and no server? | Library Plugin loading plan, lines 886-888 |
-
-The criteria are not weighted, because the sources give no weights. Two pairs pull against each other often enough to name. Cache stability (5) and attention economy (6) both favor a catalog rendered once, but they split on whether to list the dynamic set up front: a listing costs tokens on every request, and no listing costs an extra turn. Building blocks (1) and no exceptions (2) can also diverge, because the most general building block sometimes needs a special capability, as the MCP client does when it contributes catalogs at run time. Where criteria conflict, the question's recommendation says which one it favors and why.
-
-## Part 2. The section conversation: one messages list per section, compacted by a swap
-
-Part 2 specifies the section conversation so that implementation can start from it, as Vinnie asked at 6:57 PM. Each statement has one of three marks. **Settled** means Vinnie decided it. **Proposed** means this report's design for a detail he has not decided, with a confidence level. **Open** means a choice with options laid out. Code locations are at `runvil` commit `b1bbe33eb`, and Engine and Lua paths are under `crates/runvil-internal/`.
-
-### The rule: the Engine creates one messages list per section, and no list leaves it
-
-**Settled.** `messages` is the section's single conversation. The Engine creates it when it creates the section's Lua VM, so it exists, empty, before the section's first block runs. There is no constructor: Lua cannot make a second list, and no list crosses a section boundary. The rendered catalog attaches to `messages` the first time a `models.loop` round renders it, and stays attached for the life of the section. When the conversation overflows the model's context, the Engine hands the compactor an empty staging list. The compactor fills it and returns it, and the Engine validates it and swaps its records into `messages`. `messages` keeps its identity through the swap, so every Lua reference to it stays valid and the attached catalog never has to move (design discussion with Vinnie Falco, 2026-10-20, 6:36 PM to 6:55 PM).
-
-### Three reasons make the rule sound, and the code already leans this way
-
-**The rule makes wrong states impossible to write.** Today a section can hold any number of lists, and the docs show it. One example builds two lists to prove they are independent (`runvil-docs/src/language/11-conversations.md` lines 64-66), and one copies records into a second list (lines 882-886). Another runs two loops over two lists with an offer between them (`12-tools.md` lines 944-951), and one builds a fresh list just to receive a task notice (`15-tasks.md` lines 2493-2501). Once a rendered catalog attaches to a list, each of these examples raises a question with no good answer: which catalog does the second list get, and is an offer between the two loops a change? With one list per section the question cannot arise.
-
-**Sections are already the unit of context.** Vinnie put it plainly: "the whole point of Runvil is that sections clear the history! if someone wants history preserved, they stay in the section" (6:55 PM). The code already enforces most of this. Every section entry builds a new VM (`engine/src/execute/scheduler/walk.rs` lines 158-173). A list cannot be stored in `var`, because `var` refuses userdata (`lua/src/sys.rs` lines 87-91). A section can return only a scalar (`lua/src/vm/run.rs` lines 242-251). The H1 freeze reads `var` and `argv` back as JSON and drops the VM (`engine/src/execute/scheduler/h1.rs` lines 78-82). So no list escapes its section today; the rule turns that accident of the implementation into the stated contract.
-
-**Compaction becomes the one explicit point where history is replaced.** On 2026-10-09 Vinnie set the rule that "changes to the prefix of the messages should be visible and explicit" because of prompt caching (`runvil/vibe/2026-10/2026-10-09-2-messages-userdata-refactor.md` line 523). A compactor that returns a filled staging list, validated and swapped by the Engine, is exactly such a change: one call, one record in the run, one point in the code.
-
-The code also shows the rule costs little. Only `models.loop` sends tools; `models.infer` sends an empty tool list over a single user message and never touches a list (`engine/src/execute/scheduler/dispatch.rs` lines 242-250). Tasks and fan-out arms each run in a section of their own, with a VM of their own (`walk.rs` lines 158-173). Only two live prompts create a list, once each: the Workshop chat agent (`crates/workshop/agents/agents/chat.md` line 30) and `prompts/research-person.md` (line 40). Workshop's own tests already assert that the chat agent's requests accumulate one history, byte for byte, across rounds (`crates/workshop/server/tests/it/chat_gate/canonical_sequence.rs` lines 65-110).
-
-**What the rule gives up.** A section can no longer hold a second multi-turn conversation beside its main one. Three existing tools cover that need. `models.infer` covers a single side question, such as a summary. A task or a fan-out arm covers parallel work, each with a fresh history. A `call` to another section covers a sequential side conversation: the called section starts with nothing offered (`runvil-docs/src/language/12-tools.md` line 963) and, like every section entry, runs in a VM of its own, so it gets a `messages` of its own.
-
-### The Lua surface keeps the record methods and loses the constructor
-
-Authors see one change: `messages` stops being a namespace with a constructor and becomes the list itself. Everything a list does today, its builders, its record views, `replace`, and iteration, stays. Table 7 compares the surface before and after, row by row, with the status of each row.
-
-**Table 7.** The section conversation's Lua surface today and under the settled design.
-
-| Concern | Today, at `b1bbe33eb` | After | Status |
-|-|-|-|-|
-| Getting a list | `messages.new()` returns a fresh list (`messages.rs` lines 37-49) | `messages` is the section's list, installed with the VM | Settled |
-| Lists per section | Any number | Exactly one | Settled |
+| Getting a list | `messages.new()` returns a fresh list, any number per section [C28] | `messages` is the section's one list, installed with the VM | Settled |
 | The constructor | `messages.new()` | Reading `messages.new` raises a guiding error | Settled; wording Proposed |
 | Builders | `system`, `user`, `assistant`, `tool`, `append` | Same, on `messages` | Proposed, high |
-| `replace` | Edits a range in place | Same | Proposed, medium (Table 9, row 14) |
-| Record views | Read-only, holding the record itself (`messages-view.rs` lines 18-28) | Same | Proposed, high (Table 9, row 1) |
+| `replace` | Edits a range in place | Same | Proposed, medium (Table 8) |
+| Record views | Read-only, holding the record itself [C29] | Same | Proposed, high (Table 8) |
 | Iteration, length, JSON | `#`, `pairs`, `ipairs`; views serialize as records | Same | Proposed |
 | Scratch record data | A second list as a container | Plain Lua tables in record shape | Settled |
-| Rebinding the global | Allowed (`globals.rs` lines 3-12) | Raises; the `_G` guard owns `messages` | Proposed, high |
-| `models.loop` | `models.loop(list, compactor?)` (`models_loop.rs` lines 114-131) | Always runs over `messages` | Settled; signature Open |
-| Compactor | `compactor(reason_tag)`, must raise (`machine.rs` lines 33-36, 195-200) | `function(old, fresh, reason) ... return fresh end` | Settled shape; arguments Proposed |
+| Rebinding the global | Allowed [C30] | Raises; the `_G` guard owns `messages` | Proposed, high |
+| `models.loop` | `models.loop(list, compactor?)` [C31] | Always runs over `messages` | Settled; signature Open |
+| Compactor | `compactor(reason_tag)`, which must raise [C32] | `function(old, fresh, reason) ... return fresh end` | Settled shape; arguments Proposed |
 | `compactors.fail` | Default; raises `context_exhausted` | Default, new signature | Proposed |
 | Task notices | Pushed onto the list the next round names | Pushed onto `messages` | Settled consequence |
 
-The constructor row needs one implementation detail. Once `messages` is a list, reading `messages.new` would go to the list's `__index`, which today returns nil for any key that is not an integer (`messages.rs` lines 409-415). An author's `messages.new()` would then fail with a bare "attempt to call a nil value". **Proposed:** `__index` recognizes the string key `new` and raises the guiding error, so the migration message reaches the author at the line that needs changing. Confidence: high, because it is one branch in an existing metamethod.
+Once `messages` is a list, `messages.new` reads through the list's `__index`, which today returns nil for any key that is not an integer, so an author's `messages.new()` would fail with a bare "attempt to call a nil value" [C28]. Have `__index` answer the key `new` with the guiding error instead, pointing at the line that needs changing. Confidence: high, because it is one branch in an existing metamethod.
 
-**Open: the new `models.loop` signature.** Under the rule `models.loop` always runs over `messages`, so its first argument no longer chooses anything. Four signatures are possible, and the handle form `handle:loop(...)` follows whichever is chosen.
+The new `models.loop` signature is still open. `models.loop` always runs over `messages`, so its first argument always names the same list. Four forms are possible, and `handle:loop(...)` follows whichever is chosen:
 
-- **Keep `models.loop(messages, compactor?)`, refusing anything but `messages`.** Every existing call keeps its shape with one rename, and the call still says in words what it runs over. The cost is an argument with exactly one legal value, which a new maintainer has to have explained.
-- **`models.loop(compactor?)`.** The shortest form, with nothing redundant. It changes every call site, and `models.loop(msgs)` in old code would be read as a compactor and refused with a type error rather than a guiding one unless the check special-cases a list.
-- **`models.loop{ compactor = f }`.** A table of options, with room for later options such as a round cap. It reads well with options and awkwardly without them (`models.loop{}` or `models.loop()`).
-- **`models.loop()` with the compactor set separately,** for example as a property of the section. This removes the argument entirely, but it moves a per-call choice into hidden state, which cuts against building blocks.
+- `models.loop(messages, compactor?)`, refusing any other first argument. Existing calls keep their shape after one rename and still name what they run over, at the cost of an argument with one legal value.
+- `models.loop(compactor?)`, the shortest form. It changes every call site, and an old `models.loop(msgs)` would fail with a type error instead of a guiding one, unless the check recognizes a list.
+- `models.loop{ compactor = f }`, a table of options with room for later ones, such as a round cap, but awkward when empty, as `models.loop{}`.
+- `models.loop()`, with the compactor set elsewhere, such as on the section, which hides a per-call choice where a reader of the call cannot see it.
 
-**Proposed:** keep `models.loop(messages, compactor?)` and refuse any other first argument with a message naming `messages`. Confidence: medium, because it gives the smallest migration and the clearest reading, but it keeps a redundant argument, and Vinnie may prefer the shorter form. Revisit if a second loop option appears, at which point the table form wins.
+Keep `models.loop(messages, compactor?)`, and refuse any other first argument with a message naming `messages`. Confidence: medium, because this form gives the smallest migration and the clearest reading but keeps a redundant argument, and Vinnie may prefer the shorter form. If a second loop option appears, switch to the table form.
 
-### The Engine installs the list, attaches the rendered catalog once, and records both
+### Engine behavior
 
-The Engine's side of the rule is seven behaviors. Each names where the code does the nearest thing today, so an implementer knows which function changes.
+The Engine creates `messages` with each VM. Today `install_messages` installs a table holding `new`, and injection calls it for every section VM, between `models` and `compactors` [C28; C33]. The proposal is to create one `MessageList` per section VM, keep a Rust-side handle to it on the VM, and install the list as the `messages` global. The Engine reaches the list only through its handle, because author code could rebind the global [C30]. Confidence: high, because the install point already runs once per VM, including the H1 section and every task and fan-out arm.
 
-**The Engine creates `messages` with the VM.** **Proposed.** Today `install_messages` installs a table holding `new` (`lua/src/messages.rs` lines 37-49), and injection calls it for every section VM, after `tools`, `packs`, and `models` and before `compactors` (`lua/src/vm/inject.rs` lines 135-151). The change creates one `MessageList` per section VM, keeps a Rust-side handle to it on the VM, and installs that list as the `messages` global. The Engine always reaches the list through its own handle, never by reading the global, because author code could otherwise rebind it (`lua/src/globals.rs` lines 3-12). Confidence: high, because the install point already runs once per VM, including H1 and every task and fan-out arm.
+The first `models.loop` round renders the catalog and attaches it. Today `prepare_chat` rebuilds the tool list at every round, building schemas from the section's effective tools, appending the task built-ins, and recording what it advertised [C11]. Instead, do that work once, on the section's first chat round, and store the result in the list's state, beside the send state that `commit` keeps [C28]. Later rounds send the stored schemas byte for byte, and the dispatch gate checks each model call against the stored set of advertised names [C11]. Confidence: medium, because what the rendered catalog stores is still open (Part 4). The model binding is resolved by render time, so shaped Packs can read its provider [C11]. Today a binding identifies its family only by `provider` [C34], so how shaped Packs tell model families apart is also open.
 
-**The first `models.loop` round builds the rendered catalog and attaches it.** **Settled** that it renders once and attaches; **Proposed** where it lives. Today `prepare_chat` reads the section's effective tools at every round, builds schemas, appends the task built-ins, records what it advertised, and sends the schemas (`engine/src/execute/scheduler/chat.rs` lines 141-155, 167-168, and 186-195). The change runs that work once, on the section's first chat round, and stores the result on the list's state beside the per-list send state that `commit` already keeps (`messages.rs` lines 174-188). Every later round sends the stored schemas byte for byte, and the scope gate checks the model's calls against the stored advertised set (`chat.rs` lines 349-391). Confidence: medium, because what exactly the attached catalog holds is question B2. At render time the model binding is already resolved (`chat.rs` lines 133-140), so its provider is available to shaped Packs; nothing in the Engine records a model family beyond `provider` today (`types/src/models.rs` lines 163-169), which is question F2.
+An offer after first render that would change the rendered catalog is a hard error; Vinnie settled that, and where it fires is open (Part 4). The offer functions would check whether the section's catalog is attached and raise if an offer would change it [C7; C8]. A first round with nothing offered should attach an empty catalog, so that a later offer raises like any other change. Attaching only once something is offered would let the tool list change after the model had already run without tools. A `tools.offer_local` call after first render also raises, as does setting `tools.allow_tasks`, which adds the task built-ins, for as long as that flag exists. Confidence: medium, because the empty case is rare but must be defined.
 
-**An offer after first render is a hard error.** **Settled** that any change is a hard error; **Open** exactly when it fires (question B1). The offer installers in `lua/src/tools.rs` (lines 199-225) and `lua/src/packs.rs` (lines 142-167) would check whether the section's catalog is attached and raise if the offer would change it. **Proposed:** a first round with nothing offered attaches an empty catalog, so a later offer raises like any other change. The alternative, attaching only once something is offered, would let the tool list change after the model has already run without tools. A `tools.offer_local` call after first render also counts as a change and raises, and so would turning on the task built-ins, which leave with `tools.allow_tasks`. Confidence: medium, because the empty case is rare but must be defined.
+Overflow starts compaction instead of ending the loop. Today an overflow moves the loop's state machine to `Compacting`, which can only raise [C32]. The change adds a path back to the round, as set out under Compaction.
 
-**Overflow triggers compaction instead of ending the loop.** **Settled** that compaction fills and swaps; the rest is in the compaction contract below. Overflow already reaches the loop in two ways, both at a round boundary: the precheck before dispatch (`chat.rs` lines 169-181) and a provider's context-overflow reply (`chat.rs` lines 294-302). Either one moves the loop's state machine to `Compacting` and calls the compactor (`lua/src/models_loop/machine.rs` lines 249-257). Today that phase can only raise; the change gives it a path back to the round.
+The run record should gain an entry at first render and one at each compaction. The first holds the rendered catalog, so a replay can check the bytes it sends. Each compaction entry holds the reason and the records before and after. Compaction is Lua plus recorded `models.infer` results, so a replay reproduces it without the Plugins. Confidence: high on what to record; the entry's type is an implementation choice.
 
-**The run record gets an entry at first render and at each compaction.** **Proposed.** At first render, the entry holds the attached catalog, so a replay can check the bytes it sends. At each compaction, it holds the reason, the records before compaction, and the records after. Because compaction is Lua plus recorded `models.infer` results, a replay reproduces it without the Plugins. Confidence: high on what to record; the record's type is an implementation choice.
+Two consequences follow from the settled rule. First, each task and fan-out arm gets its own `messages`. A task chain, whether Lua or the model's `task` built-in starts it, enters its section through `enter_section`, which builds a new VM, and `tasks.fanout` runs each arm as such a task [C22]. A model task's notice is pushed onto the owner section's `messages` at the owner's next round [C11]. Second, `models.infer` leaves `messages` alone. It sends one user message with an empty tool list and skips the precheck [C12; C35], and it stays the tool-free side call that a compactor uses to summarize.
 
-**Each task and fan-out arm gets its own `messages`.** **Settled**, as a consequence. A spawned task chain, whether started by Lua or by the model's `task` built-in, enters its section through `enter_section`, which builds a new VM (`engine/src/execute/scheduler/walk.rs` lines 158-173), and `tasks.fanout` runs each arm as such a task. A model task's notice lands on its owner section's `messages` at the owner's next round (`chat.rs` lines 119-124).
+### Compaction
 
-**`models.infer` never touches `messages`.** **Settled**, as a consequence. It issues one round over one user message with an empty tool list, no precheck, and no list (`engine/src/execute/scheduler/dispatch.rs` lines 242-250; `lua/src/__impl_coro.lua` lines 112-116). It stays the tool-free side call, and it is what a compactor uses to summarize.
+Compaction is new behavior. Today the only shipped compactor is `compactors.fail`, which receives only the overflow reason, and a compactor that returns at all raises "replacement compactors are deferred" [C36; C32]. The replacement runs in nine steps (Figure 4). Vinnie settled the outline [D 6:53, 6:55]; the details are proposals unless a step says otherwise.
 
-### Compaction fills a staging list, and the Engine validates it and swaps it in
-
-Compaction under the settled design is new behavior, not a change to an existing one. Today the only shipped compactor is `compactors.fail`, it takes only the overflow reason, and a compactor that returns at all raises "replacement compactors are deferred" (`lua/src/compactors.rs` lines 117-126; `lua/src/models_loop/machine.rs` lines 33-36 and 195-200). The contract below is what replaces that. Figure 4 shows it as a sequence.
-
-**The contract, in order.** **Settled** in outline (6:53 PM and 6:55 PM); the details are **Proposed** unless marked.
-
-1. The loop detects overflow, either from the precheck before dispatch or from the provider's reply. Both arrive at a round boundary, after every tool result of the last batch has been pushed (`machine.rs` lines 320-341), so the list never holds a half-answered batch at this point.
-2. The Engine constructs an empty staging list. No global names it, so only the compactor can reach it.
-3. The Engine calls `compactor(old, fresh, reason)`. `old` is a read-only view of `messages`: its records and length read normally, and every builder, `append`, and `replace` raises. `fresh` is the staging list. `reason` is today's overflow tag, `"precheck"` or `"provider"` (`compactors.rs` lines 30-68). While the compactor runs, the `messages` global is locked too, so a write through it raises.
-4. The compactor builds the compacted history in `fresh`. It may call `models.infer`, for example to summarize old turns. It may not call `models.loop`.
+1. The loop detects overflow, from the precheck before dispatch or from a provider's context-overflow reply [C11]. Both arrive at a round boundary, after the last batch's tool results are pushed, so every batch in the list is fully answered [C32].
+2. The Engine creates an empty staging list, reachable only as the compactor's argument.
+3. The Engine calls `compactor(old, fresh, reason)`. `old` is a read-only view of `messages`: its records and length read normally, and every builder, `append`, and `replace` raises. `fresh` is the staging list. `reason` is today's overflow tag, `"precheck"` or `"provider"` [C36]. While the compactor runs, the `messages` global is locked too, so a write through it raises.
+4. The compactor builds the compacted history in `fresh`. It may call `models.infer`, for example to summarize old turns, but not `models.loop`.
 5. The compactor returns `fresh`, or returns nil to decline.
-6. The Engine validates the returned list against the rules in Table 8, before anything changes.
-7. The Engine swaps record contents: `messages` now holds the compacted records, and the staging list holds the records from before compaction. `messages` is the same object, so every Lua reference to it and the attached catalog stay as they were (**Settled**). After the swap, `old` and `fresh` become dead handles: any access raises, so no second writable list survives the compaction (**Proposed**).
-8. The Engine writes the run-record entry, with the pre-compaction records from the staging list and the compacted records.
-9. The loop retries the round that overflowed, sending the attached catalog unchanged.
+6. The Engine checks the returned list against Table 7 before anything changes.
+7. The Engine swaps record contents, so `messages` holds the compacted records and the staging list holds the old ones. As settled, `messages` stays the same object, so Lua references to it and the rendered catalog are unaffected. `old` and `fresh` then become dead handles that raise on any access, so `messages` is the only writable list left.
+8. The Engine writes the run-record entry, with the records before and after.
+9. The loop retries the round that overflowed, sending the rendered catalog unchanged.
 
-**Figure 4.** The compaction sequence: the Engine hands the compactor a read-only `old` and an empty `fresh`, validates what comes back, and swaps it into `messages`.
+**Figure 4.** The compaction sequence.
 
 ```mermaid
 sequenceDiagram
@@ -479,202 +416,178 @@ sequenceDiagram
     E->>L: retry the round
 ```
 
-The swap fits the existing list well. `replace` already builds a new record vector and stores it in the same list (`lua/src/messages.rs` lines 163-171), so a swap of two lists' vectors keeps both lists' identities. The per-list send state stays correct, because `commit` compares the new request with the last one by content (`messages.rs` lines 174-188). The precheck's token anchor falls back to a full estimate after a swap, by design: its documentation says a "rewritten, compacted, or merged history can never anchor on a count that was measured for another conversation" (`compactors.rs` lines 171-219).
+The swap fits the existing list. `replace` already builds a new record vector and stores it in the same list, so exchanging two lists' vectors keeps both identities, and `commit` compares each request with the last by content, so the send state stays correct [C28]. The precheck normally counts tokens from a measured count for the history it last sent, its anchor; after a swap it falls back to a full estimate, by design, because a "rewritten, compacted, or merged history can never anchor on a count that was measured for another conversation" [C36].
 
-**Validation rules.** Table 8 lists the checks the Engine runs on the returned list before the swap, with the reason for each and what a failure does. Rules 1 to 3 follow from the provider's message shape, rules 4 to 6 have options in Table 9, and rule 7 is proposed from established practice.
+The first three checks in Table 7 follow from the provider's message shape, the next three are open problems in Table 8, and the size check follows Cline's practice.
 
-**Table 8.** Checks the Engine runs on the compactor's returned list before swapping it into `messages`.
+**Table 7.** Checks on the compactor's returned list.
 
-| # | Rule | Why | On failure |
-|-|-|-|-|
-| 1 | The value returned is the exact staging list | Returning `old` or another value is an author bug | Hard error, kind `lua` |
-| 2 | Every assistant tool call has its result right after it | Providers reject an unanswered call (`projection.rs` lines 4-16) | Hard error, kind `lua` |
-| 3 | System records only in the leading block | Provider message shape (`messages.rs` lines 61-73) | Hard error, kind `lua` |
-| 4 | The leading system records are preserved, during compaction | The system prompt is the model's contract | Open: Table 9, row 5 |
-| 5 | The list is not empty | The next round fails otherwise (`chat.rs` lines 125-128) | Open: Table 9, row 5 |
-| 6 | The list passes the precheck | Otherwise the retry overflows | Open: Table 9, row 6 |
-| 7 | The list is smaller than `old` | A larger history can only overflow again (Cline's rule) | Proposed: `context_exhausted` |
+| Check | Why | On failure |
+|-|-|-|
+| The value returned is the staging list itself | Returning `old` or another value is an author bug | Hard error, kind `lua` |
+| Every assistant tool call has its result right after it | Providers reject an unanswered call [C37] | Hard error, kind `lua` |
+| System records only in the leading block | Provider message shape [C28] | Hard error, kind `lua` |
+| The leading system records are kept during compaction | The system prompt is the model's contract | Open (Table 8) |
+| The list holds at least one record | The next round fails otherwise [C11] | Open (Table 8) |
+| The list passes the precheck | Otherwise the retry overflows | Open (Table 8) |
+| The list is smaller than `old` | A larger history can only overflow again (Cline's rule) [E4] | Proposed: `context_exhausted` |
 
-**Two limits of the validation.** Rule 4 protects the system records only during compaction; outside it, `replace` can still edit them, because an author's explicit edit is allowed (Table 9, row 26). Rule 6 relies on the precheck, which leaves out tool schemas (`compactors.rs` lines 221-237), so a list that passes can still overflow at the provider. The provider's overflow reply then meets the at-most-once rule and raises `context_exhausted`. Counting the attached catalog's schemas, which are constant for the section, would close the gap and is deferred (Part 5, Scope).
+The first three checks catch author bugs, so they should raise kind `lua` at the `models.loop` call, where `pcall` can catch them. A compactor that declines, or a compacted list still over budget, means the conversation cannot fit, so both should raise the existing `context_exhausted` kind, with a message naming the window, the count, and the reserve. Every failure leaves `messages` as it was, matching today's documented rule that a round refused for overflow "adds no records to the list" [C19]. The Workshop chat agent already wraps `models.loop` in `pcall` and returns to waiting, so a failure ends the turn and the conversation goes on [C9]. Confidence: high, because both kinds and both behaviors exist today.
 
-**Hard and recoverable failures.** **Proposed.** Rules 1 to 3 catch author bugs, so they raise kind `lua` at the `models.loop` call, which `pcall` can catch, and `messages` keeps its pre-compaction records. A compactor that declines, and a compacted list that is still over budget, are not bugs: they mean the conversation cannot fit. Both raise the existing `context_exhausted` kind, with a message naming the window, the count, and the reserve, and again `messages` is left as it was. That matches today's documented rule that a round refused for overflow "adds no records to the list" (`runvil-docs/src/language/11-conversations.md` line 1425). The Workshop chat agent already wraps `models.loop` in `pcall` and returns to waiting (`crates/workshop/agents/agents/chat.md` line 34), so either failure ends the turn and keeps the session. Confidence: high, because both kinds and both behaviors exist today.
+### Problems in today's code
 
-### The pre-flight finds no blocker in the code: twenty-three problems resolve, and four need a choice
+The rule raises 27 problems in today's code (Table 8). The code already handles 11 of them, one only in principle; one more follows from a settled decision, 12 have a proposed fix, and 3 are open.
 
-Vinnie asked for this part to "pre-flight any problems" before implementation (6:57 PM). Table 9 lists twenty-seven problems the rule raises, each with its impact, a resolution, and a confidence. Twenty-three resolve from the code, from established practice, or from a proposed detail. Four (rows 3, 5, 6, and 11) need a choice, and their options follow the table.
-
-**Table 9.** Pre-flight register for the section conversation. "Resolved" means the code already behaves as the rule needs.
+**Table 8.** Problems in today's code. "Resolved" means the code already behaves as the rule needs.
 
 | # | Problem | Impact | Resolution | Confidence |
 |-|-|-|-|-|
-| 1 | Views held across a swap | A view reads the wrong record | Resolved: views hold the record, not an index (`messages-view.rs` lines 18-28); add a test | High |
+| 1 | Views held across a swap | A view reads the wrong record | Resolved: views hold the record, not an index [C29]; add a test | High |
 | 2 | A compactor editing the live list | History changes before validation | Proposed: `old` is read-only | High |
 | 3 | What a compactor may call | Side effects during overflow | Proposed: `models.infer` yes, `models.loop` no; `tools.call` Open | Medium |
-| 4 | Tool calls pending at overflow | A call split from its result | Resolved: overflow arrives only at round boundaries (`machine.rs` lines 320-341) | High |
-| 5 | Empty list, or lost system record | The model loses its instructions | Open (below) | Medium |
-| 6 | Still over budget | The retry overflows again | Open (below) | Medium |
-| 7 | A compactor that cannot compact | No way to give up | Proposed: return nil; raise `context_exhausted` | High |
-| 8 | The retry and the round cap | The retry spends `max_tool_iterations` (`machine.rs` lines 233-243) | Proposed: not counted; one compaction per round | Medium |
+| 4 | Tool calls pending at overflow | A call split from its result | Resolved: overflow arrives only at round boundaries [C32] | High |
+| 5 | Empty list, or lost system record | The model loses its instructions | Open | Medium |
+| 6 | Still over budget | The retry overflows again | Open | Medium |
+| 7 | A compactor that cannot compact | It must be able to give up | Proposed: return nil; raise `context_exhausted` | High |
+| 8 | The retry and the round cap | The retry counts against `max_tool_iterations` [C32] | Proposed: not counted; one compaction per round | Medium |
 | 9 | `messages` stops being a namespace | Code reading `messages.new` | Resolved: it holds only `new`; three refusal texts change | High |
-| 10 | Author code rebinding `messages` | Engine and author disagree | Proposed: the `_G` guard owns it (`globals.rs` lines 3-12) | High |
-| 11 | The H1 preamble VM | H1 runs `models.loop` today | Open (below) | Medium |
-| 12 | Existing compactors | Author compactors break | Resolved: only `compactors.fail` ships (`compactors.rs` lines 117-126) | High |
-| 13 | No side conversations | Four docs examples break | Settled consequence: `models.infer`, tasks, or `call` | High |
-| 14 | Author edits with `replace` | Compaction is not the only rewrite | Proposed: keep `replace` | Medium: Vinnie has not ruled |
+| 10 | Author code rebinding `messages` | Engine and author disagree | Proposed: the `_G` guard owns it [C30] | High |
+| 11 | The H1 section's VM | The H1 section runs `models.loop` today | Open | Medium |
+| 12 | Existing compactors | Author compactors break | Resolved: only `compactors.fail` ships [C36] | High |
+| 13 | Side conversations | Four docs examples break | Settled consequence: `models.infer`, tasks, or `call` | High |
+| 14 | Author edits with `replace` | Authors also rewrite history | Proposed: keep `replace` | Medium, undecided |
 | 15 | Replay determinism | A compacted run must replay | Resolved: Lua plus recorded `models.infer`; record before and after | High |
-| 16 | The prompt cache | Compaction rewrites the message prefix | Resolved: the tools prefix stays; the anchor re-estimates (`compactors.rs` lines 171-219) | High |
-| 17 | Workshop | The chat list and transcript | Resolved: `history` becomes `messages`; the transcript comes from events (`transcript.rs` lines 1-9) | High |
-| 18 | Greg's planned prompt debugger | What it shows as the conversation | Resolved in principle: one per section | Medium: not designed |
-| 19 | Prose-body sections | An implicit list | Resolved: none exists (`04-how-a-prompt-runs.md` line 1550) | High |
-| 20 | Task and fan-out arms | Shared lists | Resolved: each arm gets its own VM (`walk.rs` lines 158-173) | High |
-| 21 | Practice in other harnesses | Matching the field | Resolved: rewrite in place, keep originals, cut at turn boundaries, bound retries, keep tools fixed | High |
-| 22 | `messages` while the compactor runs | A write through the global mid-compaction | Proposed: locked; any write raises | High |
+| 16 | The prompt cache | Compaction rewrites the message prefix | Resolved: the tools prefix stays; the anchor re-estimates [C36] | High |
+| 17 | Workshop | The chat list and transcript | Resolved: `history` becomes `messages`; the transcript comes from events [C38] | High |
+| 18 | The planned prompt debugger | What it shows as the conversation | Resolved in principle: one per section | Medium, not designed |
+| 19 | Prose-body sections | An implicit list | Resolved: a prose-only section runs without a model call or a list [C39] | High |
+| 20 | Task and fan-out arms | Shared lists | Resolved: each arm gets its own VM [C22] | High |
+| 21 | Practice in other harnesses | Matching the field | Resolved: the swap follows the compaction practice in Table 4 | High |
+| 22 | `messages` while the compactor runs | Writes mid-compaction | Proposed: locked; any write raises | High |
 | 23 | `old` and `fresh` after the compactor returns | A second writable list survives | Proposed: dead handles; any access raises | High |
-| 24 | An empty catalog at first render | Whether a later offer is a change | Proposed: it attaches as empty, and later offers raise (Engine behavior section) | Medium |
+| 24 | An empty catalog at first render | Whether a later offer is a change | Proposed: it attaches as empty, and later offers raise | Medium |
 | 25 | `tools.offer_local` and task built-ins after first render | Hidden catalog changes | Proposed: both count as changes and raise | Medium |
-| 26 | `replace` on system records outside compaction | Rule 4 guards only compaction | Proposed: allowed, as the author's explicit edit | Medium |
-| 27 | The precheck leaves out tool schemas | A passing list can still overflow | Proposed: the provider's overflow reply then raises `context_exhausted`; counting schemas is deferred | Medium |
+| 26 | `replace` on system records outside compaction | The check on system records guards only compaction | Proposed: allowed, as the author's explicit edit | Medium |
+| 27 | The precheck leaves out tool schemas [C36] | A passing list can still overflow at the provider | Proposed: the provider's reply then raises `context_exhausted`; counting the schemas, constant per section, is deferred | Medium |
 
-The practice in row 21 comes from Claude Code's prompt-caching and context docs, Codex's `compact.rs`, OpenCode's compaction docs, Cline commit `cdcaa744`, and Anthropic's on-demand compaction docs, all read 2026-10-20 and cited in Appendix E. Cline's rule is the source of Table 8's rule 7. A filter splitting Anthropic's native editor is a question about shaped Packs, not the conversation, so question F3 treats it.
+Four choices remain. The first is whether a compactor may call `tools.call`, for example to fetch a stored summary. A compactor can already call `models.infer` and suspend, as an Engine test shows [C40], so only returning `fresh` is new.
 
-Row 3 rests on a tested behavior. A compactor already may suspend: the Engine test `the_compactor_gets_only_the_reason_and_may_suspend_before_raising` calls `models.infer` inside a compactor, suspends, resumes, and raises, with one gateway call (`crates/runvil-internal/engine/src/execute/tests/models_loop_contract.rs` lines 276-299). Only returning `fresh` is new.
+- Allow it. `tools.call` works from any Lua, and tool calls are recorded, so existing rules cover it and replay still works. The risk is a slow or side-effecting call during an overflow.
+- Refuse it. Compaction stays Lua plus summarization, the easiest form to reason about, at the cost of one more refused call to explain.
+- Allow only tools whose metadata says read-only, which keeps side effects out but depends on the open question of tool metadata and trust.
 
-**Row 3, open: may a compactor call `tools.call`?** A compactor might want a tool, for example to fetch a stored summary. The criteria that bite are no exceptions to explain (2) and safe failure (8).
+Allow it. Confidence: medium, because every compactor in the sources is Lua plus summarization, so the cost of either answer is unmeasured.
 
-- **Allow it.** `tools.call` works from any Lua today, so allowing it here adds no rule. Tool calls are recorded effects, so replay still holds. The risk is a slow or side-effecting call in the middle of an overflow.
-- **Refuse it.** Compaction becomes Lua plus summarization, which is the easiest to reason about. It is also one more place where a normal call is refused, which a maintainer has to explain.
-- **Allow only tools whose metadata says read-only.** This keeps side effects out, but it depends on question G1's metadata and trust model.
+The second is a staging list that is empty or drops the system records.
 
-**Proposed:** allow it. Confidence: medium, because no compactor in the sources needs a tool, so the cost of either answer is unmeasured.
+- Reject both: validation requires a non-empty list whose leading system records equal those of `old`, so a forgotten system prompt fails loudly when the compactor returns.
+- Have the Engine re-insert the system records. That is easier for authors, but the Engine then edits what the compactor returned, hiding the bug it repairs.
+- Allow an empty list. Unless a task notice arrives first, the next round fails with "messages must not be empty", a less helpful place for the error [C11].
+- Require the system records but allow an otherwise empty list, so a compactor that keeps only the system prompt makes a valid reset.
 
-**Row 5, open: an empty staging list, or one that drops the system record.** A compactor that returns nothing, or forgets the system prompt, leaves the model without its instructions or without any message. The criterion that bites is safe failure (8).
+Require the leading system records unchanged, and reject an otherwise empty list unless the section has a notice waiting. Confidence: medium, because this is the strictest rule that still allows a reset, and Cline likewise rejects an empty custom result [E4], but Runvil prompts have yet to exercise it.
 
-- **Reject both.** Validation requires a non-empty list whose leading system records equal those of `old`. A forgotten system prompt then fails loudly at the compactor's return.
-- **Have the Engine re-insert the system records.** Compactors only fill the rest. This is easier for authors, but the Engine edits what the compactor returned, which hides the bug it repairs.
-- **Allow an empty list.** The next round then fails with "messages must not be empty" (`chat.rs` lines 125-128) unless a task notice arrives first. This defers the error to a less helpful place.
-- **Require the system records, allow an otherwise empty list.** A compactor that keeps only the system prompt is a valid reset, and the next user message refills it.
+The third is a compacted list that is still over budget.
 
-**Proposed:** require the leading system records unchanged and reject an otherwise empty list unless the section has a notice waiting. Confidence: medium, because it is the strictest rule that still allows a reset, and Cline likewise rejects an empty custom result, but no Runvil prompt has exercised it.
+- Raise `context_exhausted`, naming the count, the reserve, and the window. `messages` keeps its old records, and the chat agent's `pcall` ends the turn.
+- Call the compactor again, with the compacted list as `old`. A stronger pass may fit, at the risk of a loop that only a cap stops.
+- Return an error the model reads. Overflow happens outside any tool call, so the model would get no turn in which to act on the error.
 
-**Row 6, open: the compacted list is still over budget.** The precheck runs on the compacted list before the swap. The criteria that bite are safe failure (8) and cache stability (5).
+Raise `context_exhausted`, and compact at most once per round. Confidence: medium, because this matches today's error kind and behavior, other harnesses bound retries the same way (OpenCode and Cline retry once and then raise, and Claude Code stops after three failures; Appendix E), and a compactor that needs two passes can loop inside itself.
 
-- **Raise `context_exhausted`, naming the count, the reserve, and the window.** `messages` keeps its old records, and the chat agent's `pcall` ends the turn.
-- **Call the compactor a second time,** with the compacted list as `old`. A stronger second pass may fit, at the risk of a loop that only a cap stops.
-- **Return a model-facing error.** Listed to set aside: overflow is not a tool call, so the model has no turn in which to read the error and act on it.
+The fourth is the H1 section's VM. The H1 section is section 0 and goes through the same install path as any section [C25]. The docs show it running `models.loop` with a local decision tool and keeping the verdict in `var` [C20]. Paperweight's H1 section holds only the model binding, and its comment says that "prose here would make it a section with a prompt body, needing a model binding" [C41].
 
-**Proposed:** raise `context_exhausted` and compact at most once per round. Confidence: medium, because it matches today's kind and behavior, practice bounds retries the same way (OpenCode and Cline retry once and then raise; Claude Code stops after three failures), and a compactor that needs two passes can loop inside itself.
+- Leave `messages` out of the H1 section, making it a setup block only, which breaks the documented decision-tool idiom.
+- Install `messages` there but refuse `models.loop`. The H1 section stays cheap and predictable but becomes the one section that behaves differently.
+- Install a usable `messages`, as in any section. The list dies at the H1 freeze, like every H1 value today [C25].
 
-**Row 11, open: the H1 preamble VM.** H1 is section 0 and goes through the same install path as any section (`engine/src/execute/scheduler/h1.rs` lines 1-10). The docs show H1 running `models.loop` with a local decision tool and keeping the verdict in `var` (`runvil-docs/src/language/12-tools.md` lines 1496 and 1533). Paperweight's H1 holds only the model binding, and its comment says that "prose here would make it a section with a prompt body, needing a model binding" (`wg21-paperflow/crates/paperweight/paperweight.md` lines 21-25). The criteria that bite are no exceptions to explain (2) and building blocks (1).
+Give the H1 section a usable `messages`, like any section. Confidence: medium, because this keeps the documented idiom and treats the H1 section like every other.
 
-- **No `messages` in H1.** H1 becomes a setup block only, which breaks the documented decision-tool idiom.
-- **`messages` present, `models.loop` refused there.** H1 stays cheap and predictable, but H1 becomes the one section that behaves differently.
-- **`messages` present and usable, like any section.** The list dies at the H1 freeze (`h1.rs` lines 78-82), as every H1 value does today.
+### Migration
 
-**Proposed:** present and usable, like any section. Confidence: medium, because it keeps the documented idiom and adds no exception, and no source says H1 should differ.
+The change is small in live prompts and large in docs and tests.
 
-### Migration touches two prompts, the conversation docs, the compactor, and 58 test files
+In the Workshop chat agent, line 30 (`local history = messages.new()`) goes, and lines 33 and 34 use `messages` in place of `history` [C9]. In the research-person prompt, line 40 goes, and lines 41 to 43 use `messages` in place of `msgs` [C26]. The vendored copies in `wg21-paperflow` follow with the next submodule bump. Paperweight itself calls only `models.infer` and is unaffected.
 
-The change is small in live prompts and large in docs and tests. Only two live prompts create a list, and the rest of the footprint is examples and tests written against `messages.new()`.
+In the language guide, chapter 11, on conversations, has 70 lines naming `messages.new()` and needs a rewrite built on `messages` being the section's conversation, starting with its section on the `messages` global [C19]. Chapter 12 has 23 such lines and chapter 15 has 15 [C20; C21]. Chapters 02, 05, 07, 13, and 16 have a few lines each, and chapters 14 and 17 name the constructor without parentheses [C42]. The four two-list examples are rewritten to use one list, `models.infer`, or a task.
 
-**Prompts.** In the Workshop chat agent, line 30 (`local history = messages.new()`) goes away, and lines 33-34 use `messages` in place of `history` (`crates/workshop/agents/agents/chat.md` lines 30-34). In `prompts/research-person.md`, line 40 goes away and lines 41-43 use `messages` in place of `msgs`. The vendored copies in `wg21-paperflow/vendor/runvil` follow with the next submodule bump, which already has to fix Paperweight's `harness::plugin` import (`wg21-paperflow/crates/paperweight/src/app.rs` line 22). Paperweight itself creates no list and needs no change for this part.
+In the code, 64 Rust files under `runvil/crates` contain `messages.new(`, counted with `git grep` at `b1bbe33eb` [C54]: 58 tests, test helpers, or benches, across the Lua crate, the Engine, the Harness, and Workshop, and six source files whose text names the constructor. The Lua crate's test helper installs a list as a global named `msgs` and changes to install the section's `messages` [C43]. Rust unit tests that build a `MessageList` directly keep working, because the type stays.
 
-**Docs.** Chapter 11 of the language guide is the conversation chapter, with about 70 lines naming `messages.new()`, and needs a rewrite around "`messages` is the section's conversation" (`runvil-docs/src/language/11-conversations.md`, starting with "The `messages` global" at lines 44-52). Chapter 12 has 23 such lines, including the two-list example at lines 944-951, and chapter 15 has 15, including the notice example at lines 2493-2501. Chapters 02, 05, 07, 13, and 16 have a few lines each, and chapters 14 and 17 name the constructor without parentheses (`14-fanout.md` line 682; `17-quick-reference.md` line 115). The four examples that build two lists in one section are rewritten to use one list, `models.infer`, or a task.
+### Implementation steps
 
-**Compactor code.** `lua/src/compactors.rs` (the `Compactor` enum and its documentation), `lua/src/models_loop/machine.rs` (the `Compacting` phase), `lua/src/__impl_coro.lua` (the compactor branch of the trampoline, lines 236-238), and `lua/src/models_loop.rs` (the argument checks, lines 114-131).
+The conversation change is independent of the offering redesign in Part 4, except for step 4 and the offering half of step 7. Step 4 should first attach today's effective tool list, rendered once, and switch to fixed and dynamic offers once they exist, so the conversation change can ship first. Confidence: medium, because this splits the work cleanly but means two passes over `prepare_chat`. Paths are under `crates/runvil-internal/`.
 
-**Tests.** Of the 64 Rust files under `runvil/crates` that contain `messages.new(`, 58 are tests, test helpers, or benches, across the Lua crate, the Engine, the Harness, and Workshop (a search with `rg` at `b1bbe33eb`); the other six are the source files whose text names the constructor. The Lua crate's test helper installs a list as a global named `msgs` (`lua/src/test_vm.rs` lines 254-259 and 289-300) and changes to install the section's `messages`. Rust unit tests that build a `MessageList` directly keep working, because the type stays.
+1. Install `messages` per VM. Blocked by the open choice about the H1 section's VM. Code: `lua/src/messages.rs` (`install_messages` installs a list), the section VM type in `lua/src/vm.rs` (holds the list's handle), `lua/src/vm/inject.rs` line 150, and `lua/src/globals.rs` (the guard owns `messages`).
+2. Remove the constructor and add the guiding error. Ready now. Code: `__index` in `lua/src/messages.rs`, and the three refusals that name the constructor, in `lua/src/messages.rs` lines 431-432, `lua/src/messages-view.rs` lines 98-99, and `lua/src/protocol/parse/chat.rs` lines 16-19 (`NOT_A_LIST`).
+3. Change the `models.loop` signature. Blocked by the open signature choice. Code: `lua/src/models_loop.rs` lines 114-131, `lua/src/__impl_coro.lua` lines 247-258, and `NOT_A_LIST`.
+4. Render the catalog once, attach it, and raise on change. Blocked by two Part 4 questions: when the hard error fires, and what the rendered catalog stores. Code: `engine/src/execute/scheduler/chat.rs` lines 141-168 (render on the first round, reuse after), `lua/src/vm/state.rs` lines 128-168 (read only at first render), the offer functions in `lua/src/tools.rs` and `lua/src/packs.rs`, and the list's state in `lua/src/messages.rs`.
+5. Build the compaction contract. Blocked by three open problems in Table 8: what a compactor may call, an empty or system-less list, and a list still over budget. Code: `lua/src/models_loop/machine.rs` (a path from `Compacting` back to the round, and the retry rule), the compactor branch in `lua/src/__impl_coro.lua` lines 236-238 (pass `old`, `fresh`, and `reason`), `lua/src/compactors.rs` (the `Compactor` enum, its documentation, and the new `fail`), `lua/src/messages.rs` (the read-only view and the swap), and the run-record entry.
+6. Apply the views policy. Ready now. Views already hold records by identity, so the work is one test.
+7. Migrate prompts, docs, and tests, as listed under Migration. The offering half waits on the names of the offer verbs and the filter syntax (Part 4).
+8. Add the acceptance tests, each after the steps it tests.
 
-**Error text.** Three refusals name the constructor and change wording: the list's assignment refusal (`lua/src/messages.rs` lines 431-432), the view's read-only refusal (`lua/src/messages-view.rs` lines 98-99), and `NOT_A_LIST` (`lua/src/protocol/parse/chat.rs` lines 16-19).
+### Acceptance tests
 
-### Eight implementation steps build the conversation before the offering change
+These fourteen tests check invariants 1 to 4 in Appendix F, the section-conversation invariants; tests 5 and 11 also check invariants 5 and 6.
 
-Steps 1 to 3 and 5 to 8 do not depend on the offering redesign in Part 4. Step 4 can first attach today's effective tool list, rendered once, and later switch to fixed and dynamic offers when those land, which lets the conversation change ship ahead of the offering change. **Proposed**, confidence medium, because it splits the work cleanly but means two passes over `prepare_chat`.
-
-1. **Install `messages` per VM.** Blocked by: Table 9, row 11 (whether H1 gets `messages`). `lua/src/messages.rs` (`install_messages` installs a list, not a table), the section VM type in `lua/src/vm.rs` (holds the list's handle), `lua/src/vm/inject.rs` line 150, and `lua/src/globals.rs` (the guard owns `messages`).
-2. **Remove the constructor and add the guiding error.** Blocked by: nothing. `messages.rs` (`__index` answers the key `new` with the error) and the three refusal texts above.
-3. **Change the `models.loop` signature.** Blocked by: the open signature choice in the Lua surface section. `lua/src/models_loop.rs` lines 114-131, `lua/src/__impl_coro.lua` lines 247-258, and `NOT_A_LIST`.
-4. **Attach the rendered catalog, render once, and raise on change.** Blocked by: questions B1 and B2. `engine/src/execute/scheduler/chat.rs` lines 141-168 (render on the first round, reuse after), `lua/src/vm/state.rs` lines 128-168 (read only at first render), the offer installers in `lua/src/tools.rs` and `lua/src/packs.rs`, and the list's state in `messages.rs`. The details wait on questions B1 and B2.
-5. **Build the compaction contract.** Blocked by: Table 9, rows 3, 5, and 6. `lua/src/models_loop/machine.rs` (a path from `Compacting` back to the round, and the retry rule), the trampoline in `__impl_coro.lua` (pass `old`, `fresh`, and `reason`), `lua/src/compactors.rs` (the new `fail`), `messages.rs` (the read-only view and the swap), and the run-record entry.
-6. **Apply the views policy.** Blocked by: nothing. No code change, because views already hold records by identity; add the test.
-7. **Migrate prompts, docs, and tests,** blocked for the offering half by questions A1 and A3, as listed above.
-8. **Add the acceptance tests** below. Blocked by: the steps they test.
-
-### Fourteen acceptance tests pin the rule
-
-Each test states one behavior the implementation must keep. Appendix F repeats them with the offering invariants.
-
-1. `messages.new` raises the guiding error, at the author's line.
-2. Two reads of `messages` in one section give the same object, and there is no way to obtain a second list.
+1. Reading `messages.new` raises the guiding error, at the author's line.
+2. Two reads of `messages` in one section give the same object, and every list Lua can reach is that object.
 3. After a `jump`, the next section's `messages` is a different, empty list.
 4. Assigning to the `messages` global raises.
 5. The rendered catalog sent on the round after a compaction is byte-identical to the one sent before it.
-6. Swap identity: a reference to `messages` taken before compaction is the same object afterward and reads the compacted records.
+6. A reference to `messages` taken before compaction is the same object afterward and reads the compacted records.
 7. A view held from before compaction still reads its original record.
-8. Each validation rule in Table 8 raises its failure when broken, and `messages` is unchanged afterward.
+8. Failing each check in Table 7 raises that check's failure and leaves `messages` unchanged.
 9. A compactor that returns nil raises `context_exhausted`, and `messages` is unchanged.
 10. A compactor that calls `models.infer` and returns `fresh` lets the retried round succeed.
-11. An offer that would change the rendered catalog after first render raises.
+11. After first render, an offer that would change the rendered catalog raises.
 12. `models.infer` sends an empty tool list, before and after the rendered catalog is attached.
-13. A model task's notice lands on the owner section's `messages`.
-14. A replay of a run that compacted reproduces the same records before and after compaction, with no Plugin loaded.
+13. A model task's notice is pushed onto the owner section's `messages`.
+14. Replaying a run that compacted reproduces the same records before and after compaction, with the Plugins unloaded.
 
-## Part 3. MCP designed two ways: as a Pack that contributes catalogs, or as an Engine feature
+## Part 3. Where MCP lives
 
-Vinnie asked whether MCP "should even be a pack or should be an engine feature" (6:25 PM), and asked the report to "explore what the MCP feature would look like for either choice" (6:33 PM). Part 3 describes each design completely, on the same seven points, then writes the same three prompts in both and compares them in Table 10. It does not pick a winner; question E1 in Part 4 does. Both designs share everything Table 4 settled, from "no servers, no MCP" to the rendezvous and Lua's choice of fixed or dynamic for each catalog.
+Vinnie asked, "should mcp even be a pack or should be an engine feature?", and wanted both choices worked out [D 6:25, 6:33]. MCP can stay a Pack that adds each server's tool list, its MCP catalog, at run time, or it can be built into the Engine. Both designs keep every decision in Table 3.
 
-Two facts from the code narrow both designs. First, one Pack per MCP server is not available. The Pack registry is keyed by compile-time names and a Pack's `construct` is a plain function pointer (`crates/runvil-plugin/src/registry.rs` lines 32-34; `crates/runvil-plugin/src/pack.rs` lines 128-132 and 150-154). So a Plugin cannot insert a Pack named after a server in `mcp.json`, and Vinnie rejected per-server Packs on 2026-10-19 with "Revisit: none" (`runvil/vibe/2026-10-19-2-pack-plugin-rename.md` lines 623-625). Second, a tool id may have three segments, and a tool belongs to the Pack its first segment names (`crates/runvil-internal/types/src/tools/ids.rs` lines 10-13; `types/src/packs.rs` lines 67-76). So `mcp/paperstore/get_paper` is a valid tool id of one `mcp` Pack today.
+Two facts in the code apply to both. A Pack's name is fixed at compile time and its `construct` is a plain function pointer, so per-server Packs, which Vinnie rejected [P2], are also impossible today [C44]. A tool id, though, may have three segments and belongs to the Pack its first segment names, so `mcp/paperstore/get_paper` is already a valid id in a single `mcp` Pack [C45].
 
-Both designs also face the same timing problem. Today the Harness reads each Pack's tool list once, when a run starts, after awaiting the Pack's `ready`, and the run catalog then stays fixed (`pack.rs` lines 29-45; `crates/harness-internal/runner/src/host-run.rs` lines 5-11). The settled rendezvous waits at first need instead, which may come later in the run or never. So in either design, MCP tools join the run catalog at the rendezvous rather than at run start, and stay fixed from then on. The Engine stays pure: the first need yields an effect, and the Harness answers it when every server has listed or failed.
+MCP tools also join the run catalog late. The Harness reads each Pack's tools once at run start, after awaiting its `ready` [C44; C4], but the rendezvous comes at first need, which may be later or never. In both designs that need yields an Engine effect, keeping the Engine pure, and the MCP tools stay fixed once every server has listed its tools or failed.
 
-### Design P makes the MCP client a Pack whose one special power is contributing catalogs
+### MCP as a Pack
 
-In Design P the MCP client stays a Pack, `runvil/mcp` with id `mcp`, and each server's catalog is a filtered view of that Pack. Its one capability that no ordinary Pack has is contributing tools at run time, at the rendezvous. Design P comes in three variants. **P-linked** keeps today's arrangement: the `plugin-mcp` crate is a Plugin the Host links and inserts, as Workshop does (`crates/workshop/server/src/agents.rs` lines 159-162). **P-built-in** makes the registry hold `mcp` from the start, the way it holds `runvil/subagents` today. That conflicts with the registry's own rule that a built-in "must never offer tools, carry a prelude, or need services" (`registry.rs` lines 195-198), so the rule would have to change. **P-general** turns the special power into a general one: any Pack may be a catalog provider that contributes named catalogs at run time, and MCP is simply the first. These are two independent choices: linkage, linked or built-in, and capability, an MCP-only power or a general one. Table 10 compares the combinations that matter.
+If MCP is a Pack, the MCP client stays the Pack `runvil/mcp`, and each server's MCP catalog is a filtered view of it. Unlike other Packs, it adds tools at run time. Two separate choices follow. The first is how the Host gets the Pack: linked, as Workshop links it today [C18], or held by every registry as a built-in, like `runvil/subagents`, which means changing the rule that a built-in "must never offer tools, carry a prelude, or need services" [C44]. The second is who may add catalogs at run time: MCP alone, or any Pack, with MCP the first.
 
-**Availability.** With no servers configured, the `mcp` Pack contributes no catalogs. In P-linked a Host with no MCP need not insert the Pack at all, and `packs.get("mcp")` returns nil, as for any unknown Pack (`crates/runvil-internal/lua/src/packs.rs` lines 66-79). In P-built-in the Pack always exists and is empty.
+Without servers, the Pack is empty. A Host can leave a linked Pack out, and then `packs.get("mcp")` returns nil, as for any unknown Pack [C8]. A prompt requires a server with a Lua check in its H1 section that raises an error when the server's catalog is missing, as Paperweight's check shows under Example prompts. A Lua error in the H1 section already stops the run at start as `Error::RequirementsUnmet`, with the author's message [C25].
 
-**Requiring a server.** Design P adds no MCP syntax to `uses:`. Two routes remain. A Lua check in the H1 block can look for the server's MCP catalog and raise, and an H1 failure is already the run's failed hard gate, `Error::RequirementsUnmet` (`crates/runvil-internal/engine/src/execute/scheduler/h1.rs` lines 1-5), so the run stops at start with the author's message. Or `uses:` entries can take generic options that any Pack may read, such as `- mcp: { servers: [paperstore] }`, which needs the parser change described under the hybrids.
+Lua reaches the catalogs through methods on the object `packs.get("mcp")` returns, such as `mcp:servers()`, which lists servers with their status, and `mcp:catalog("paperstore")`, which returns a filtered view the offer verbs accept. Pack objects group tools by the first id segment [C8], so `packs.offer("mcp")` offers every server at once, and one server is a filter on the second segment.
 
-**The Lua surface.** Offering and reflection go through the `packs` table. `packs.get("mcp")` returns the Pack object, which gains a way to list and select its catalogs, such as `mcp:servers()`, which lists server objects with their status, and `mcp:catalog("paperstore")`, which returns that server's catalog as a filtered view the offer verbs accept. Today a Pack object groups tools by the first id segment only (`packs.rs` lines 243-248), so `packs.offer("mcp")` would offer every server's tools at once; per-server selection is exactly a filtered view by the second segment. Catalogs as pseudo-Packs, with ids such as `mcp.paperstore`, are set aside here, because the registry cannot hold runtime-named Packs and the idea sits close to the rejected per-server Pack.
+Ids take the form `mcp/<server>/<tool>`, with wire names such as `mcp_paperstore_get_paper` [C5]. Tool ids refuse uppercase [C45], so the client lowercases MCP names and keeps the originals for the call. A model's call maps through the rendered catalog to the tool id, the Harness routes it by the first segment [C4], and the Pack maps it back to the server's own tool name. The planned per-run Pack instance "lists its tools when it's made" and "may wait a bounded time" [P1], so it fits this design once its listing moves from run start to first need.
 
-**Ids and wire names.** A tool's id is `mcp/<server>/<tool>`, and its wire name follows the existing rule, `mcp_<server>_<tool>` (`crates/runvil-internal/engine/src/execute/context-bound.rs` lines 40-56). MCP names may contain uppercase, which tool ids refuse (`ids.rs` lines 26-32), so the client maps each server and tool name into the lowercase charset and keeps the original name for the call, as the per-server code at commit `808028b3f` did; that code dropped a colliding tool with a warning naming only that tool, and question E2 asks for a louder rule. Length caps and collisions are question E2.
+The Engine sees only tools and catalogs, and the Harness, through the Pack, owns every connection. Most code changes are in `plugin-mcp`, which drops its two static tools [C46], adds the server segment to ids, and keeps the annotations and output schemas it discards today [C17]. The Pack contract gains the run-time catalog capability, in the Pack trait if any Pack can provide catalogs. The Engine gains the discovery tools, which can follow the task built-ins that the scheduler answers before alias lookup [C47], and the `packs` table gains catalog views.
 
-**The rendezvous and the dispatch path.** At first need, the Engine yields an effect, and the Harness asks the `mcp` Pack for its catalogs, which waits until every server has listed or failed. The deferred two-level Plugin model already allows this: a per-run Pack instance "lists its tools when it's made" and "may wait a bounded time" (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 967-968). Design P moves that listing from run start to first need. A model's call then arrives under its wire name, the Engine maps it through the attached catalog to `mcp/paperstore/get_paper`, the Harness routes it to the Pack its first segment names (`host-run.rs` lines 10-11), and the Pack maps the id back to the server and the server's own tool name.
+### MCP built into the Engine
 
-**The Engine and Harness split.** The Engine knows nothing about MCP. It sees tool data and catalogs, and its discovery tools work over the dynamic set whatever the source. The Harness, through the Pack, owns every connection.
+If MCP is built into the Engine, the Engine owns MCP's concepts: server catalogs as their own kind of tool source, an `mcp:` front-matter key, and a Lua `mcp` table. It still leaves I/O to the Harness, because it "never depends on `tokio`, `reqwest`, or the other banned crates" [P1]. So the Harness takes over the client from `plugin-mcp`, gets its configuration from the Host, and performs connections and calls as effects. MCP tools stop being Pack tools, so ids, offering, and reflection each need an MCP path.
 
-**The code that changes.** In `plugin-mcp`, the two static tools go (`crates/plugin-mcp/src/dynamic.rs` lines 294-315, with `tools()` at 295-297), per-server tool ids arrive, and the client stops dropping annotations and output schemas (`crates/plugin-mcp/src/server.rs` lines 48-68). The Pack contract gains the run-time catalog capability, in the Pack trait for P-general (`pack.rs`) or as an MCP-specific path otherwise. The Engine gains the discovery built-ins, which can follow the pattern of the task built-ins, answered by the scheduler before alias lookup (`engine/src/execute/scheduler/builtins.rs` lines 5-15). The Lua `packs` table gains catalog views. The front-matter parser changes only if `uses:` options are chosen.
+Without servers, `mcp.servers()` returns an empty list. The `mcp` global could always exist, which is simpler to explain, or exist only with servers, as Codex adds its MCP resource helper tools only then [E5].
 
-### Design L makes MCP an Engine concept, with the Harness doing the I/O
+A prompt requires a server with a front-matter key such as `mcp: [paperstore]`. Front matter rejects unknown keys [C3], so the key needs a field, a serde type, and an accessor, with the map deserializer that `models:` and `args:` share as a precedent [C48]. The Harness checks the requirement while preparing the run, as it checks declared Packs [C2], and a required server moves the rendezvous to run start.
 
-In Design L the Engine owns MCP's concepts: server catalogs as their own kind of tool source, a front-matter `mcp:` key, and a Lua `mcp` table. The Engine still performs no I/O, because it "never depends on `tokio`, `reqwest`, or the other banned crates" (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` line 1016), so the Harness holds the MCP client, takes the configuration from the Host, and performs connections and calls as effects. MCP tools are no longer Pack tools, which means ids, offering, and reflection each need an MCP path.
+`mcp.servers()` lists server objects, each with its name, status, failure reason, instructions, and catalog, and `mcp.server("paperstore")` returns one or nil. Either the offer verbs accept a server's catalog as a Pack-like value, or `mcp` gets its own verbs, such as `mcp.offer_dynamic`. Ids can take a reserved prefix, as in `mcp/paperstore/get_paper`, which looks like the id of a missing Pack. A server-qualified first segment, as in `mcp.paperstore/get_paper`, is valid today and gives the same wire name [C45; C5]. A separate id type could keep the server's case, at the cost of a second identity scheme beside `ToolId`.
 
-**Availability.** With no servers, `mcp.servers()` returns an empty list and no MCP tool reaches any catalog. Whether the `mcp` global exists at all when the Host has no servers is a sub-choice. Always present is simpler to explain, and absent mirrors Codex, which adds its MCP helper tools only when servers exist ([Codex `spec_plan.rs`, lines 1272-1281](https://github.com/openai/codex/blob/d571eaf/codex-rs/core/src/tools/spec_plan.rs#L1272-L1281), accessed 2026-10-20).
+The Engine maps a model's call through the rendered catalog to a server and a tool name, and issues an MCP call effect. The `mcp` Pack goes away, and the Engine gains effect kinds, the front-matter field, the discovery tools, and an `mcp` global among the reserved names that setup tests check [C30]. The Host API gains a way to hand MCP configuration to the Harness, and Workshop's `with_plugins` changes to match [C18].
 
-**Requiring a server.** A new front-matter key, such as `mcp: [paperstore]` or `mcp: { require: [paperstore] }`. Front matter rejects unknown keys today (`crates/runvil-internal/parser/src/frontmatter.rs` lines 38-45), so the key needs a field, a serde type, and an accessor. The map-shaped `models:` and `args:` keys already share a deserializer that validates keys and refuses duplicates (`crates/runvil-internal/parser/src/contract.rs` lines 54-120), which is a ready precedent. Satisfying the requirement happens when the Harness prepares the run, as declared Packs are checked today (`crates/harness-internal/runner/src/host.rs` lines 116-154), and a required server makes the rendezvous happen at run start.
+### Two hybrids
 
-**The Lua surface.** `mcp.servers()` lists server objects, and `mcp.server("paperstore")` returns one or nil. Each server object holds its name, status, failure reason, instructions, and catalog. Offering has two shapes: the offer verbs accept a server's catalog as a Pack-like value, or `mcp` gets parallel verbs such as `mcp.offer` and `mcp.offer_dynamic`. Question A2 weighs them.
+In the first hybrid, an `mcp:` key over a built-in Pack, MCP runs as a built-in Pack and prompts require servers with the Engine design's front-matter key. Authors get a readable requirement outside `uses:`, and the Engine's only MCP concept is one front-matter field. The cost is the built-in's registry exception and a parser change.
 
-**Ids and wire names.** Three choices. A reserved `mcp` prefix, `mcp/paperstore/get_paper`, keeps today's id type but makes `mcp` look like a Pack id that no Pack owns. A server-qualified first segment, `mcp.paperstore/get_paper`, is valid in today's charset (`types/src/packs.rs` lines 25-31 and 219-222) and gives the same wire name, `mcp_paperstore_get_paper`, because `.` becomes `_`. A separate id type for MCP tools could keep the server's original names and case, at the price of a second identity scheme beside `ToolId`.
+In the second, options on `uses:`, MCP stays a Pack and a `uses:` entry can be a map, such as `- mcp: { servers: [paperstore] }`, which the named Pack reads. A `uses:` entry deserializes only from a string today [C45], so the parser and the Pack contract both change. Continue uses the same form, `uses:` plus `with:` [E6]. The syntax is generic, but MCP would be its first user, close to what Vinnie disliked: "you adding mcp-specific syntax to the uses which feels wrong in general" [D 6:30].
 
-**The rendezvous and the dispatch path.** The first need yields an Engine effect that asks the Harness for the catalogs. A model's call maps through the attached catalog to a server and a tool name, and the Engine issues an MCP call effect, which the Harness's client performs.
+### Example prompts
 
-**The Engine and Harness split.** The Engine knows MCP's shape: the front-matter key, the Lua table, the MCP catalog kind, and the effects. The Harness knows MCP's protocol: connections, the handshake, listing, and calls.
+Three prompts show the ways a prompt uses MCP. Paperweight calls one server from Lua, a web-research prompt lets its model discover servers, and the Workshop chat agent mixes shaped, fixed, and dynamic tools. The Lua in these examples is illustrative. `packs.offer_dynamic` stands for the dynamic offer verb, whose name is still open, and the catalog methods and the file-tools Pack `files` are placeholders.
 
-**The code that changes.** The client code in `plugin-mcp` moves into the Harness, and the Pack goes away. The Engine gains new effect kinds, the front-matter field, the `mcp` global (listed in the reserved names that setup tests check, `crates/runvil-internal/lua/src/globals.rs` lines 163-191), and the discovery built-ins. The Host API gains a way to hand MCP configuration to the Harness instead of to a Plugin, and Workshop's `with_plugins` changes accordingly (`agents.rs` lines 145-163).
-
-### Two hybrids mix the parts
-
-**Hybrid 1: an `mcp:` front-matter key over a built-in Pack.** The runtime is P-built-in, and the requirement is Design L's key. Authors get a static, readable requirement with no MCP syntax inside `uses:`, and the Engine stays free of MCP concepts except for one front-matter field, which the Harness checks. Its cost is P-built-in's registry exception plus the parser change.
-
-**Hybrid 2: a Pack configured through generic `uses:` options.** The runtime is Design P, and `uses:` entries may be maps, such as `- mcp: { servers: [paperstore] }`, whose options the named Pack interprets. Today a `uses:` entry deserializes from a string only, and a map fails with an error naming both entry forms (`types/src/packs.rs` lines 183-206), so the parser and the Pack contract both change. The syntax is generic, but in practice MCP would be its first user, close to what Vinnie disliked: "you adding mcp-specific syntax to the uses which feels wrong in general" (6:30 PM). Continue's configuration blocks show the shape elsewhere, with `uses:` plus `with:` for inputs ([Continue docs](https://docs.continue.dev/guides/configuring-models-rules-tools), accessed 2026-10-20).
-
-### The same three prompts read almost alike in both designs, and differ in where the requirement lives
-
-The three prompts below cover the three ways a prompt uses MCP. Paperweight calls one server from Lua and shows its model nothing. A web-research prompt offers whatever servers exist for the model to discover. The Workshop chat agent mixes shaped, fixed, and dynamic tools. All the Lua in this section is illustrative: the offer verb for dynamic placement is written `packs.offer_dynamic`, the spelling question A1 recommends in place of Vinnie's proposed `packs.dynamic_offer`, and the names of catalog methods and of a core file-tools Pack (`files`) are placeholders. Front matter is shown as fragments.
-
-**Paperweight calls the paper store from Lua, and its model never sees an MCP tool.** Paperweight's front matter has no `uses:` today, every model call it makes is `models.infer`, and its command-line Host builds a Pack registry holding only the native built-ins (`wg21-paperflow/vendor/runvil/crates/harness-internal/runner/src/packages.rs` lines 59-63) (`wg21-paperflow/crates/paperweight/paperweight.md` lines 2-15; `wg21-paperflow/crates/paperweight/src/app.rs` lines 173-182). Paperweight needs the paper store, and should fail at start without it. In both designs, its Host must first be given an MCP configuration naming `paperstore`. Because it offers nothing and uses only `models.infer`, no discovery tools ever appear, and its model sees no MCP tool. That follows from settled decision 5 and from `models.infer` sending no tools.
-
-In Design P, the requirement is a check in the H1 block, which already holds only the model binding. Asking for the MCP catalog is reflection, so it triggers the rendezvous at run start, and a missing server fails the run as an unmet requirement.
+Only Paperweight's Lua calls MCP. Its front matter omits `uses:`, it calls models only through `models.infer`, which sends an empty tool list, and its command-line Host builds a registry holding only the native built-ins [C41; C12]. In both designs that Host first needs an MCP configuration naming `paperstore`, and the run should fail at start without it. With MCP as a Pack, the check in the H1 section asks for the catalog, which is reflection, so the rendezvous happens at run start.
 
 ```lua
 models.default("writer")
@@ -684,7 +597,7 @@ if not (mcp and mcp:catalog("paperstore")) then
 end
 ```
 
-A library section wraps the server's tool, the pattern Vinnie kept from the Slack sketches ("we can see like PS.get paper, that looks a lot nicer", huddle with Jason, 2026-10-20, 47:46). Any section then loads it with `require`.
+A library section wraps the server's tool, the pattern Vinnie kept from the Slack sketches: "we can see like PS.get paper, that looks a lot nicer" [H 47:46]. Any section then loads it with `require`.
 
 ````markdown
 ## paperstore
@@ -703,15 +616,13 @@ local ps = require("## paperstore")
 local md = ps.get_paper("p4003")
 ```
 
-In Design L, the requirement moves into front matter, and the H1 check goes away, because the Harness refuses the run before it starts when `paperstore` is missing.
+With MCP built into the Engine, the requirement moves into front matter, where the Harness checks it before the run starts, and the wrapper calls through the server object.
 
 ```yaml
 name: paperweight
 runvil: 0
 mcp: [paperstore]
 ```
-
-The wrapper calls through the server object instead of a tool id.
 
 ```lua
 local ps = {}
@@ -721,11 +632,9 @@ end
 return ps
 ```
 
-In both designs `ps.get_paper` returns a string. MCP results are not guaranteed to be JSON, and the paper arrives as Markdown text anyway; what a call returns when a tool declares an output schema is question E4.
+In both designs `ps.get_paper` returns a string, because MCP outputs may take any form and the paper arrives as Markdown text anyway. A tool that declares an output schema would return data to Lua instead.
 
-**A web-research prompt offers the web Pack fixed and every MCP catalog dynamic.** In the huddle, Vinnie described Agora this way: "in agora, you have a section that offers the web pack" and "you might wanna also offer the MCP pack" (32:14-32:24). Jason's Agora prompt is not in the workspace, so the example stands for the pattern, not for that file. The model can use the paper store, the wiki, or the reflector archive when the person running it has them, and the prompt still works when there are none, which is Vinnie's case for progressive discovery: "When you don't know ahead of time what the data sources are" (25:08).
-
-In Design P, the dynamic offer names the `mcp` Pack and waits for nothing. The catalogs resolve at the section's first render, which is the rendezvous. With no servers there is no catalog, so the dynamic set is empty and the discovery tools stay out of the rendered catalog.
+The web-research prompt offers the web Pack fixed and every MCP catalog dynamic, as Vinnie described Agora: "in agora, you have a section that offers the web pack" and "you might wanna also offer the MCP pack" [H 32:14-32:24]. Its model uses the paper store, the wiki, or the reflector archive when they exist, and the prompt still works without any of them. That is Vinnie's case for progressive discovery: "When you don't know ahead of time what the data sources are" [H 25:08]. With MCP as a Pack, the catalogs resolve at the section's first render, which is the rendezvous.
 
 ```lua
 packs.offer("web")
@@ -738,7 +647,7 @@ models.loop(messages)
 return messages[#messages].content
 ```
 
-In Design L, MCP is not a Pack, so the prompt offers each server's catalog. Listing the servers is reflection, so this prompt waits at the `for` line rather than at the first render.
+With MCP built into the Engine, the prompt offers each server's catalog. Listing the servers is reflection, so the prompt waits at the `for` line.
 
 ```lua
 packs.offer("web")
@@ -750,13 +659,7 @@ models.loop(messages)
 return messages[#messages].content
 ```
 
-**The Workshop chat agent offers shaped file tools and web fixed, and everything else dynamic.** Its front matter would declare the Packs it requires, as an illustrative fragment:
-
-```yaml
-uses: [files, web, user-input, subagents]
-```
-
-In Design P, the extras loop picks up `mcp` with every other undeclared Pack, so one loop covers every source the Host added.
+The Workshop chat agent offers the shaped file tools and web fixed, and everything else dynamic. Its front matter would declare `uses: [files, web, user-input, subagents]`. With MCP as a Pack, one extras loop picks up `mcp` with every other undeclared Pack.
 
 ```lua
 packs.offer({ "files", "web", "subagents" })
@@ -769,7 +672,7 @@ while true do
 end
 ```
 
-In Design L, the same agent needs a second loop for the second kind of source.
+With MCP built into the Engine, the agent needs a second loop for the second kind of source.
 
 ```lua
 packs.offer({ "files", "web", "subagents" })
@@ -785,337 +688,332 @@ while true do
 end
 ```
 
-Ask mode needs no Lua in either design. The Workshop Host provides it as a HostService to this prompt, and while it is on, the Engine's dispatch gate refuses calls to tools that are not marked read-only and tells the model what it can do instead. The catalog the model sees does not change, which is why the gate sits at dispatch and not in a filter. Which metadata the gate reads, and in what order the checks run, are questions G1 and G2.
+In both designs, the Engine enforces the chat agent's ask mode by itself, at the dispatch gate.
 
-### The designs tie on cache, attention, training, and replay, and differ on exceptions, Host control, and parser work
+### Trade-offs
 
-Table 10 judges the six candidates against the ten criteria in Table 6, plus how each requires a server and what code it changes. Four criteria do not separate them, because the settled decisions already fix those properties for every design: the rendered catalog is built once, placement is Lua's choice, MCP tools are never shaped, and MCP calls are effects the run record holds. The real differences sit in four rows: no exceptions to explain, Host control, offering and requirements, and code impact. The cell judgments are this report's, made on the evidence in this part. The two MCP-only columns are the P-linked and P-built-in variants of the text; a built-in general variant is not shown, because it only adds the built-in's Host-control cost to P-general.
+Some properties are the same in every design, because Table 3 already fixes them: the catalog renders once, Lua chooses each placement, MCP tools render in canonical form, and MCP calls are effects the run record holds. Cache stability, lean context, fit with vendor training, and replay therefore do not separate the designs. In every design, a missing required server also stops the run at start, either at the H1 section's check or in the Harness. The designs differ in how a prompt requires a server, in the special cases each adds, and in whether a Host can leave MCP out (Table 9).
 
-**Table 10.** The MCP designs compared against the ten criteria, with how each requires a server and what code it changes.
+**Table 9.** MCP designs compared.
 
-| Criterion | P: linked, MCP-only | P: built-in, MCP-only | P-general, linked (recommended) | L | Hybrid 1: `mcp:` key over a built-in Pack | Hybrid 2: options on `uses:` |
+| | Linked Pack, MCP only | Built-in Pack, MCP only | Any Pack can provide catalogs | Built into the Engine | `mcp:` key over built-in Pack | Options on `uses:` |
 |-|-|-|-|-|-|-|
-| 1. Building blocks, small Lua | Meets | Meets | Meets best: one capability for any Pack | Partly: a second kind of source | Meets | Meets |
-| 2. No exceptions to explain | Partly: one Pack with a special power | Partly: special power, and breaks the built-in rule | Meets: the power is general | Partly: MCP needs its own ids, offers, reflection | Partly: built-in rule plus one key | Meets, if options stay generic |
-| 3. Same behavior under every Host | Meets, with a requirement check | Meets | Meets, with a requirement check | Meets | Meets | Meets |
-| 4. Offering in Lua, requirements in front matter | Partly: requirement in Lua | Partly: requirement in Lua | Partly: requirement in Lua | Meets | Meets | Partly: MCP options inside `uses:` |
-| 5. Cache stability | Same in all | Same | Same | Same | Same | Same |
-| 6. Attention economy | Same in all | Same | Same | Same | Same | Same |
-| 7. Fit with vendor training | Same in all | Same | Same | Same | Same | Same |
-| 8. Safe failure | Meets: H1 check stops the run | Meets | Meets | Meets: the Harness refuses the run | Meets | Meets |
-| 9. The Host controls which Packs exist | Meets: the Host links it | Partly: the Host cannot omit it | Meets: the Host links it | Partly: MCP is in every Harness | Partly: built in | Meets: the Host links it |
-| 10. Runs replay without Plugins | Meets | Meets | Meets | Meets, with new effect kinds | Meets | Meets |
-| Requiring a server | Lua check in H1 | Lua check in H1 | Lua check in H1 | `mcp: [paperstore]` | `mcp: [paperstore]` | `- mcp: { servers: [paperstore] }` |
-| Code that changes | `plugin-mcp` rework, catalog views, run-time catalogs, discovery built-ins | As linked, plus the built-in rule | As linked, plus a catalog-provider capability in the Pack contract | Client into the Harness, new effects, front-matter field, `mcp` global, MCP ids | As built-in, plus a front-matter field | As linked, plus map entries in `uses:` |
+| Requiring a server | Check in the H1 section | Check in the H1 section | Check in the H1 section | `mcp: [paperstore]` | `mcp: [paperstore]` | `- mcp: { servers: [paperstore] }` |
+| Requirement visible without running | No | No | No | Yes | Yes | Yes |
+| Special cases | The power to add catalogs, for MCP only | That power, plus a built-in that offers tools | One general Pack capability | MCP ids, offers, and reflection | A built-in that offers tools, plus an MCP key | Map entries in `uses:`, with MCP the first user |
+| Host can leave MCP out | Yes | No | Yes | No | No | Yes |
+| Kinds of tool source | Packs | Packs | Packs | Packs and MCP servers | Packs | Packs |
+| Code that changes | `plugin-mcp`, catalog views, run-time catalogs, discovery tools | As linked, plus the built-in rule | As linked, plus the capability in the Pack contract | Client into the Harness, effect kinds, front-matter field, `mcp` global, MCP ids | Built-in, plus a front-matter field | As linked, plus map entries in `uses:` |
 
-**The trade is generality against a declared requirement.** Design P keeps MCP out of the Engine's vocabulary: every tool source looks the same to Lua, so the chat agent's single extras loop covers MCP, and most of the work lands in `plugin-mcp`, which changes in every design anyway. P-general removes the special case by making catalog providing a capability any Pack may use, and is the only candidate that meets criterion 2 outright without a parser change. Design L gives a requirement that a Host or a reader can see without running anything, at the cost of a second kind of tool source, a second loop in prompts that offer everything, and the largest code change. Hybrid 1 buys L's readable requirement over a Pack runtime with one source-specific key; Hybrid 2 stays inside the Pack model but puts MCP options inside `uses:`, where Vinnie said MCP syntax "feels wrong in general" (6:30 PM). Question E1 makes the recommendation.
+The choice is between generality and a declared requirement. As a Pack, MCP stays out of the Engine, one extras loop covers every tool source, and most of the work is in `plugin-mcp`, which changes in every design anyway. Letting any Pack provide catalogs is the only design whose one new capability serves every Pack, with the parser left alone. A Host can leave a linked Pack out, so a prompt that needs MCP behaves the same under every Host only if it checks for its server. With a built-in Pack or an Engine feature, MCP is in every Harness, and the Host loses the choice to omit it.
 
-## Part 4. Twenty-three open questions turn on one pivot, the MCP design, and each gets a recommendation
+Building MCP into the Engine gives a requirement that a Host or a reader can see without running anything. Its costs are a second kind of tool source, a second loop in prompts that offer everything, and the largest code change. An `mcp:` key over a built-in Pack gets that readable requirement with one MCP-specific key, at the cost of a built-in that offers tools.
 
-Part 4 takes the questions the settled design leaves open, in eight groups. Each question says why it matters, names the criteria from Table 6 that bite hardest, lays out the options with do-nothing where it makes sense, gives the evidence, and recommends one answer with a confidence, an owner, and a next step. Vinnie decides every question. Suggested drafters follow earlier assignments. Greg drafts the discovery tools and the attached catalog, which the 2026-10-14 report assigned him to prototype ("Tool Offering in runvil...", 2026-10-14, line 26). Jason drafts MCP, because Vinnie asked him to become the team's MCP specialist (huddle with Jason, 2026-10-20, 45:48). A maintainer drafts the rest. Table 1 indexes every answer, and Table 11 in Part 5 groups them into work.
+## Part 4. Open questions
 
-**How the groups depend on each other.** The groups follow the order a reader meets the concepts, not the order of decision. Three dependencies matter. The MCP design (E1) decides which values the offer verbs accept (A2) and how a prompt requires a server (D2), so read E1 first if those two seem underdetermined. The metadata vocabulary (G1) feeds the filter syntax (A3) and the dispatch checks (G2). Where shapes live (F2) decides what the attached catalog stores (B2). Figure 6 in Part 5 draws these dependencies and turns them into an order of work.
+### Group A: Offer verbs and filters
 
-### Group A: offer whole Packs with two verbs and a declarative filter
+#### A1. What should the offer verbs be called?
 
-**A1. What are the two offer verbs called?**
+Every prompt author will type these two calls, and once `tools.offer` by id goes, they are the only way to offer tools [P1]. The names have to read well next to filters.
 
-Every prompt author writes these calls, so they have to read clearly and combine with filters. `tools.offer` by id is slated for removal (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 984-987), so the Pack verbs become the whole offering surface. The criteria that bite are building blocks (1) and no exceptions (2).
+- `packs.offer` and `packs.dynamic_offer`, which Vinnie proposed with "Maybe?" [D 6:15]. The second name puts the adjective first.
+- `packs.offer` and `packs.offer_dynamic`, verb first like `tools.offer_local`, so the two sort together.
+- A placement argument, `packs.offer(p, "dynamic")`, as the 2026-10-14 report recommended [R1]. `packs.offer` refuses a second argument today, so adding one breaks nothing [C8], but a string is one more thing to misspell.
+- A view method, `packs.offer(p:dynamic())`, which hides placement in what looks like a filter.
+- The dynamic set as an object, `DynamicTools:add(p)`, literal but one more thing to learn.
 
-- **`packs.offer` plus `packs.dynamic_offer`.** Vinnie's proposal, offered with "Maybe?" (6:15 PM). Two explicit verbs, though the second puts the adjective first.
-- **`packs.offer` plus `packs.offer_dynamic`.** The same pair, verb first, matching the existing `tools.offer_local`. The two verbs sort together in documentation and completion.
-- **A placement argument, `packs.offer(p, "dynamic")`.** One verb. `packs.offer` refuses a second argument today (`crates/runvil-internal/lua/src/packs.rs` lines 175-179), so nothing breaks, and the 2026-10-14 report recommended this form. A string argument is easy to misspell and reads less plainly.
-- **A view method, `packs.offer(p:dynamic())`.** Placement rides on the value, so filters and placement form one object. It hides the placement inside an argument that looks like a filter.
-- **The dynamic set as a value,** `DynamicTools:add(p)`. The most literal form of "offer the dynamic set", at the cost of a new object authors must learn.
-- **Do nothing.** Fixed-only offering, which fails the settled design.
+Other harnesses set placement in configuration files, which leaves the naming of a Lua verb open. Use `packs.offer` and `packs.offer_dynamic`: verb first matches `tools.offer_local`, and the pair is easy to search for. A placement argument or a dynamic-set object would give authors a second way to say the same thing. Confidence: low, because the choice is a matter of taste. Next step: choose the spelling before the tools chapter of the language guide is rewritten.
 
-No research bears on verb names; established harnesses expose placement through configuration, not Lua. **Recommendation:** two verbs, `packs.offer` and `packs.offer_dynamic`, because verb-first matches `tools.offer_local` and the pair is greppable. The argument and value forms are set aside because they add a second way to say the same thing. Confidence: low, because this is a matter of taste with no evidence either way. Owner: Vinnie decides. Next step: choose the spelling before docs chapter 12 is rewritten.
+#### A2. What can the offer verbs accept?
 
-**A2. Which values can the offer verbs accept?**
+Once only Packs and their filtered views can be offered, MCP catalogs and local Lua tools each need a defined way in. A chat agent that wants every MCP server dynamic should say so with the same verb it uses for `web`.
 
-Under Pack-only offering, MCP catalogs and local Lua tools still need a defined way in, and the answer depends on Part 3's design choice. For example, a chat agent that wants every MCP server dynamic should be able to say so with the same verb it uses for `web`. The criteria that bite are no exceptions (2) and building blocks (1).
+- Packs and filtered views only, with each MCP catalog a filtered view of the `mcp` Pack. This works if MCP is a Pack.
+- MCP catalogs as Pack-like values that the same verbs accept, if MCP is built into the Engine.
+- Separate `mcp.offer` and `mcp.offer_dynamic`, the other route if MCP is built into the Engine, which doubles the verbs.
+- Global `offer()` and `offer_dynamic()` that take any tool source, at the cost of two new globals.
 
-- **Packs and filtered views only.** Under Design P, an MCP catalog is a filtered view of the `mcp` Pack, so nothing else is needed.
-- **MCP catalogs as Pack-like values** accepted by the same verbs. Needed under Design L.
-- **Parallel `mcp.offer` and `mcp.offer_dynamic`.** Design L's alternative, which doubles the surface.
-- **Generic global `offer()` and `offer_dynamic()`** taking any tool source. Short, but two new globals.
-- **Placement for local tools:** `tools.offer_local` stays fixed-only, or gains a dynamic form.
-- **Do nothing:** keep `tools.offer` by id beside `packs.offer`. Two offering mechanisms remain, which the 2026-10-20 plan note already decided to remove.
+A tool id such as `mcp/paperstore/get_paper` already belongs to one `mcp` Pack (Part 3). Accept Packs and filtered views only, with each MCP catalog a view of the `mcp` Pack, since MCP should be a Pack that can provide catalogs. Keep `tools.offer_local` fixed only, because a local tool exists for the model to call in its own section. Confidence: medium, because the answer depends on where MCP lives. Next step: settle it together with that decision.
 
-**Recommendation:** Packs and filtered views only, with MCP catalogs as views of the `mcp` Pack, following question E1. `tools.offer_local` stays fixed-only, because a local tool exists to be called by the model in this section and gains nothing from discovery. Confidence: medium, because it depends on E1. Owner: Vinnie decides; a maintainer drafts. Next step: settle with E1.
+#### A3. What syntax should filters use?
 
-**A3. What are the filter syntax and semantics?**
+Filters select tools by metadata or by name, down to a single tool, such as the read-only core tools or one GitHub tool offered fixed out of a dynamic Pack. The syntax has to stay general without turning into a query language, and on shaped Packs it can match only metadata (Part 1).
 
-Filters select by metadata and by name, down to one tool: read-only core tools, or one GitHub tool fixed out of a dynamic Pack. The syntax must be general without becoming a query language, and filters on shaped Packs can use metadata only, because those Packs expose no names. The criteria that bite are building blocks (1) and safe failure (8).
+- A declarative table, such as `p:where{ readOnlyHint = true }`, `p:where{ names = { "list_commits" } }`, or `p:where{ except = { "delete_repo" } }`. The Engine can inspect it, record it, and evaluate it at render.
+- A method chain, `p:only(...)`, `p:except(...)`, `p:where(...)`, natural to read but with more methods to learn.
+- A predicate, `p:filter(function(t) ... end)`, the most flexible, but it runs the author's Lua at render.
+- Glob strings, as permission rules use, compact but unable to match metadata.
 
-- **A declarative table:** `p:where{ readOnlyHint = true }`, `p:where{ names = { "list_commits" } }`, or `p:where{ except = { "delete_repo" } }`. Inspectable, and evaluated at render.
-- **A method chain:** `p:only(...)`, `p:except(...)`, `p:where(...)`. Reads naturally but multiplies methods.
-- **A predicate function:** `p:filter(function(t) ... end)`. The most flexible, but opaque, and it runs author Lua at render time.
-- **Glob strings,** as permission rules use. Compact, but strings must be parsed, and globs cannot select by metadata.
-- **Do nothing:** whole Packs only, which fails Vinnie's read-only example.
+Every surveyed syntax excludes tools with a separate deny rule rather than a negation operator (Part 1). Gemini CLI's annotation rule matches when "all key-value pairs provided here are present", and OpenAI's Responses API filters MCP tools with `{"read_only": true, "tool_names": [...]}` [E7; E8]. Use the declarative table: keys combine by AND, `names` is an allow list, and `except` is a deny list that wins and is the only way to exclude. A predicate would be opaque in the run record, and globs add little when a Pack's tool names are short and few. Confidence: medium, because the shape follows practice elsewhere but is untried in Runvil. Next step: write the table's grammar beside the tool metadata vocabulary.
 
-The research found that no surveyed filter syntax has a negation operator: exclusion comes from separate deny lists, deny-beats-allow, priorities, or last-match-wins (research on modes, 2026-10-20). Gemini CLI's annotation rule matches when "all key-value pairs provided here are present", and OpenAI's Responses API filters with `{"read_only": true, "tool_names": [...]}`. **Recommendation:** the declarative table, with all keys combined by AND, a `names` allow list, an `except` deny list that wins, and no negation operator inside values. The predicate is set aside because it runs Lua at render and cannot be shown in the run record; globs are set aside because names in a Pack are short and enumerable. Confidence: medium, because the shape follows established practice but no Runvil prompt has used it. Owner: Vinnie decides; a maintainer drafts. Next step: write the filter's table grammar beside the metadata vocabulary of G1.
+### Group B: The rendered catalog
 
-### Group B: the attached catalog fails at the offer and stores enough to dispatch and replay
+#### B1. Where does the hard error fire?
 
-**B1. When exactly does the hard error fire?**
+Vinnie settled that any change to the rendered catalog after it is attached is a hard error [D 6:15]; what remains is where it fires. Failing at the offer points straight at the bug. Failing at the next round tolerates harmless repeats, such as a library section, loaded with `require` by several sections, that offers `web` each time.
 
-Vinnie settled that any change to an attached catalog is a hard error (6:15 PM); this question is only about where the error surfaces. Failing at the offer call points at the line with the bug, while failing at the next round allows harmless repeats, such as a library section that offers `web` and is loaded with `require` by several sections. The criteria that bite are safe failure (8) and cache stability (5).
+- At any offer after the first render, which breaks shared library sections.
+- At the next `models.loop` round, if the catalog would differ, which points at the loop instead of the offer.
+- At the offer, but only when it would change the catalog, so an identical re-offer does nothing.
 
-- **Raise at any offer call after first render,** including identical repeats. The strictest rule, and it breaks the common pattern of re-offering a Pack from a shared library section.
-- **Raise at the next `models.loop` round,** only if the rendered catalog would differ. Repeats are harmless, but the error points at the loop, not at the offer that caused it.
-- **Raise at the offer call when the offer would change the rendered catalog; treat an identical re-offer as a no-op.** Points at the bug and tolerates repeats.
-- **Do nothing.** Today the list is rebuilt for every model operation (`crates/runvil-internal/lua/src/vm/state.rs` lines 134-135), which fails the settled rule.
+Claude Code, the closest precedent, keeps "the tool list from the conversation's first request for the whole conversation" [E3]. Vinnie allowed loosening the rule "with evidence" [D 6:15], and Anthropic and OpenAI both append tools found by search after the cached prefix [E9]. Raise at the offer when it would change the rendered catalog, and treat an identical re-offer as a no-op. The error names the section and the Pack or filter, and says the catalog was attached at the first `models.loop` round. Loosen the rule only when a vendor API can append tools without rewriting the cached prefix, as tool search does, and an evaluation shows accuracy holds when tools arrive late. Confidence: medium, because "identical" still needs a definition over Packs and filters, and late tools are untested in Runvil. Next step: define offer identity as the same Pack, filter table, and placement.
 
-Established practice gives no direct precedent, because harnesses manage their tool lists themselves; Claude Code, the closest analog, keeps "the tool list from the conversation's first request for the whole conversation" (research on discovery, 2026-10-20). **Recommendation:** raise at the offer call when the offer would change the attached catalog, and treat an identical re-offer as a no-op. The error names the section, the Pack or filter offered, and that the rendered catalog attached at the first `models.loop` round. Confidence: medium, because "identical" must be defined over Packs and filters, and filter equality needs care. Owner: Vinnie decides; Greg drafts. Next step: define offer identity as the same Pack, filter table, and placement.
+#### B2. What does the rendered catalog store?
 
-**Loosening the rule later.** Vinnie said the hard error can loosen "with evidence" (6:15 PM). **Proposed:** the evidence is a vendor mechanism that appends tools without rewriting the cached prefix, as Anthropic's tool search and OpenAI's end-of-context injection do, plus an evaluation showing no loss of accuracy when tools arrive late. Until both exist, the error stays. Confidence: medium, because both vendors document the mechanism but no Runvil evaluation exists. Owner: Vinnie decides; Greg drafts. Next step: none until a section needs a late tool.
+Dispatch has to map a shaped call back to the tool its Pack defines, and replay needs the exact bytes sent. The catalog also outlives a model change, so a section that switches from Claude to GPT keeps sending tools shaped for Claude, and the GPT model's calls must still reach the right tools.
 
-**B2. What does the attached catalog contain?**
+- The rendered schemas alone, the smallest record, though after a model change dispatch would lose the map from shaped calls to tools.
+- The schemas plus the shape mapping, a snapshot of the dynamic set, and whether the discovery tools are present.
+- A reference made of tool ids, a vendor key, and filters, re-rendered when needed.
 
-Dispatch needs a shaped call's mapping back to its canonical tool, replay needs the exact bytes sent, and a model change keeps the rendered catalog, so it must be complete without re-rendering. For example, a section that starts on a Claude model and switches to a GPT model still sends Claude-shaped tools, and the GPT model's calls must still reach the right canonical tool. The criteria that bite are replay (10), cache stability (5), and fit with training (7).
+Store the schemas, the shape mapping, the dynamic-set snapshot, and the discovery-tools flag as one run-record entry at first render. Dispatch then routes a later model's calls through the stored mapping, as the settled rule on model changes requires (Part 1). A reference would have to re-render byte for byte forever, which is fragile. Confidence: medium, because the mapping's format depends on where shapes live. Next step: define the rendered-catalog entry beside the run record's existing entries.
 
-- **The rendered schemas only.** Smallest, but dispatch then cannot map a shaped call back once the model changes.
-- **Schemas plus extras:** the shape mapping, a snapshot of the dynamic set, and whether the discovery tools are present. Complete on its own.
-- **A reference:** tool ids, the vendor key, and filters, re-rendered when needed. Small, but re-rendering must be byte-identical forever, which a later code change can break.
-- **Do nothing:** not stored, as today.
+### Group C: The discovery tools
 
-**Recommendation:** schemas plus the shape mapping, the dynamic-set snapshot, and the discovery-tools flag, written to the run record at first render as one entry. A later model from another vendor then reads a rendered catalog shaped for the first vendor; this mismatch is accepted by the settled rule ("if the model changes, so be it", 6:36 PM), and dispatch still maps calls correctly through the stored mapping. The reference form is set aside because it makes replay depend on rendering code staying unchanged. Confidence: medium, because the shape mapping's format waits on question F2. Owner: Vinnie decides; Greg drafts. Next step: define the rendered-catalog record beside the run record's existing entries.
+#### C1. What does the model see of the dynamic set, and where do instructions go?
 
-### Group C: the discovery tools list the dynamic set compactly and follow Cursor's shape
+A listing costs tokens on every request. Without one, the model spends a turn looking tools up and sometimes acts as if a tool does not exist. In a Cursor session measured on 2026-10-14, the name list cost about 2,884 tokens, and one namespace's instructions cost more than its largest tool [R1].
 
-**C1. What does the rendered catalog show of the dynamic set, and where do Pack and server instructions go?**
+- Names, one-line summaries, and tool names for each Pack and MCP catalog, as Cursor does.
+- Names only, so the model must search to learn what a Pack holds.
+- Nothing up front, the cheapest choice and the documented failure: Hermes added its listing because models were "declaring a capability nonexistent instead of calling `tool_search`" [E10].
+- Names and summaries under a hard cap per Pack.
+- Full descriptions, which cost as much as fixed offers.
 
-A listing tells the model what exists but costs tokens on every request; no listing forces an extra lookup turn, and models then sometimes act as if the tool does not exist. In Cursor's measured session the up-front name list cost about 2,884 tokens, and one namespace's instructions cost more than its largest tool ("Tool Offering in runvil...", 2026-10-14, lines 132 and 140). The criteria that bite are attention economy (6) and cache stability (5).
+The text can go in `GetDynamicTools`'s description, in the system message, or only in lookup results. Hermes and Qwen Code show summaries of 60 to 160 characters per tool, and Claude Code cuts server instructions at 4,096 characters. Codex puts a server's `instructions` in its namespace description, and Gemini CLI appends them to the system instructions [E7; E10].
 
-- **Pack and catalog names, a one-line summary each, and their tool names,** as Cursor does. Enough for the model to know where to look.
-- **Pack and catalog names only.** Cheaper, but the model must search to learn what a Pack holds.
-- **Nothing, the do-nothing option,** so the model must call `GetDynamicTools` first. Cheapest up front, and the documented failure mode: Hermes added its listing because models were "declaring a capability nonexistent instead of calling `tool_search`".
-- **Names plus summaries under a hard per-Pack cap,** truncating the rest with a marker.
-- **Full descriptions,** listed to show why they are wrong: they cost what fixed offers cost and keep none of the savings.
+List each dynamic Pack and MCP catalog by name, with its one-line summary, tool names, and server instructions, inside `GetDynamicTools`'s description under a hard total cap with a truncation marker. That description is part of the rendered catalog, which renders once, so the cache stays valid and the system prompt stays the author's. Confidence: medium, because the cap needs measuring on Runvil's own Packs. Next step: measure the listing for Workshop's Packs plus four MCP servers, which would add 11,481 tokens and 43 tools to every request if every tool were fixed [R1].
 
-Where the text goes is a sub-choice: in `GetDynamicTools`'s own description, in the system message, or only in lookup results. Hermes and Qwen Code show summaries of 60 to 160 characters per tool, and Claude Code cuts server instructions at 4,096 characters. Codex places a server's `instructions` in its namespace description, and Gemini CLI appends them to the system instructions (research on discovery and on MCP beyond tools, 2026-10-20). **Recommendation:** list each dynamic Pack and MCP catalog by name with a one-line summary and its tool names, plus each server's instructions, all inside `GetDynamicTools`'s description and under a hard total cap with a truncation marker. Placing it in the tool description keeps it in the attached catalog, rendered once, so the cache is untouched and the system prompt stays the author's. Confidence: medium, because the cap value needs measurement on Runvil's own Packs. Owner: Vinnie decides; Greg drafts. Next step: measure the listing for Workshop's Packs plus four MCP servers, the case the 2026-10-14 report priced at 11,481 tokens and 43 tools when every tool was fixed.
+#### C2. What do the two discovery tools accept and return?
 
-**C2. What do the two discovery tools accept and return?**
+How well models use progressive discovery depends on these two tools' wording, and whether a model recovers from a wrong call depends on their refusals.
 
-They are the heart of progressive discovery, and their wording decides whether models use them well. The 2026-10-14 report recommended lookup by Pack or tool, search over names and descriptions, refusing calls to tools outside the dynamic set, and capping the listing (lines 268-271). The criteria that bite are fit with training (7) and safe failure (8).
+- Cursor's shape: `GetDynamicTools(namespace?, toolName?, pattern?)` returns names and schemas, and `CallDynamicTool(namespace, toolName, arguments)` makes the call. Today's `mcp` Pack follows it, minus `pattern` [C16].
+- Search first: one query returns the top matches with schemas, like Anthropic's tool search over "tool names, descriptions, argument names, and argument descriptions" [E9].
+- A listing by namespace without search, simple but long for a large dynamic set.
 
-- **Cursor-compatible:** `GetDynamicTools(namespace?, toolName?, pattern?)` returning names and schemas, and `CallDynamicTool(namespace, toolName, arguments)`. Today's `mcp` Pack already follows it, except that its `get_dynamic_tools` takes no `pattern` (`crates/plugin-mcp/src/lib.rs` lines 17-24).
-- **Search-first:** one query over names and descriptions returning the top matches with schemas, in the style of Anthropic's tool search, which searches "tool names, descriptions, argument names, and argument descriptions".
-- **A namespaced listing with no search.** Simple, but a large dynamic set becomes a long listing.
-- **The three-tool bridge,** set aside because Vinnie settled on two tools (`runvil/vibe/2026-10-19-2-pack-plugin-rename.md` lines 626-628).
-- **Do nothing:** keep today's two static tools inside the MCP Pack. Discovery then stays limited to MCP, which contradicts settled decision 5.
-- **Wire names:** Cursor's `GetDynamicTools` and `CallDynamicTool`, or snake case, `get_dynamic_tools` and `call_dynamic_tool`, as Runvil's other built-ins (`task`, `task_status`) and today's MCP tools are spelled.
+Vinnie already chose two tools over a three-tool bridge of search, describe, and call [P2]. Cursor's `pattern` is RE2 of up to 256 characters over namespace and tool names, and a lookup returns `tool`, `description`, and `inputSchema` [E7]. When asked for a tool that must be called directly, OpenClaw's call tool "returns guidance to call that tool directly by its declared name and parameters" [E11].
 
-Cursor's `pattern` matches names only, as RE2 up to 256 characters, and its lookup returns `tool`, `description`, and `inputSchema` (research on discovery, 2026-10-20, first-hand). OpenClaw "refuses direct-only tools with guidance to call them directly". **Recommendation:** Cursor's argument shape, with `pattern` matching names and descriptions. The `namespace` parameter keeps Cursor's name only for compatibility; its values are Pack ids and MCP catalog names. Results return canonical, unshaped schemas under a size cap. A call to anything outside the dynamic set is refused with an alternative, such as "web_fetch is offered directly; call it by name". The concept names stay `GetDynamicTools` and `CallDynamicTool`, and their wire names would be `get_dynamic_tools` and `call_dynamic_tool`, because snake case matches every other Engine built-in and no source shows that Cursor's casing helps a model. Confidence: low, because no measurement compares these shapes. Owner: Vinnie decides; Greg drafts. Next step: write both tool descriptions, saying what each tool does, when to use it, when not to, and what each parameter means, and test them on one Anthropic and one OpenAI model.
+Use Cursor's argument shape, with `pattern` matching descriptions as well as names, as the 2026-10-14 report recommended [R1]. `namespace` keeps Cursor's name and takes Pack ids and MCP catalog names. Results are canonical, unshaped schemas under a size cap, and a call outside the dynamic set gets a refusal that names an alternative, such as "web_fetch is offered directly; call it by name". The concept names stay `GetDynamicTools` and `CallDynamicTool`, while the wire names become `get_dynamic_tools` and `call_dynamic_tool`, like today's MCP tools and the other Engine built-ins such as `task_status`; any benefit of Cursor's casing is unmeasured. Confidence: low, because these shapes are unmeasured against each other. Next step: write both descriptions, covering what each tool does, when to use it, and what each parameter means, then test them on one Anthropic and one OpenAI model.
 
-### Group D: loading and requirements stay generic, and missing requirements stop the run at start
+### Group D: Loading and requirements
 
-**D1. Can a prompt load only the Packs it names?**
+#### D1. Can a prompt load only the Packs it names?
 
-In the huddle Vinnie described the case: Paperweight would point its Host at the Plugin directory the Runvil installer fills, and "if the installer installs any plug-ins that have packs that you don't need, your bag, your bag of pack your pack registry is gonna get them anyway" (huddle with Jason, 2026-10-20, 18:58). Every `runvil` Pack the Host builds joins every run whose prompt does not take its id, while an undeclared third-party Pack joins none (`crates/harness-internal/runner/src/host.rs` lines 12-14). So the exposure is Runvil's own Packs: they appear in `packs.extras()`, and a prompt that offers its extras dynamic, as the chat agent would, exposes them through the discovery tools. Third-party Packs, such as those of the planned WASM marketplace (19:38), are not exposed unless declared. This is a loading rule, not an offering rule, so it does not conflict with "offering stays in Lua". The criteria that bite are Host control (9) and same behavior under every Host (3).
+Vinnie raised the case for a Paperweight Host pointed at the installer's Plugin directory: "if the installer installs any plug-ins that have packs that you don't need, your bag, your bag of pack your pack registry is gonna get them anyway" [H 18:08, 18:58]. Today only Runvil's own Packs join a run undeclared; a third-party Pack, such as one from the planned WASM marketplace [H 19:38], joins only when declared [C2]. The undeclared Packs are the run's extras, and a prompt that offers them dynamic, as the chat agent would, shows them to the model through the discovery tools.
 
-- **Do nothing.** A prompt that never offers extras is unaffected by them, but every extra Pack still loads and appears in `packs.extras()`.
-- **A front-matter opt-out,** such as `extras: false`, Vinnie's idea in the huddle and at 6:15 PM ("only load named packs").
-- **Flip the default:** only named Packs load unless the prompt says `extras: true`. Safer for pipelines, but the Workshop chat agent depends on extras today (`crates/workshop/agents/agents/chat.md` line 29).
-- **A per-prompt registry or Plugin directory on the Host side.** Keeps front matter unchanged, but moves a prompt's need into each Host's configuration, which breaks criterion 3.
+- Keep today's behavior, so every extra Pack loads and appears in `packs.extras()`.
+- A front-matter opt-out such as `extras: false`, after Vinnie's idea of a flag to "only load named packs" [D 6:15].
+- Flip the default, so only named Packs load unless the prompt says `extras: true`. That is safer for pipelines, but the Workshop chat agent depends on extras today [C9].
+- A per-prompt registry or Plugin directory on the Host side, which moves each prompt's needs into every Host's configuration, so the same prompt could behave differently from Host to Host.
 
-Goose recipes show the pattern: "If extensions are specified in the recipe file, the session will only load these extensions" (research on author surfaces, 2026-10-20). Claude Code's `strict-mcp-config` flag does the same for servers. **Recommendation:** a front-matter opt-out, `extras: false` or a better name, with today's default kept so existing prompts keep their meaning. Built-in Packs such as `subagents` are unaffected by the flag, because the Engine provides them and a prompt still opts in by offering. The Host-side option is set aside because a prompt should behave the same under every Host. Confidence: low, because only Runvil's own Packs are exposed, and a prompt that never offers its extras is already unaffected. Owner: Vinnie decides; a maintainer drafts. Next step: add the key to the front-matter schema (`crates/runvil-internal/parser/src/frontmatter.rs` lines 38-81) and apply it in the Harness's run pick.
+Goose recipes work this way, "If extensions are specified in the recipe file, the session will only load these extensions" [E12], and Claude Code's `strict-mcp-config` flag does the same for servers [E7]. Add a front-matter opt-out, `extras: false` or a better name, and keep today's default so existing prompts keep their meaning. The flag governs loading only, so offering stays in Lua, and built-in Packs such as `subagents` stay available, because the Engine provides them and a prompt opts in by offering. Confidence: low, because only Runvil's own Packs join undeclared today, and a prompt that leaves its extras unoffered already ignores them. Next step: add the key to the front-matter schema [C3] and apply it in the run pick, where the Harness chooses a run's Packs.
 
-**D2. How does a prompt require one MCP server?**
+#### D2. How does a prompt require one MCP server?
 
-Paperweight needs `paperstore` and should fail at start without it; the 2026-10-14 report records, from Jason and Andrew Wheeler in that day's huddle, that "A prompt that depends on a tool should fail loudly where the tool is missing" ("Tool Offering in runvil...", 2026-10-14, line 95). Vinnie dislikes MCP syntax inside `uses:` (6:30 PM), and today a `uses:` entry accepts only a string and unknown front-matter keys are rejected (`crates/runvil-internal/types/src/packs.rs` lines 183-206; `frontmatter.rs` lines 38-45). The criteria that bite are offering in Lua with requirements in front matter (4), building blocks (1), and safe failure (8).
+Paperweight needs `paperstore`, an MCP server for WG21 papers, and should stop at start without it, by the rule Jason and Andrew Wheeler gave on 2026-10-14: "A prompt that depends on a tool should fail loudly where the tool is missing" [R1]. The obvious places are awkward. Vinnie dislikes MCP syntax inside `uses:` [D 6:30], a `uses:` entry accepts only a string today, and the parser rejects unknown front-matter keys [C45; C3].
 
-- **A Lua check in the H1 block** that asks for the server's MCP catalog and raises. An H1 failure is already the run's failed hard gate, `Error::RequirementsUnmet` (`crates/runvil-internal/engine/src/execute/scheduler/h1.rs` lines 1-5), so the run stops at start with the author's message. No parser change.
-- **A dedicated `mcp:` key,** such as `mcp: [paperstore]`. Readable without running, but one more source-specific key.
-- **Generic options on `uses:` entries,** such as `- mcp: { servers: [paperstore] }`. Generic in form, MCP-specific in practice, and inside `uses:`.
-- **Catalogs as Packs named in `uses:`,** such as `uses: [mcp.paperstore]`. Listed for completeness; Vinnie disliked it (6:30 PM), and runtime-named Packs are blocked by the registry.
-- **Requiring by capability:** "any server with a `get_paper` tool". Flexible, but hard to explain in an error.
-- **Do nothing.** Paperweight then fails at its first call, deep in the run.
+- A Lua check in the prompt's H1 section that looks for the server's MCP catalog and raises an error. A Lua error in the H1 section already stops the run before any other section starts, as `Error::RequirementsUnmet`, with the author's message [C25].
+- A dedicated `mcp:` key, such as `mcp: [paperstore]`, readable without running the prompt, but a key for one kind of source.
+- Generic options on `uses:` entries, such as `- mcp: { servers: [paperstore] }`, generic in form but MCP syntax in practice.
+- MCP catalogs as Packs in `uses:`, such as `uses: [mcp.paperstore]`, which Vinnie disliked [D 6:30] and which the registry, built from compile-time names, cannot hold.
+- Requiring by capability, as in "any server with a `get_paper` tool", flexible but hard to explain in an error.
+- Keep today's behavior, so Paperweight fails at its first call, deep in the run.
 
-Codex's per-server `required = true` is the only "this run must have this server" flag in twelve harnesses (research on MCP naming, 2026-10-20). **Recommendation:** under Design P-general (question E1), the H1 Lua check, shown in Part 3, because it is a general building block that also covers other requirements and needs no parser change. It does move a requirement out of front matter and into Lua, against criterion 4, in exchange for criteria 1 and 2. Revisit an `mcp:` key if a Host must read a prompt's requirements without running it, for example to list prompts that cannot run. This is a new lean that follows from E1. Confidence: medium, because it leaves criterion 4 partly met. Owner: Vinnie decides; Jason drafts. Next step: write Paperweight's H1 check once its Host can configure `paperstore`.
+Codex's per-server `required = true` is the only "this run must have this server" flag in twelve harnesses [E7]. With MCP as a Pack, use a check in the H1 section, like Paperweight's in Part 3. The same check covers other requirements and leaves the parser unchanged; the cost is that the requirement lives in Lua, where a Host can read it only by running the prompt. Revisit an `mcp:` key if a Host needs that, for example to list the prompts it cannot run. Confidence: medium, because a requirement in Lua is harder to see than one in front matter. Next step: write Paperweight's check once its Host can configure `paperstore`.
 
-**D3. What happens when a required Pack or server is unavailable?**
+#### D3. What happens when a required Pack or server is missing?
 
-A pipeline should fail fast with a readable reason, while a chat agent should degrade. Paperweight without its paper store cannot produce a report, but the chat agent without an optional server should simply not list it. The criteria that bite are safe failure (8) and same behavior under every Host (3).
+A pipeline should fail fast with a readable reason, while a chat agent should keep working. Paperweight cannot produce a report without its paper store, but the chat agent should simply work without an optional server.
 
-- **Refuse the run at start with a readable reason,** as required Packs work today.
-- **Degrade with a notice,** letting the run continue without it.
-- **Wait at run start up to a deadline,** which for a required server is the rendezvous.
-- **Leave it to Lua,** checking and deciding.
-- **Do nothing:** the run starts and fails at the first call to the missing tool, deep in the run and with a less helpful message.
+- Refuse the run at start with a readable reason, as Runvil already does for required Packs.
+- Degrade with a notice and let the run continue.
+- Wait at run start up to a deadline, which for a required server is the rendezvous.
+- Leave Lua to check and decide.
+- Keep today's behavior, so the run fails at its first call to the missing tool, with a less helpful message.
 
-**Recommendation:** refuse at start, and let a required server trigger the rendezvous at run start, so a required server that is slow but alive is waited for and a failed one stops the run. With the H1 check of D2, both happen naturally, because reflection over the catalogs is a first need. Optional servers stay optional: a prompt that only offers them dynamic loses nothing when they are absent. Confidence: medium, because the wait bound is question E3. Owner: Vinnie decides; Jason drafts. Next step: test Paperweight with `paperstore` missing and with it slow.
+Codex's `required = true` exists to "make startup fail if this enabled server can't initialize" [E7]. Refuse at start, and let a required server trigger the rendezvous at run start, so the run waits for a slow but live server and stops for a failed one. A check in the H1 section does both, because reading the MCP catalogs there is their first use. Optional servers stay optional: a prompt that offers them only dynamic simply runs without them. Confidence: medium, because how long the rendezvous may wait is a separate question. Next step: test Paperweight with `paperstore` missing, and with it slow.
 
-### Group E: MCP as a catalog-providing Pack, with capped names, a bounded rendezvous, and data only when declared
+### Group E: The MCP client
 
-**E1. Which MCP design?**
+#### E1. Should the MCP client be a Pack or part of the Engine?
 
-This is the question Vinnie left open at the top level (6:25 PM and 6:33 PM). Part 3 describes the candidates, and Table 10 compares them. The criteria that bite are no exceptions (2), Host control (9), building blocks (1), and offering in Lua with requirements in front matter (4).
+The answer decides whether MCP tools are ordinary Pack tools or a second kind of tool source with its own ids, offers, and reflection. It also decides where a prompt states that it needs a server.
 
-- **P as a linked Pack.** Today's arrangement, reworked. The Host links `plugin-mcp` and keeps full control, at the cost of one Pack with a power no other Pack has.
-- **P as a built-in Pack.** Every Host has MCP, but the registry's rule that built-ins have no tools or services must change (`crates/runvil-plugin/src/registry.rs` lines 195-198), and the Host can no longer omit it.
-- **P with a Host-side feeder** that turns catalogs into Packs before the run. Blocked: the registry takes only compile-time names, and per-server Packs were rejected on 2026-10-19.
-- **P-general, with catalog providers.** Any Pack may contribute named catalogs at run time; MCP is the first. The special power becomes a general one.
-- **L, an Engine feature.** A declared requirement and a first-class `mcp` table, at the cost of a second kind of tool source and the largest code change.
-- **A hybrid,** such as an `mcp:` key over a built-in Pack. A declared requirement over a Pack runtime, with the built-in cost and one source-specific key.
-- **Do nothing.** Keep two static MCP tools inside a Pack, which contradicts the settled Engine discovery tools.
+- MCP as a Pack the Host links, as today, with the power to add catalogs at run time given to it alone.
+- MCP as a built-in Pack, which needs a change to the registry's rule for built-ins and stops a Host from leaving MCP out [C44].
+- MCP as a Pack, with the power to provide catalogs at run time open to any Pack and MCP as its first user.
+- MCP built into the Engine, with an `mcp:` front-matter key and a Lua `mcp` table, at the cost of a second kind of tool source and the largest code change.
+- A hybrid: an `mcp:` key over a built-in Pack, or MCP options on `uses:` entries.
 
-Table 10 shows the designs tie on cache, attention, training, and replay. P-general is the only candidate that meets "no exceptions" outright without a parser change, and Design P keeps the chat agent's single extras loop. **Recommendation:** P-general, linked. The Host links `plugin-mcp`, the crate of the `mcp` Pack, and that Pack becomes the first to provide catalogs at run time through a capability any Pack may use. Requirements use the H1 check of question D2. This goes against Vinnie's first instinct: at 6:30 PM he asked whether MCP should instead be "a feature of the language" with an `mcp` front-matter key, and at 6:33 PM he said he was "not certain" and asked for both designs. Design L and the hybrids are set aside because their main gain, a declared requirement, can be added later as a front-matter key, while L's costs, a second kind of tool source and the largest code change, are hard to undo. Confidence: medium, because it departs from Vinnie's first instinct and the general capability is untested beyond MCP. Owner: Vinnie decides; Jason drafts. Next step: write the catalog-provider capability into the Pack contract alongside the deferred per-run Pack instance (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 966-968).
+Turning each catalog into its own Pack is out, because the registry holds only compile-time names and Vinnie rejected per-server Packs (Part 3) [C44; P2]. Make MCP a Pack the Host links, and let any Pack provide catalogs. It is the only design that treats MCP like every other Pack and leaves the parser alone (Table 9). A prompt then requires a server with a Lua check in its H1 section. Vinnie's first instinct was different: he asked whether MCP should be "a feature of the language" with an `mcp` front-matter key, then said he was "not certain" and asked for both designs [D 6:30, 6:33]. The Engine design's main gain, a requirement in front matter, can be added later as a key, while a second kind of tool source would be hard to remove. Confidence: medium, because the design departs from Vinnie's first instinct and the catalog capability has only MCP as a user so far. Next step: write the catalog capability into the Pack contract alongside the deferred per-run Pack instance [P1].
 
-**E2. What ids and wire names do MCP tools get, and what naming rules apply to every tool?**
+#### E2. What ids and wire names do MCP tools get, and what naming rule covers every tool?
 
-Tool ids are lowercase only, while MCP names may use uppercase and dots. Wire names have no length cap today (`crates/runvil-internal/model-client/src/detail.rs` lines 53-95), but OpenAI's Chat Completions caps names at 64 characters, and colliding wire names are dropped with only a log line (`crates/runvil-internal/engine/src/execute/context-bound.rs` lines 52 and 75-77). The criteria that bite are safe failure (8) and fit with training (7).
+MCP names may use uppercase and dots, which tool ids refuse. OpenAI's Chat Completions API caps function names at 64 characters, while Runvil's wire names may be any length today [R2; C6], and when two wire names collide, the later tool is dropped with only a log line [C5].
 
-- **A reserved `mcp` segment:** `mcp/paperstore/get_paper`, wire `mcp_paperstore_get_paper`. Fits today's types.
-- **A prefix:** `mcp.paperstore/get_paper`, the same wire name. Needs runtime-named Pack ids.
-- **A separate id type** that keeps the server's case. A second identity scheme.
-- **Bare server names:** `paperstore/get_paper`. Collides with Pack ids.
-- **Do nothing:** no MCP ids at all, as today. MCP tools then cannot be offered fixed, which contradicts settled decision 23.
+- A reserved segment, `mcp/paperstore/get_paper`, with wire name `mcp_paperstore_get_paper`, which fits today's types.
+- A prefix, `mcp.paperstore/get_paper`, which needs Pack ids named at run time.
+- A separate id type that keeps the server's case, a second identity scheme to maintain.
+- Bare server names, `paperstore/get_paper`, which collide with Pack ids.
 
-For names the canonical ids refuse, the sub-options are lowercasing with a collision check that keeps the original name for the call, relaxing the charset, escaping, or refusing the tool. Appendix C works a sample `mcp.json` through each. Across twelve harnesses, caps are 63, 64, or 128 characters; Codex, Cline, and Qwen Code add a deterministic hash on overflow, and Claude Code drops a tool over 128 characters because "The Claude API rejects a request that includes such a tool" (research on MCP naming, 2026-10-20). **Recommendation:** the reserved segment, with lowercase mapping and the original name kept for the call, as the per-server code at `808028b3f` did. New in this recommendation: a collision refuses the later tool loudly and names both tools, where that code dropped the later tool with a warning naming only it (`crates/plugin-mcp/src/server.rs` lines 50-73 at `808028b3f`). A rule for every tool, MCP or not, caps wire names at 64 characters with an 8-character hash suffix. Confidence: medium, because 64 is the strictest common cap and the hash scheme is proven elsewhere. Owner: Vinnie decides; Jason drafts. Next step: add the cap and the loud collision to `offered_bindings`.
+For a name the ids refuse, the client can lowercase it with a collision check, relax the charset, escape it, or refuse the tool. Harnesses cap names at 63, 64, or 128 characters. Codex, Cline, and Qwen Code add a deterministic hash when a name exceeds the cap, and Claude Code drops a tool over 128 characters because "The Claude API rejects a request that includes such a tool" [E7]. Runvil's own per-server MCP code at `808028b3f` lowercased names and kept the original for the call, but dropped a colliding tool with a warning naming only that tool [C49].
 
-**E3. How long may the rendezvous wait, and are connections Host-wide?**
+Use the reserved segment with lowercased names, keep the original name for the call, and refuse a colliding tool loudly, naming both (Appendix C). Keep the wire-name rule and add a cap for every tool: 64 characters, with an 8-character hash suffix on longer names, as the 2026-10-14 harness report proposed [R2]. Confidence: medium, because 64 is the strictest common cap and the hash scheme works elsewhere. Next step: add the cap and the loud collision refusal to `offered_bindings`.
 
-The rendezvous waits for every server to list or fail, so one slow server delays the first response of every prompt that needs MCP. Today each server has two minutes to list its tools (`crates/plugin-mcp/src/connect.rs` lines 18-19). The criteria that bite are safe failure (8), because a slow server must not hang a first response indefinitely, and Host control (9), because the Host owns the server list.
+#### E3. How long may the rendezvous wait, and are MCP connections Host-wide?
 
-- **Today's two-minute listing window** per server.
-- **A shorter rendezvous cap** that marks slower servers unavailable for the session.
-- **A per-server timeout in Host config.**
-- **A Host-wide cap** over all servers.
+The rendezvous waits for every server, so one slow server delays the first response of every prompt that uses MCP. Today each server gets two minutes to list its tools [C50].
 
-Defaults elsewhere: Claude Code `MCP_TIMEOUT` 30 seconds per server; Codex `startup_timeout_sec` 10, with a 1-second grace for optional servers; Qwen Code 5 seconds for remote discovery (research on MCP naming, 2026-10-20). **Recommendation:** Host-wide connections, so only the first run after Host startup pays, plus a per-server cap in Host config with a 30-second default; a server that misses the cap counts as failed for the session. Confidence: medium, because 30 seconds is borrowed from Claude Code, not measured on Runvil's servers. Owner: Vinnie decides; Jason drafts. Next step: make the cap a field of the Host's MCP configuration.
+- Keep the two-minute window.
+- A shorter cap, after which a slow server stays out until the Host restarts.
+- A per-server timeout in the Host's configuration.
+- One cap over all servers together.
 
-**E4. What do Lua and the model get back from an MCP call?**
+Claude Code's `MCP_TIMEOUT` defaults to 30 seconds per server, Codex's `startup_timeout_sec` to 10 seconds with a 1-second grace for optional servers, and Qwen Code's remote discovery to 5 seconds [E7]. Keep connections for the Host's lifetime, as Workshop's do and as the rendezvous details in Part 1 assume, so only the first run after Host startup waits. Cap each server in the Host's configuration at 30 seconds by default; a server that misses the cap stays out until the Host restarts. Two minutes holds every first response too long. Confidence: medium, because the 30 seconds comes from Claude Code and is unmeasured on Runvil's servers. Next step: make the cap a field of the Host's MCP configuration.
 
-MCP outputs are not guaranteed to be JSON, yet `ToolInfo.structured_output` already decides between data and string for Lua (`crates/runvil-internal/types/src/tools/info.rs` lines 31-34), Today the client joins text blocks and uses `structuredContent` only when there are no content blocks at all (`crates/plugin-mcp/src/result.rs` lines 75-82), so an image-only result gives a placeholder, and a script calling a search tool gets one string even when the server sent typed results. The criteria that bite are safe failure (8) and building blocks (1).
+#### E4. What do Lua and the model get back from an MCP call?
 
-- **A string, as today,** for both Lua and the model.
-- **Data when the tool declares an `outputSchema`:** set `structured_output` and prefer `structuredContent`.
-- **A result object** with text, data, and content blocks.
-- **Size caps and truncation** apply to any of these.
+Lua already gets data or a string, depending on `ToolInfo.structured_output` [C15]. But the client joins text blocks and uses `structuredContent` only when the content list is empty, so an image-only result becomes a placeholder, and a script gets one string even when the server sent typed results [C51].
 
-In revision 2026-07-28, "Servers MUST provide structured results that conform to this schema", `structuredContent` "can be any JSON value", and a text copy is only a SHOULD. Clients disagree: Codex sends only `structuredContent`, Gemini CLI uses content blocks, and ChatGPT surfaces both. Claude Code caps MCP output at 25,000 tokens by default (research on MCP beyond tools, 2026-10-20). **Recommendation:** Lua gets `structuredContent` as data when the tool declares an `outputSchema`, and a string otherwise. The model gets the text blocks, or the serialized `structuredContent` when there are no text blocks; today it gets `structuredContent` only when there are no content blocks of any kind. One result-size cap applies to both, with a truncation notice, and results stay labeled untrusted. The result object is set aside as a second shape Lua must learn. Confidence: medium, because the MUST covers only declared schemas, and servers vary. Owner: Vinnie decides; Jason drafts. Next step: keep `outputSchema` when the client lists tools (`crates/plugin-mcp/src/server.rs` lines 48-68).
+- Keep a string for both Lua and the model.
+- Data for Lua when the tool declares an `outputSchema`, by setting `structured_output` and preferring `structuredContent`.
+- A result object with text, data, and content blocks.
+- A size cap with truncation, on top of any of these.
 
-**E5. Which MCP features beyond tools?**
+Revision 2026-07-28 says "Servers MUST provide structured results that conform to this schema" when a tool declares one, that `structuredContent` "can be any JSON value", and that a text copy is only a SHOULD [E13]. Clients differ: Codex sends the model only `structuredContent`, Gemini CLI only content blocks, and ChatGPT both [E7; E14]. Claude Code caps MCP output at 25,000 tokens by default [E7].
 
-Runvil's client declares no capabilities and uses only tools (`crates/plugin-mcp/src/lib.rs` lines 72-75). It connects with `rmcp`'s legacy `initialize` lifecycle, so it never calls `server/discover` and never sees a modern server's `instructions` (research on MCP beyond tools, 2026-10-20; `rmcp-3.5.1/src/service/client.rs` line 639). The criteria that bite are building blocks (1) and Host control (9).
+Give Lua `structuredContent` as data when the tool declares an `outputSchema`, and a string otherwise. Give the model the text blocks, or the serialized `structuredContent` when a result lacks text blocks. Apply one result-size cap to both, with a truncation notice, and keep results labeled untrusted. A result object would be a second shape for Lua to learn. Confidence: medium, because the MUST covers only declared schemas, and servers vary. Next step: keep `outputSchema` when the client lists tools [C17].
 
-- **Tools only, as today.**
-- **Plus resources,** read-only data identified by URI.
-- **Plus prompts,** server-defined templates.
-- **Plus sampling** through the Gateway.
-- **Plus elicitation** through the user-input Pack.
-- **Roots.**
+#### E5. Which MCP features beyond tools should the client support?
 
-In revision 2026-07-28, sampling, roots, and logging are deprecated, tasks moved to an extension, and elicitation is the only core client feature. The protocol is now stateless: no `initialize`, protocol version and capabilities on every request, and `server/discover` for `instructions`. **Recommendation:** tools now, and move the client to `rmcp`'s `Auto` lifecycle, which tries the 2026-07-28 `server/discover` call first and falls back to `initialize`, so `instructions` reach question C1's listing; then resources; then elicitation through the user-input Pack. Sampling and roots are not planned, rather than deferred, because they are deprecated. Confidence: medium, because how existing servers answer a discover-first client is untested. Owner: Vinnie decides; Jason drafts. Next step: switch `connect.rs` to `rmcp`'s `ClientLifecycleMode::Auto` and test against the GitHub and paper store servers.
+The client uses tools alone and declares an empty capability set [C16]. It connects through `rmcp`'s older `initialize` lifecycle, so it skips `server/discover` and misses the `instructions` a modern server publishes, which the dynamic-set listing could show [C52].
 
-### Group F: shaped Packs stay fixed, shapes live with their Packs, and evidence gates any reduced form
+- Tools only, as today.
+- Resources, read-only data identified by URI.
+- Prompts, templates the server defines.
+- Sampling, routed through the Gateway.
+- Elicitation, routed through the user-input Pack.
+- Roots, which tell servers which directories or files matter.
 
-**F1. Can a shaped Pack be offered dynamic?**
+Revision 2026-07-28 deprecates sampling, roots, and logging, moves tasks to an extension, and leaves elicitation as the only core client feature. It also makes the protocol stateless: the `initialize` handshake is gone, every request includes the protocol version and capabilities, and `server/discover` returns `instructions` [E13]. Support tools now, and move the client to `rmcp`'s `Auto` lifecycle, which tries `server/discover` first and falls back to `initialize`, so `instructions` reach the dynamic-set listing [C52]. Add resources next, then elicitation through the user-input Pack. Drop sampling and roots for good, because both are deprecated. Confidence: medium, because how existing servers answer a discover-first client is untested. Next step: switch the client to `ClientLifecycleMode::Auto` and test it against the GitHub and paper store servers.
 
-Shaped tools exist because models were trained to call them as top-level tools; through `CallDynamicTool` that trained call form disappears. Vinnie's instinct is never (6:15 PM). Subagent tools are the hard case, because Cursor's `Task` tool costs 1,946 tokens and Cursor keeps it behind discovery ("Tool Offering in runvil...", 2026-10-14). The criteria that bite are fit with training (7) and attention economy (6).
+### Group F: Shaped Packs
 
-- **Never, as a hard error.** Simple, and matches the instinct.
-- **Allowed, with canonical descriptors in discovery.** The model sees a plain form when it looks the tool up.
-- **Allowed, with shaped descriptors** in discovery results. Keeps the trained text, but the call still goes through `CallDynamicTool`.
-- **Per Pack:** file tools never, subagents allowed.
-- **Do nothing:** allow it silently.
+#### F1. Can a shaped Pack be offered dynamic?
 
-Every harness that defers keeps its file tools loaded. Claude Code deferred Read, Write, and Agent in v2.1.69. It restored them in v2.1.72 after a user wrote "I could no longer effectively use the read/write tools" and another that Sonnet 4.6 "doesn't always connect traditional subagent launch verbiage with the need to `ToolSearch` and find `Agent`". Subagent tools split: Cursor and Qwen Code defer theirs; Claude Code, Hermes, and Codex keep theirs loaded (research on discovery, 2026-10-20). **Recommendation:** never; offering a shaped Pack dynamic raises a hard error that says to offer it fixed or not at all. The per-Pack option is set aside because the only evidence on deferring a subagent tool is a failure report, and Runvil's subagents Pack can be kept small instead. This matches Vinnie's instinct. Confidence: medium, high for the file tools and medium for subagents. Owner: Vinnie decides; a maintainer drafts. Next step: add the check to the dynamic offer verb.
+A call through `CallDynamicTool` loses the top-level form the model was trained on. Subagent tools are the hard case: Cursor's `Task` tool costs 1,946 tokens, and Cursor keeps it behind discovery [R1].
 
-**F2. Where do shapes live, and how is the model family known?**
+- Never: offering a shaped Pack dynamic is a hard error, which keeps the trained form.
+- Allowed, with canonical descriptions in discovery results, so the model looks up a plain form.
+- Allowed, with shaped descriptions in discovery results, though calls still go through `CallDynamicTool`.
+- Per Pack: file tools never, subagent tools allowed.
 
-Rendering a shaped Pack needs the model's family at first render, and the Engine knows only an optional `provider` string today (`crates/runvil-internal/types/src/models.rs` lines 163-169); `tool_dialect` lives only in the Gateway. After a model change the rendered catalog keeps the first vendor's shapes, so dispatch relies on the stored mapping (question B2). The criteria that bite are no exceptions (2) and fit with training (7).
+When Claude Code deferred Read, Write, and Agent in v2.1.69, one user wrote "I could no longer effectively use the read/write tools" and another that Sonnet 4.6 "doesn't always connect traditional subagent launch verbiage with the need to `ToolSearch` and find `Agent`"; v2.1.72 restored them [E7]. Other harnesses keep file tools loaded too, and split on subagent tools (Table 4). Make offering a shaped Pack dynamic a hard error that says to offer it fixed or not at all, as Vinnie's instinct suggested [D 6:15]. A per-Pack rule rests on thin evidence: the only report on deferring a subagent tool describes a failure, and Runvil's `subagents` Pack can stay small. Confidence: medium, because the evidence is strong for file tools and thin for subagent tools. Next step: add the check to the dynamic offer verb.
 
-- **In each shaped Pack, keyed by family.** Shapes sit with the tools they shape.
-- **A central Engine table** of shapes. One place to read, but the Engine then knows every Pack's tools.
-- **Reuse the Gateway's tool dialect or the model info** to pick the family. The dialect is a wire-protocol concept, not a family, and is not exposed today.
-- **Do nothing:** canonical tools only, which drops the shaped Packs of settled decision 16.
+#### F2. Where are shapes kept, and how does the Engine learn the model family?
 
-Harnesses keep shapes in a central table (Aider's `model-settings.yml`, Cline's routing rules), a server-delivered model catalog (Codex), per-tool variants (legacy Cline), or plugin hooks (OpenCode), and detect family almost always by substring or prefix match on the model id, sometimes with a provider id. Codex picks the model-catalog entry with the longest matching slug prefix and gives an unknown model a shell and no `apply_patch` (research on model-shaped tools, 2026-10-20). Anthropic versions its native tools by model generation: `text_editor_20250728` "for Claude 4 and later models". **Recommendation:** shapes as data inside each shaped Pack, keyed by family, and one Engine step at first render that resolves the family from `provider` plus the longest matching model-id prefix, falling back to the canonical form for an unknown model. Where a vendor offers a native tool type, the shape names it. Confidence: medium, because prefix matching is common practice but brittle as vendors rename models. Owner: Vinnie decides; a maintainer drafts. Next step: pass the resolved model id and provider into the render step in `prepare_chat`.
+To render a shaped Pack, the Engine needs the model's family at first render, yet it knows only an optional `provider` string, and only the Gateway knows `tool_dialect` [C34]. After a model change, dispatch uses the stored shape mapping.
 
-**F3. What evidence decides between reduced and full rendering of a split shaped tool?**
+- In each shaped Pack, keyed by family, beside the tools they shape.
+- A central Engine table, one place to read, though the Engine then knows every shaped Pack's tools.
+- The Gateway's tool dialect or the model information, though a dialect names a wire protocol rather than a family, and the Gateway keeps it private.
 
-The settled rule renders a split shaped tool reduced, refusing the cut-off parts at dispatch, and falls back to full rendering with the same refusals if the reduced form performs poorly (6:15 PM). It does not say how "performs poorly" is measured, or when the decision is made. A read-only review section shows the stakes: a trained editor tool cut down to viewing might confuse a model trained on the whole tool. The criteria that bite are fit with training (7) and cache stability (5).
+Harnesses keep shapes in a central table (Aider's `model-settings.yml`, Cline's routing rules), a server-delivered model catalog (Codex), per-tool variants (legacy Cline), or plugin hooks (OpenCode), and nearly all match a substring or prefix of the model id (Appendix E). Codex takes the longest matching slug prefix and gives an unknown model a shell without `apply_patch` [E7], and Anthropic versions its native tools by model generation, as in `text_editor_20250728` "for Claude 4 and later models" [E15]. Store shapes as data in each shaped Pack, keyed by family, so a Pack's shapes change together with its tools. At first render, one Engine step resolves the family from `provider` plus the longest matching model-id prefix, falls back to the canonical form for an unknown model, and uses the vendor's native tool type where one exists. Confidence: medium, because prefix matching is common practice but breaks when vendors rename models. Next step: pass the resolved model id and provider into the render step in `prepare_chat`.
 
-- **Do nothing:** decide case by case when someone reports a problem.
-- **An offline A/B evaluation per model family** before a reduced form ships, comparing it with the full form.
-- **Runtime refusal telemetry** that feeds a per-model setting for later runs, never changing a running section.
-- **A hand-maintained per-model table,** as Aider keeps for its edit formats.
-- **Vendor guidance only,** following what each vendor says about its trained tools.
+#### F3. What evidence decides between reduced and full rendering?
 
-No source measures a reduced trained tool against its full form. Format choice moved one model from 20 to 61 percent on Aider's benchmark, and a third-party test of native shapes found large token differences with similar pass rates (research on model-shaped tools, 2026-10-20). Anthropic's native editor, `str_replace_based_edit_tool`, is schema-less and "can't be modified", so a reduced form of it exists only as an imitation, an ordinary function tool with its own schema. No harness renders a command-reduced trained tool, and Goose's maintainers dropped command-level filtering as "pretty messy to implement" ([goose issue 6193](https://github.com/aaif-goose/goose/issues/6193), accessed 2026-10-20). **Recommendation:** an offline A/B per family before any reduced form ships, measuring pass rate, malformed calls, and tokens, with at least 30 runs per arm, as the 2026-10-14 harness report proposed. For Anthropic's native editor, start from the fallback, full rendering plus refusal, because a reduced form would give up the native tool; that fallback is likely to be the practical path for that tool. Telemetry and the hand table are set aside as slower to correct than a one-time evaluation. Confidence: medium, because the method is standard but no run exists yet. Owner: Vinnie decides; a maintainer drafts. Next step: build the A/B harness on the file-tools Pack first.
+When a filter cuts a shaped tool, the settled rule renders it reduced, showing only the allowed parts, and falls back to full rendering with refusals at dispatch if the reduced form brings "poor performance" (Table 3) [D 6:15]. How to measure that, and when, is open. In a read-only review section, for example, an editor cut down to viewing might confuse a model trained on the whole tool.
 
-### Group G: metadata counts only on the Host's word, and every refusal names an alternative
+- Decide case by case when someone reports a problem, as today.
+- An offline A/B evaluation per model family before a reduced form ships.
+- Runtime refusal telemetry that sets a per-model choice for later runs, leaving running sections unchanged.
+- A hand-maintained per-model table, as Aider keeps for edit formats.
+- Vendor guidance only.
 
-**G1. What metadata does `ToolInfo` gain, what does a missing field mean, and does Runvil trust it?**
+The only measurements compare formats; nobody has tested a cut-down trained tool. Format choice moved one model from 20 to 61 percent on Aider's benchmark, and a third-party test of native shapes found large token differences at similar pass rates [E16; E17]. Goose's maintainers dropped filtering an editor tool's individual commands as "pretty messy to implement" [E18]. Anthropic's native editor, `str_replace_based_edit_tool`, is schema-less and "can't be modified", so a reduced form could only imitate it as an ordinary function tool [E15].
 
-Filters (A3) and the ask-mode gate (G2) both read metadata, and `ToolInfo` has none today (`crates/runvil-internal/types/src/tools/info.rs` lines 24-43). The MCP client also drops the annotations servers send (`crates/plugin-mcp/src/server.rs` lines 48-68), so even a server that marks its tools read-only cannot be filtered today. The criteria that bite are safe failure (8) and Host control (9).
+Run an offline A/B per family before any reduced form ships, measuring pass rate, malformed calls, and tokens over at least 30 runs per arm, the size the 2026-10-14 harness report proposed [R2]. For Anthropic's native editor, apply the settled fallback from the start, full rendering plus refusals, because reducing that editor would mean imitating it and giving up the native tool. Telemetry and a hand-kept table correct mistakes more slowly than one evaluation. Confidence: medium, because the method is standard but has yet to run. Next step: build the A/B harness on the file-tools Pack first.
 
-- **None.** Filters work by name only, and ask mode cannot tell read from write.
-- **MCP's annotation names verbatim:** `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, and `title`.
-- **Runvil's own names,** mapped from MCP. Cleaner names, and a mapping to maintain.
-- **An open key-value bag.** Flexible, but untyped.
-- **MCP's set as typed fields plus an open bag.** Typed where filters and the gate need it, open for the rest.
+### Group G: Metadata, dispatch, and trust
 
-The follow-on choices are defaults, trust, local tools, and pinning. MCP's defaults are cautious: `readOnlyHint` false, `destructiveHint` true, `openWorldHint` true, and "clients MUST consider tool annotations to be untrusted unless they come from trusted servers". Codex, Gemini CLI, VS Code, and OpenAI's Responses API all use `readOnlyHint` for approval or filtering anyway; Zed's Ask profile disables MCP tools because "We don't know which of the context server tools are safe" (research on modes and on MCP naming, 2026-10-20). No harness pins tool definitions against later change. **Recommendation:** MCP's five annotations as typed fields plus an open bag, with MCP's defaults when a field is missing. Annotations from an MCP server count only when the Host marks that server trusted; otherwise every tool reads as the defaults, and the Host may override per server or per tool. `tools.offer_local` takes metadata as an optional argument. Pinning is deferred to the run record of H3, which can show a change between runs. Confidence: medium, because the trust rule follows the spec but makes untrusted read-only tools unusable in ask mode until a Host vouches for them. Owner: Vinnie decides; a maintainer drafts. Next step: add the fields to `ToolInfo` with serde defaults, so recorded runs still read.
+#### G1. What metadata does `ToolInfo` gain, and does Runvil trust it?
 
-**G2. What does the Engine check before any tool call, and what does a refusal tell the model?**
+Filters and the ask-mode gate need metadata that `ToolInfo` lacks [C15]. The MCP client also drops the annotations servers send, so even a tool its server marks read-only fails a read-only filter [C17].
 
-Several settled rules end in a refusal at dispatch: the ask-mode gate, a disallowed part of a reduced shaped tool, a fixed tool called through `CallDynamicTool`, and a name outside the rendered catalog. Today a model's call outside the advertised set ends the `models.loop` call with `out_of_scope_tool` (`crates/runvil-internal/engine/src/execute/scheduler/chat.rs` lines 374-385), which "Runvil: Naming the Subagents Plugin's Model Tools So Models Call Them Without Coaching" (2026-10-10) already recommended changing to "a failed tool result that tells the model the tool is not available". The criteria that bite are safe failure (8) and cache stability (5).
+- MCP's annotation names verbatim: `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, and `title`.
+- Runvil's own names mapped from MCP, cleaner but with a mapping to maintain.
+- An open key-value bag, flexible but untyped.
+- MCP's set as typed fields plus an open bag.
 
-- **The order of the checks.** A fixed order makes refusals predictable; an order by cost is faster but harder to explain.
-- **Argument validation:** the Engine validates arguments against the schema, or leaves it to the Pack and the server. MCP 2026-07-28 asks servers to return input errors as tool errors so "the model can see them and self-correct".
-- **The refusal format:** plain text naming an alternative, or structured error JSON.
-- **The outcome:** a tool result the model reads, or an error that ends the loop.
-- **Counting:** whether `CallDynamicTool` calls count in `tools.calls` under the underlying tool's id.
-- **Do nothing:** keep only today's scope gate, whose out-of-scope error ends the loop. The ask-mode gate and the shaped-tool refusals then have nowhere to live.
+MCP's defaults are cautious, with `readOnlyHint` false, `destructiveHint` true, and `openWorldHint` true, and "clients MUST consider tool annotations to be untrusted unless they come from trusted servers" [E13]. Codex, Gemini CLI, VS Code, and OpenAI's Responses API use `readOnlyHint` for approval or filtering anyway [E7; E19; E8], while Zed's Ask profile disables MCP tools because "We don't know which of the context server tools are safe" [E20]. Every surveyed harness accepts tool definitions as served, without pinning them.
 
-Claude Code enforces modes at call time and says rules are "enforced by Claude Code, not by the model". Cline's plan-mode refusal tells the model what to do instead, while Zed's "No tool named {} exists" cannot tell disabled from absent; Roo Code returns an `is_error: true` tool result (research on modes, 2026-10-20). **Recommendation:** checks in a fixed order: the name is in the attached catalog; a `CallDynamicTool` target is in the dynamic set; the call uses an allowed part of a shaped tool; the ask-mode gate allows it. Arguments are left to the Pack and the server. Every refusal becomes a tool result in the Engine's trusted text that names an alternative, modeled on Cline's, instead of ending the loop; `CallDynamicTool` calls count under the underlying id. Confidence: medium, because changing the out-of-scope outcome alters a behavior tests pin. Owner: Vinnie decides; Greg drafts. Next step: write the four refusal texts and test them on one Anthropic and one OpenAI model.
+Add MCP's five annotations as typed fields plus an open bag, with MCP's defaults for a missing field. Annotations from an MCP server count only when the Host marks the server trusted; otherwise its tools read as the defaults, and the Host may override per server or per tool. `tools.offer_local` takes optional metadata. Pinning tool definitions waits for the run record, which can show a change between runs. Confidence: medium, because the trust rule follows the spec but keeps an untrusted server's read-only tools out of ask mode until a Host vouches for the server. Next step: add the fields to `ToolInfo` with serde defaults, so recorded runs still read.
 
-### Group H: reflection is read-only userdata, and the run record keeps what replay needs
+#### G2. What does the Engine check before a tool call, and what does a refusal say?
 
-**H1. What can Lua read about Packs, tools, and MCP servers, and in what form?**
+Several settled rules refuse a call at dispatch: the ask-mode gate, a disallowed part of a reduced shaped tool, a fixed tool called through `CallDynamicTool`, and a name outside the rendered catalog. Today a model's call to a name outside the advertised set ends `models.loop` with `out_of_scope_tool` [C11], though a 2026-10-10 report recommended "a failed tool result that tells the model the tool is not available" [R3].
 
-Vinnie wants Lua to inspect "The pack. The pack's list of tools. The tool's data. Metadata. The mcp client's list of servers" (6:25 PM), so that a prompt can, for example, check whether a newer paper store adds a function before calling it (huddle with Jason, 2026-10-20, 41:49). Today tool objects expose only `id`, `description`, and `pack`, and Pack objects `name` and `tools` (`crates/runvil-internal/lua/src/tools/userdata.rs` lines 43-49; `lua/src/packs.rs` lines 1-13). The criteria that bite are building blocks (1) and safe failure (8).
+The answer has five parts, each a choice between two settings:
 
-- **Read-only userdata, as today,** extended with new fields. Keeps identity: two reads give the same object.
-- **Table snapshots.** Serialize and work with `pairs`, but a table can be written to, and changes would mislead.
-- **JSON strings.** Easy to store, awkward to read.
-- **Do nothing:** keep today's three tool fields. Lua then cannot read metadata, placement, or server status, which rules out Vinnie's version check.
+- Order: fixed, which is predictable, or by cost, which is faster but harder to explain.
+- Arguments: validated by the Engine against the schema, or left to the Pack and the server.
+- Format: plain text naming an alternative, or structured error JSON.
+- Outcome: a tool result the model reads, or an error that ends the loop.
+- Counting: `CallDynamicTool` calls counted in `tools.calls` under the underlying tool's id, or under the discovery tool's.
 
-The fields to expose are, for Packs: id, kind, status and reason, shaped, declared, and tools. For tools: id, name, description, parameters, metadata, structured, a size estimate, wire name, and placement in this section. For MCP servers: name, status, failure reason, server info, instructions, and catalog. Never the configuration or credentials, and shaped Packs show no named tools. In Lua 5.4 and 5.5, `__index` and `__newindex` fire only for absent keys and `rawset` bypasses `__newindex`, while a userdata exposing only `__index`, `__len`, `__pairs`, and `__metatable` gives Lua code no documented write path; mlua's table freeze exists only for Luau (research on author surfaces, 2026-10-20). Runvil's sandbox already removes `rawset` and the debug library (`lua/src/globals.rs` lines 22-24). **Recommendation:** read-only userdata with `__index`, `__len`, and `__pairs`, extending today's tool and Pack objects, and a list call that returns a fresh array each time, as `packs.extras()` does. Confidence: high, because it extends the shape the code already uses. Owner: Vinnie decides; a maintainer drafts. Next step: add `metadata`, `placement`, and `status` to the objects.
+Claude Code says permission rules are "enforced by Claude Code, not by the model" [E3]. Cline's plan-mode refusal tells the model what to do instead [E7], Zed's "No tool named {} exists" cannot tell a disabled tool from an absent one [E20], and Roo Code returns an `is_error: true` tool result [E21]. MCP 2026-07-28 asks servers to return input errors as tool errors so "the model can see them and self-correct" [E13].
 
-**H2. Does reflecting on MCP catalogs wait for the rendezvous?**
+Check in a fixed order: the name is in the rendered catalog, a `CallDynamicTool` target is in the dynamic set, the call uses an allowed part of a shaped tool, and the ask-mode gate allows it. Leave arguments to the Pack and the server. Make every refusal a tool result that names an alternative, modeled on Cline's, in text the Engine writes itself rather than passes through from a tool, so the model can trust it. Count `CallDynamicTool` calls under the underlying tool's id. A cost-based order would be harder to explain. Confidence: medium, because changing the out-of-scope outcome changes a behavior that tests pin today. Next step: write the four refusal texts and test them on one Anthropic and one OpenAI model.
 
-Reflection over catalogs is a first need, so it waits. A prompt that only wants to show server status, or skip MCP when nothing is configured, should not have to wait. The criteria that bite are attention economy (6) and safe failure (8).
+### Group H: Reflection and the run record
 
-- **Wait** for any MCP reflection.
-- **A status snapshot without waiting,** and wait only for catalogs.
-- **An explicit `mcp.wait()`** that the author calls.
-- **Never wait:** catalogs read as empty until the rendezvous ends. Nothing blocks, but a required-server check would pass or fail by timing.
+#### H1. What can Lua read about Packs, tools, and MCP servers?
 
-Neovim separates running clients from declared configs, and MCP SDKs expose handshake facts as snapshots while fetching tool lists on demand (research on author surfaces, 2026-10-20). **Recommendation:** server names and status are readable at once and say `loading` before the rendezvous; reading an MCP catalog or its tools waits. The explicit wait is set aside as a call authors would forget. Confidence: medium, because a status read before the rendezvous can change a moment later, which the field's name must make plain. Owner: Vinnie decides; Jason drafts. Next step: define `status` values to match today's `ready`, `loading`, and `error`.
+Vinnie wants Lua to inspect "The pack. The pack's list of tools. The tool's data. Metadata. The mcp client's list of servers" [D 6:25], so that a prompt can, for example, check whether a newer paper store adds a function before calling it [H 41:49]. Today a tool object shows three fields and a Pack object two [C14; C8].
 
-**H3. What can a section read about its own tools?**
+- Read-only userdata extended with new fields, which keeps identity: two reads give the same object.
+- Table snapshots, which serialize and work with `pairs`, but Lua can write to them, and the changes would mislead.
+- JSON strings, easy to store and awkward to read.
 
-Authors need to see what the model actually had and used. The 2026-10-14 huddle worked out a development workflow that depends on it: develop with extras offered dynamic, see which dynamic tools the model actually called, then declare those Packs and offer them fixed ("Tool Offering in runvil...", 2026-10-14, line 290). Today a section can read only its call counters, so that workflow has no data. The criteria that bite are building blocks (1) and replay (10).
+The fields to expose, with configuration, credentials, and the tool names of shaped Packs kept hidden:
 
-- **Only `tools.calls`, as today,** the do-nothing option.
-- **A read-only view of the attached catalog,** with each tool's placement, fixed or dynamic.
-- **That view plus a log of the dynamic tools the model called,** which serves the workflow directly.
-- **Nothing more in Lua,** with everything in the run record for reading after the run.
+- Packs: id, kind, status and reason, shaped, declared, and tools.
+- Tools: id, name, description, parameters, metadata, structured, a size estimate, wire name, and placement in this section.
+- MCP servers: name, status, failure reason, server info, instructions, and catalog.
 
-**Recommendation:** the rendered-catalog view plus the dynamic-usage log, read-only. Whatever Lua can read, the run record stores the attached catalog (B2), each compaction (Part 2), and dynamic usage, because replay needs them (criterion 10). The run-record-only option is set aside because a section cannot adapt to what it cannot read. Confidence: medium, because the record grows with the rendered catalog, which question C1's cap bounds. Owner: Vinnie decides; a maintainer drafts. Next step: add the dynamic-usage entry beside today's tool-call records.
+In Lua 5.4 and 5.5, `__index` and `__newindex` fire only for absent keys and `rawset` bypasses `__newindex`, but a userdata exposing only `__index`, `__len`, `__pairs`, and `__metatable` leaves Lua code without a documented way to write to it; mlua's table freeze exists only for Luau [E22]. Runvil's sandbox already removes `rawset` and the debug library [C30]. Use read-only userdata with `__index`, `__len`, and `__pairs`, extending today's objects, plus list calls that return a fresh array each time, as `packs.extras()` does [C8]. Snapshots invite writes that change nothing, and JSON strings make every read a parse. Confidence: high, because this extends the shape the code already uses. Next step: add `metadata`, `placement`, and `status` to the objects.
 
-## Part 5. How the answers fit, what changes, and what to do first
+#### H2. Does reflecting on MCP catalogs wait for the rendezvous?
 
-### The answers form one render path and one call path
+Reading a catalog is a first use, so it waits. A prompt that only shows server status, or skips MCP when the Host configures zero servers, should get its answer at once.
 
-Taken together, the recommendations give every tool one route to the model and one route back. Figure 5 shows both. On the render path, the section's offers name Packs and filtered views. If any offer reaches MCP, the rendezvous runs first. Then filters apply, shaped Packs take their family's form, and the discovery tools join if the dynamic set is not empty. The result attaches to `messages` once. On the call path, the stored mapping turns the model's call back into a canonical tool, and the dispatch checks run in their fixed order. Then either the Pack or server answers, or a refusal comes back as a tool result that names an alternative.
+- Every MCP read waits, so even a status read waits for every server.
+- Status at once, with a wait only for catalogs.
+- An explicit `mcp.wait()` that the author calls.
+- Skip the wait: catalogs read as empty until the rendezvous ends, so a required-server check passes or fails by timing.
 
-**Figure 5.** The render path, run once per section, and the call path, run for every model call.
+Neovim separates running clients from declared configurations, and MCP SDKs expose handshake facts as snapshots while fetching tool lists on demand [E23]. Make server names and status readable at once, with status `loading` before the rendezvous, and make reading an MCP catalog or its tools wait. Authors would forget an explicit wait, and skipping the wait would make checks depend on timing. Confidence: medium, because a status read before the rendezvous can change a moment later, which the field's name must make plain. Next step: define the `status` values to match today's `ready`, `loading`, and `error`.
+
+#### H3. What can a section read about its own tools?
+
+Authors need to see what the model had and what it used. In the 2026-10-14 huddle, the team worked out a development workflow that depends on it: develop with extras offered dynamic, see which dynamic tools the model called, then declare those Packs and offer them fixed [R1]. Today a section can read only its call counters.
+
+- Keep only `tools.calls`.
+- A read-only view of the rendered catalog, with each tool's placement, fixed or dynamic.
+- That view plus a log of the dynamic tools the model called, which serves the workflow directly.
+- The run record only, read after the run.
+
+Give each section a read-only view of its rendered catalog plus the dynamic-usage log. Whatever Lua can read, the run record stores the rendered catalog, each compaction, and dynamic usage, because replay needs them. A section can adapt only to what it can read while it runs, so the run record alone falls short. Confidence: medium, because the record grows with the rendered catalog, which the cap on the dynamic-set listing bounds. Next step: add the dynamic-usage entry beside today's tool-call records.
+
+## Part 5. Fit, migration, and next steps
+
+### The render path and the call path
+
+On the render path, the rendezvous runs only when an offer reaches MCP, and the discovery tools join the rendered catalog while the dynamic set holds tools (Figure 5). Everything on that path runs once per section.
+
+**Figure 5.** Render path and call path.
 
 ```mermaid
 flowchart LR
@@ -1127,7 +1025,7 @@ flowchart LR
     end
     subgraph R2 [Every call]
     MC[Model call] ==> MP[Stored mapping]
-    MP ==> CK[Dispatch checks]
+    MP ==> CK[Dispatch gates]
     CK ==>|allowed| T[Pack or server]
     CK -.->|refused| RF[Refusal text]
     end
@@ -1136,145 +1034,132 @@ flowchart LR
     RF ==> RS
 ```
 
-Three properties follow. The tools prefix is byte-identical for the life of a section, because nothing on the call path writes to the catalog. Lua and the model see the same tools through different routes only where the design intends it: Lua's `tools.call` still reaches any catalog tool by canonical id, while the model reaches only what the catalog holds. And a model change after first render costs nothing on the call path, because the stored mapping, not the current model, decides which canonical tool a call means.
+Nothing on the call path writes to the catalog, so the tools prefix stays byte-identical for the whole section. Dispatch also stays correct after a model change, because the stored mapping decides which canonical tool a call means.
 
-### The decisions depend on each other in five steps
+### Order of decisions
 
-Some answers constrain others. The MCP design (E1) decides what the offer verbs accept (A2), how a server is required (D2), and how MCP ids look (E2). The metadata vocabulary (G1) is the input to filters (A3) and to the ask-mode gate (G2). Where shapes live (F2) decides what the attached catalog must store (B2), which the run record then stores (H3). Figure 6 orders the work so that each step has its inputs.
+The MCP design affects the most other answers: it decides what the offer verbs accept, how loading and requirements work, and the remaining MCP questions (Figure 6).
 
-**Figure 6.** Decision dependencies and a suggested order of work. An arrow means "should be decided before".
+**Figure 6.** Decision dependencies. Each arrow points to a later decision.
 
 ```mermaid
 flowchart LR
-    P2[Part 2 messages] ==> B[B1 B2 catalog]
-    G1[G1 metadata] ==> A[A1 A2 A3 offers]
-    B ==> A
-    A ==> C[C1 C2 discovery]
-    G1 ==> G2[G2 dispatch]
-    C ==> G2
-    E1[E1 MCP design] ==> A
-    E1 ==> E[E2 to E5 MCP]
-    E1 ==> D[D1 D2 D3 loading]
-    F[F1 F2 F3 shaping] ==> B
-    B ==> H[H1 H2 H3 reflect]
+    CV[Conversation] ==> RC[Render once]
+    MD[Tool metadata] ==> OF[Offer verbs]
+    RC ==> OF
+    OF ==> DS[Discovery tools]
+    MD ==> DP[Dispatch checks]
+    DS ==> DP
+    MC[MCP design] ==> OF
+    MC ==> MX[MCP details]
+    MC ==> LD[Loading]
+    RC ==> RF[Reflection]
+    RC ==> SH[Shaping]
 ```
 
-The suggested order has five steps. First come the section conversation and render-once (Part 2 and B1), which can attach today's effective tools before the offering change lands. Next come metadata and the offering API (G1, A1 to A3), then the discovery tools and dispatch checks (C1, C2, G2), then MCP (E1 to E5, with D1 to D3). Shaping comes last (F1 to F3), because it is the only step that needs a measured evaluation before it ships. F2 still points at B2 in Figure 6: the catalog record should reserve a place for the shape mapping from the start, even though the mapping stays empty until the first shaped Pack exists.
+The work starts with one fix that predates the design, and then runs in six steps, in the order of Table 10. First come the section conversation and rendering once; Part 2's eight implementation steps make up this step, except the offering half of its step 7, which waits for the offer verbs. Metadata and the offer verbs come next, then the discovery tools and dispatch checks, then MCP with loading and requirements, then reflection and the run record. Shaping comes last, because only shaping needs a measured evaluation before it ships. Even so, the rendered catalog's record should reserve an empty place for the shape mapping from the start.
 
-### The migration breaks little that ships, and two problems exist before any of it starts
+### Migration and impact
 
-The inventory below lists what each part of the design changes, what it breaks, and what is already broken. It covers the whole workspace at the pinned commits. Part 2's migration section gives the conversation change's own file list.
+Two live prompts change, and most of the work is in the Engine, its tests, and the docs; the conversation change's own files are under Migration in Part 2.
 
-**Live prompts.** Only two prompts use the offering APIs, and neither offers between model calls. The Workshop chat agent uses `packs.offer("web")`, `tools.offer(tools.extras())`, and `messages.new()` (`crates/workshop/agents/agents/chat.md` lines 28-35); `prompts/research-person.md` uses `tools.offer({"web/search", "web/fetch"})` and `messages.new()` (lines 21 and 40-43). Both change under Pack-only offering and one list per section: the chat agent offers its core Packs fixed and its extras dynamic, as in Part 3, and research-person offers the `web` Pack, or a filtered view of its two tools. No other live prompt uses `tools.required`, `packs.get`, `tools.call`, or the MCP tools. The Briefer, Diligence, and Staker files in `tools-public/analysis/` are Cursor agent instruction documents, not Runvil prompts, so nothing there migrates; their case for discovery stands as a future prompt pattern.
+- Live prompts. Only the Workshop chat agent and research-person use the offering APIs, and neither offers between model calls [C9; C26]. The chat agent will offer its core Packs fixed and its extras dynamic (Part 3), and research-person will offer the `web` Pack or a filtered view of its two tools. Briefer, Diligence, and Staker are Cursor agent instruction documents, so they stay as they are [C53].
+- The MCP client. Its changes are the same in either design (Part 3). The chat agent reaches MCP through `tools.extras()` and the two static tools, so it migrates in the same change.
+- The Engine and Lua API. `tools.offer` by id, `tools.required()`, `tools.extras()`, and `tools.allow_tasks` go [P1]. The offer verbs, filters, metadata, discovery built-ins, rendering once, dispatch gates, and the section conversation are new.
+- Tests, the largest job. Of the Rust test files, 39 use `tools.offer(`, 4 `packs.offer(`, and 5 `tools.extras(` or `tools.required(` [C54], on top of the conversation tests counted in Part 2.
+- Docs. The language guide's chapters on conversations, tools, and tasks hold most of the change; seven chapters contain `tools.offer(`, and ten mention `tools.offer` [C54].
 
-**Paperweight is already broken against `runvil` HEAD, independent of this design.** It imports `harness::plugin::{HostContext, HostServices, PackageRegistry}` (`wg21-paperflow/crates/paperweight/src/app.rs` line 22). At `runvil` `b1bbe33eb` those names live in `harness::pack`, as `HostContext`, `HostServices`, and `PackRegistry`, and `harness::plugin` now holds the library-Plugin loader (`crates/harness/src/lib.rs` lines 28-52). The next bump of Paperweight's `vendor/runvil` submodule, pinned at `07e7e01b1`, will fail to compile until the import changes. Separately, `paperweight.md` line 534 calls a bare global `fanout`, which neither the current nor the vendored Engine installs; only `tasks.fanout` exists (`crates/runvil-internal/lua/src/coro.rs` line 259). That reading is from the code and was not run. To use MCP at all, Paperweight's Host must also insert the MCP Plugin with a `paperstore` entry, because today its registry holds only the native built-ins (`app.rs` lines 173-182; vendored `packages.rs` lines 59-63).
+Paperweight is already broken against `runvil` at `b1bbe33eb`. It imports its Host types from `harness::plugin`, which now holds the library-Plugin loader; the types now live in `harness::pack`, with `PackageRegistry` renamed `PackRegistry` [C55; C41]. The next bump of its `vendor/runvil` submodule, pinned at `07e7e01b1`, fails to compile until the import changes, so that fix comes first. The prompt also calls a bare global `fanout`, which neither the current nor the vendored Engine installs; only `tasks.fanout` exists [C41; C56]. And to use MCP, its Host must insert the MCP Plugin with a `paperstore` entry, because its registry holds only the native built-ins [C41].
 
-**Runvil's MCP client speaks the pre-2026-07-28 handshake.** `plugin-mcp` depends on `rmcp` pinned at `=3.5.1` (`runvil/Cargo.toml` line 116) and connects with `client_config().serve(transport)` (`crates/plugin-mcp/src/connect.rs` lines 84-85). That `rmcp` release documents that "Existing `ServiceExt::serve` behavior remains legacy initialization" (`rmcp-3.5.1/src/service/client.rs` line 639); `server/discover` runs only under its `Discover` or `Auto` lifecycle modes (lines 642-655). So Runvil never calls `server/discover` and never receives the `instructions` a 2026-07-28 server publishes there. MCP 2026-07-28 says a modern-only client fails against a legacy server, and a legacy-only client against a modern-only server is not covered in the research. The version Runvil offers in that `initialize` is likely `2025-11-25`, because `rmcp` names it `LATEST_WITH_INITIALIZE` and says an `initialize` reply "can never name" the newer `LATEST` (`rmcp-3.5.1/src/model.rs` lines 156-201); this was not traced end to end. Question E5 recommends moving to the `Auto` lifecycle.
+Runvil's MCP client speaks only the handshake that predates MCP 2026-07-28. It connects through `rmcp` 3.5.1 with `client_config().serve(transport)` [C50], and that release says "Existing `ServiceExt::serve` behavior remains legacy initialization" [C52]. `rmcp` calls `server/discover` only in its `Discover` or `Auto` lifecycle, so Runvil misses the `instructions` a 2026-07-28 server publishes there. Runvil probably offers version `2025-11-25`, because `rmcp` names that version `LATEST_WITH_INITIALIZE` and says an `initialize` reply "can never name" the newer `LATEST` [C52]. MCP 2026-07-28 covers only the reverse mismatch, saying a modern-only client fails against a legacy server [E13]. `rmcp`'s `Auto` lifecycle tries `server/discover` first and falls back to `initialize`, so switching to it covers both kinds of server.
 
-**The MCP client.** Part 3 lists its changes, which are the same in every design. The chat agent's route to MCP through `tools.extras()` goes with the static tools, so the chat agent must be migrated in the same change.
+### Deferred topics
 
-**The Engine and Lua API.** `tools.offer` by id, `tools.required()`, and `tools.extras()` go (`runvil/vibe/2026-10-20-1-library-plugin-loading.md` lines 984-987), and `tools.allow_tasks` goes with the subagents rule (same plan, lines 978-983). The offer verbs, filters, metadata fields, discovery built-ins, render-once, dispatch checks, and the section conversation are new. Test files that use `tools.offer(` number 39, `packs.offer(` 4, and `tools.extras(` or `tools.required(` 5; with the 58 test files that call `messages.new()`, the test migration is the largest single job.
+Seven topics wait for later work:
 
-**Docs.** Chapters 11 (conversations), 12 (tools), and 15 (tasks) of the language guide hold most of the change; `tools.offer(` appears in seven chapters (01, 05, 11, 12, 13, 15, and 16), and ten mention `tools.offer`.
+- Local stdio MCP servers, which the client refuses today [C57] and which raise process and sandbox questions of their own.
+- How OAuth is implemented, because MCP 2026-07-28 adds client obligations on issuers and stored credentials [E13].
+- Sandboxing for the WASM marketplace, which will take only WASM Plugins [H 19:38], a design separate from offering.
+- Counting tool schemas in the compactor's estimate (Table 8).
+- Running the accuracy benchmarks for reduced rendering, which is implementation work.
+- Provider-native tool search as a rendering backend. Anthropic's and OpenAI's tool search keep the prefix stable by adding discovered tools after it [E9], and could one day replace the discovery tools for some models; Runvil's own pair works for every model now.
+- How Workshop shows discovery calls in its UI.
 
-**Order of change.** Fix Paperweight's import first, because it blocks the submodule bump regardless. Then follow Figure 6: the section conversation and render-once; metadata and the offer verbs; the discovery tools and dispatch checks; MCP, with the chat agent migrated in the same change; and shaped Packs last.
+### Limits and assumptions
 
-### Scope: eight alternatives stay rejected, and seven topics are deferred
+Most external evidence is vendor-reported. Of 36 quantified claims on savings and accuracy in the 2026-10-14 harness report, 31 were vendor-reported or self-published, and the 2026-10-20 research still found every vendor figure unreplicated [R2]. Figures from the 2026-10-14 reports, such as Cursor's token counts and the cache multipliers, were taken as published, without re-fetching [R1; R2].
 
-**Rejected, and not reopened.** Part 1 lists eight rejected alternatives. Two of them bound this report's scope most. Dynamic MCP configuration, edited by Lua or the model or discovered on the internet, was cut for credentials and security (design discussion with Vinnie Falco, 2026-10-20, 6:33 PM). Moving a conversation into another section was rejected because sections clear history by design (6:55 PM).
+The 64-character cap and the 30-second rendezvous default come from other harnesses and provider limits, and the listing cap still needs a value. The shaping questions wait on an evaluation that has yet to be built. Code claims come from reading the code at the pinned commits, not from running prompts.
 
-**Deferred, each with its reason.**
+The huddle transcript is auto-generated. Quotes correct known garbles in square brackets, "Jason" for JSON, "Runville" for Runvil, "lure" or "luau" for Lua, and "Wazm" for WASM, and others may remain. Its timestamps run to about 49 minutes against a 38-minute header window, 4:32 to 5:10 PM, so they are offsets into the recording.
 
-- **Local stdio MCP servers.** The client refuses `command` entries today (`crates/plugin-mcp/src/entry.rs` lines 11-13), and they raise process and sandbox questions outside this report.
-- **How OAuth is implemented.** MCP 2026-07-28 adds client obligations on issuers and stored credentials that deserve their own design.
-- **WASM marketplace sandboxing.** Vinnie said the marketplace will take only WASM Plugins (huddle with Jason, 2026-10-20, 19:38); that design is separate from offering.
-- **Counting tool schemas in the compactor's estimate.** The precheck leaves them out today (`crates/runvil-internal/lua/src/compactors.rs` lines 221-237); the attached catalog makes the count constant per section, so it can be added without changing the design.
-- **Running the accuracy benchmarks.** Question F3 says what to measure; running it is work, not design.
-- **Provider-native tool search as a rendering backend.** Anthropic's tool search and OpenAI's `tool_search` keep the prefix stable by injecting discovered tools later, which could one day replace the discovery tools for some models; Runvil's own pair works for every model now.
-- **How Workshop shows discovery calls in its UI.**
+The settled decisions in Table 3 are taken as fixed. The two rendezvous details in Part 1 are derived; they were put to Vinnie, and he did not object. Agora is known only from the huddle, because Jason's prompt is outside the workspace.
 
-### Limits: the evidence is mostly vendor-reported, nothing is measured on Runvil, and five items are unverified
+These items remain unverified:
 
-**The external evidence is mostly vendors describing their own products.** Of 36 quantified claims on savings and accuracy that the 2026-10-14 harness report collected, 31 were vendor-reported or self-published, and no vendor figure had an independent replication ("What to steal...", 2026-10-14, line 36). The 2026-10-20 research found no replication either. Figures taken from the 2026-10-14 reports, such as Cursor's token counts and the cache multipliers, were not re-fetched on 2026-10-20.
+- The protocol version `plugin-mcp` sends in `initialize`, probably `2025-11-25`; the path is untraced end to end.
+- How a legacy-only client like Runvil's fares against a modern-only MCP server.
+- That the Workshop chat agent's `tools.offer(tools.extras())` offers only the two MCP tools, inferred from the run pick and the extras filter.
+- That Paperweight fails at its bare `fanout` call on a paper triaged as a proposal, from code reading only [C41; C56].
+- That a held record view keeps reading its record after a `replace`, from code reading only, and untested.
+- Four harness behaviors: the current list of Claude Code's deferred built-ins, why Claude Code restored `Agent` in v2.1.72, how Codex answers `apply_patch` under a read-only sandbox, and whether Gemini's `allowedFunctionNames` is a documented API field.
 
-**Nothing in this report was measured on Runvil.** Every recommendation that names a number, such as the 64-character cap, the 30-second rendezvous default, or the listing cap, borrows it from another harness or a provider limit. Every question in group F waits on an evaluation that does not exist yet.
+### Recommendations
 
-**The code was read, not run.** Every code claim cites a file and lines at `runvil` `b1bbe33eb`, `runvil-docs` `62ae759`, or `wg21-paperflow` `693ef8ab`. No prompt was executed for this report.
+**Table 10.** Recommendations, in order of work.
 
-**The transcripts are auto-generated.** Quotes from the 2026-10-20 huddle correct known garbles in square brackets, "Jason" for JSON, "Runville" for Runvil, "lure" or "luau" for Lua, and "Wazm" for WASM; others may remain. The huddle's header gives a window of 4:32 to 5:10 PM, 38 minutes, yet its timestamps run to about 49 minutes, so this report treats them as offsets from the start of the recording, not as clock times. Two of Vinnie's statements, at 6:36 PM and 6:50 PM, were answers to questions put to him during the design discussion and were confirmed verbatim separately.
-
-**Assumptions the recommendations rest on.** Vinnie's settled decisions in Table 4 stand. Agora is described from the huddle, because Jason's prompt is not in the workspace. The derived readings of the rendezvous in Part 1 were stated back to Vinnie and not contradicted. Hosts keep MCP connections Host-wide, as Workshop does.
-
-**Unverified items.**
-
-- The protocol version `plugin-mcp` sends in its `initialize` request. It is likely `2025-11-25`, the newest version `rmcp` 3.5.1 pairs with that handshake, but the path was not traced end to end.
-- That the Workshop chat agent's `tools.offer(tools.extras())` offers exactly the two MCP tools; inferred from the run pick and the extras filter.
-- That Paperweight fails at `paperweight.md` line 534 on a paper triaged as a proposal; code reading only.
-- That a held record view keeps reading its record after a `replace`; code reading, no test.
-- Several harness behaviors the research marked unverified: the current list of Claude Code's deferred built-ins, why Claude Code restored `Agent` in v2.1.72, how Codex answers `apply_patch` under a read-only sandbox, and Gemini's `allowedFunctionNames` as a documented API field.
-
-### Recommendations: twelve pieces of work, in the order of Figure 6
-
-Table 11 groups the 23 answers and the Part 2 specification into twelve pieces of work, in the suggested order. Vinnie decides every row, and the owner column names the suggested drafter, as in Part 4. Confidence is about the recommendation, with the reason in a phrase.
-
-**Table 11.** Recommendations with their questions, suggested owner, next step, and confidence.
-
-| # | Recommendation | Questions | Owner | Next step | Confidence |
-|-|-|-|-|-|-|
-| 1 | Fix Paperweight's pre-rename import | Migration | Jason | Import from `harness::pack` before the submodule bump | High: the bump cannot compile otherwise |
-| 2 | Build the section conversation | Part 2 | Maintainer | Part 2 steps 1 to 3 and tests 1 to 4 | High on the rule, medium on details |
-| 3 | Render once, attach, raise on change | B1, B2 | Greg | Attach today's effective tools first | Medium: offer identity needs defining |
-| 4 | Add MCP's annotations to every tool, trusted on the Host's word | G1 | Maintainer | Add `ToolInfo` fields with serde defaults | Medium: limits untrusted servers |
-| 5 | Two offer verbs and a filter table | A1 to A3 | Maintainer | Choose the spelling; write the grammar | Low to medium: naming is taste |
-| 6 | List the dynamic set in `GetDynamicTools`'s description | C1, C2 | Greg | Measure the listing; write descriptions | Low to medium: unmeasured |
-| 7 | Fixed dispatch order; refusals as tool results | G2 | Greg | Write and test the refusal texts | Medium: changes a tested behavior |
-| 8 | MCP as a catalog-providing Pack; H1 requirement check | E1, D2, D3 | Jason | Add the capability to the Pack contract | Medium: Vinnie gave no lean |
-| 9 | MCP names, rendezvous cap, results, lifecycle | E2 to E5 | Jason | Move `connect.rs` to `rmcp`'s `Auto` lifecycle | Medium: borrowed defaults |
-| 10 | An extras opt-out | D1 | Maintainer | Add the front-matter key | Medium: one precedent |
-| 11 | Shaped Packs fixed-only, shapes in Packs, A/B first | F1 to F3 | Maintainer | Build the A/B harness on file tools | Medium: no evidence on reduction |
-| 12 | Read-only reflection and run-record additions | H1 to H3 | Maintainer; Jason for H2 | Add `metadata`, `placement`, `status` | Medium to high: extends today's objects |
-
-Two rows need Vinnie's attention most. Row 8 is the one structural choice he left open, and it shapes rows 5, 9, and 10. Row 7 changes a behavior authors rely on today, because a model's out-of-scope call would stop ending the loop and start returning text the model can act on.
+| # | Recommendation | Covers | Next step | Confidence |
+|-|-|-|-|-|
+| 1 | Fix Paperweight's pre-rename import | Migration | Import from `harness::pack` before the submodule bump | High |
+| 2 | Build the section conversation | Part 2 | Steps 1 to 3 and tests 1 to 4 | High for the rule, medium for details |
+| 3 | Render once, attach, raise on change | Group B | Attach today's effective tools first | Medium |
+| 4 | MCP's annotations on every tool, trusted on the Host's word | Group G | Add `ToolInfo` fields with serde defaults | Medium |
+| 5 | Two offer verbs and a filter table | Group A | Choose the spelling; write the grammar | Low for the names, medium for the rest |
+| 6 | List the dynamic set in `GetDynamicTools`'s description | Group C | Measure the listing; write the descriptions | Medium for the listing, low for the tool shapes |
+| 7 | Fixed dispatch order; refusals as tool results | Group G | Write and test the refusal texts | Medium |
+| 8 | MCP as a Pack that provides catalogs; requirements checked in the H1 section | Groups E and D | Add the capability to the Pack contract | Medium |
+| 9 | MCP names, rendezvous cap, results, and lifecycle | Group E | Switch the client to `rmcp`'s `Auto` lifecycle | Medium |
+| 10 | An extras opt-out | Group D | Add the front-matter key | Low |
+| 11 | Read-only reflection and run-record additions | Group H | Add `metadata`, `placement`, and `status` | High for what Lua can read, medium for the rest |
+| 12 | Shaped Packs fixed only, shapes in their Packs, A/B first | Group F | Build the A/B harness on the file tools | Medium |
 
 ## Appendices
 
-### Appendix A. The Slack sketches, mapped to the design
+### Appendix A. The Slack sketches
 
-On 2026-10-20, between 4:30 and 5:20 PM, Vinnie posted seventeen Lua sketches to Jason in the Runvil Slack thread while they talked in a huddle. Table A1 shows what each sketch reached for and where it stands under the settled design and the recommendations. Two sketches end with a Lua comment in the original, given here in words.
+During their huddle on 2026-10-20, Vinnie posted seventeen sketches to Jason in the Runvil Slack thread [S 4:30-5:20]. Two end with a Lua comment, given here in words.
 
 **Table A1.** The Slack sketches and their status.
 
-| # | Time | Sketch | Reached for | Status now |
+| # | Time | Sketch | Reached for | Status |
 |-|-|-|-|-|
-| S1 | 4:30 PM | "GetDynamicTools CallDynamicTool" | Discovery tools | Still the way: Engine built-ins |
+| S1 | 4:30 PM | "GetDynamicTools CallDynamicTool" | Discovery tools | Kept, as Engine built-ins |
 | S2 | 4:55 PM | `mcp.promote_server('paperstore')` | Promote one server | Rejected as too narrow |
-| S3 | 4:57 PM | `paperstore.get_paper = function( pid ) ... end` | A wrapper over one tool | Still the way |
-| S4 | 4:58 PM | A `## paperstore` section returning the wrapper | A library section | Still the way, without S2 |
-| S5 | 4:58 PM | `require('## paperstore')` | Calling the wrapper | Still the way |
-| S6 | 5:00 PM | `mcp.make_tools('paperstore')`, `tools.offer(ts)` | Tools as a value | Superseded by filtered views |
+| S3 | 4:57 PM | `paperstore.get_paper = function( pid ) ... end` | A wrapper over one tool | Kept |
+| S4 | 4:58 PM | A `## paperstore` section returning the wrapper | A library section | Kept, without S2 |
+| S5 | 4:58 PM | `require('## paperstore')` | Calling the wrapper | Kept |
+| S6 | 5:00 PM | `mcp.make_tools('paperstore')`, `tools.offer(ts)` | Tools as a value | Replaced by filtered views |
 | S7 | 5:01 PM | `tools.add(ts)` | A second verb | Rejected: `tools.add` is gone |
-| S8 | 5:02 PM | `mcp.servers()` ("returns a list of servers") | Reflection | Still the aim (Appendix D) |
-| S9 | 5:04 PM | `ts.call('get_paper', ...)` | Calling through the value | Superseded by `tools.call` |
-| S10 | 5:04 PM | `tools.offer(ts.tool('get_paper'))` | One named tool | Superseded by a name filter |
-| S11 | 5:05 PM | `tools.offer(mcp.get_tool('paperstore/get_paper'))` | One tool by server name | Superseded by a filter and E2 ids |
+| S8 | 5:02 PM | `mcp.servers()` ("returns a list of servers") | Reflection | Kept as reflection (Appendix D) |
+| S9 | 5:04 PM | `ts.call('get_paper', ...)` | Calling through the value | Replaced by `tools.call` |
+| S10 | 5:04 PM | `tools.offer(ts.tool('get_paper'))` | One named tool | Replaced by a name filter |
+| S11 | 5:05 PM | `tools.offer(mcp.get_tool('paperstore/get_paper'))` | One tool by server name | Replaced by a filter and `mcp/<server>/<tool>` ids |
 | S12 | 5:17 PM | `mcp.servers()` ("return the list of servers") | Reflection | As S8 |
-| S13 | 5:17 PM | `mcp.server('paperstore')` | One server | Design L spelling |
+| S13 | 5:17 PM | `mcp.server('paperstore')` | One server | The spelling if MCP is in the Engine |
 | S14 | 5:17 PM | `mcp.make_tools('paperstore')`, `tools.offer(ts)` | S6 again | As S6 |
 | S15 | 5:18 PM | "paperstore, wg21_wiki, wg21_reflector" | Servers in mind | Context |
-| S16 | 5:19 PM | `tools.offer(mcp.get_tools('paperstore'))` | A getter | Superseded by Pack verbs |
-| S17 | 5:20 PM | `mcp.get_tools(...)`, `if( ps == nil )`, `panic(...)` | A server check | Still the way as D2's H1 check, using `error` |
+| S16 | 5:19 PM | `tools.offer(mcp.get_tools('paperstore'))` | A getter | Replaced by the Pack verbs |
+| S17 | 5:20 PM | `mcp.get_tools(...)`, `if( ps == nil )`, `panic(...)` | A server check | Kept as the check in the H1 section, with `error` |
 
-The sketches moved in the direction the huddle describes. Vinnie began with one purpose-built call, `promote_server`, judged it "crap" because "This this violates the principle of do more with less" (38:43), and moved toward general pieces: a value representing a server's tools, reflection over servers, and a plain wrapper section. The recommendations keep the general pieces and fold the value into the existing Pack objects.
+Vinnie began with one purpose-built call, `promote_server`, and called it "crap" because "This this violates the principle of do more with less" [H 38:43]. He moved to general pieces: a value holding a server's tools, reflection over servers, and a wrapper section. The design keeps the general pieces, and the server-tools value became a filtered view.
 
-### Appendix B. Worked offering examples
+### Appendix B. Offering examples
 
-All Lua here is illustrative. It uses the recommended verbs `packs.offer` and `packs.offer_dynamic` (question A1) and the filter table of question A3, and it assumes Design P-general (question E1). A `github` Pack with many tools is hypothetical, from Vinnie's example at 6:02 PM.
+This illustrative Lua uses the recommended offer verbs and filter table, with MCP as a Pack that provides catalogs. The `github` Pack is hypothetical, after Vinnie's 18-tool example [D 6:02]. Paperweight, the Agora pattern, and the Workshop chat agent appear in both MCP designs in Part 3.
 
-**Paperweight, the Agora pattern, and the Workshop chat agent.** Part 3 writes all three in both designs.
+Briefer, today a Cursor agent instruction document [C53], would follow the Agora pattern as a Runvil prompt, because, as Vinnie put it, it "can take advantage of extra data sources if they're available" [H 23:31]. It would offer its research Pack fixed, offer every extra and the `mcp` Pack dynamic, and let the model decide.
 
-**Briefer as a future Runvil prompt.** The Briefer in `tools-public/analysis/` is a Cursor agent instruction document, not a Runvil prompt, and the `runvil: 1` port in `runvil/local/` uses removed APIs. A Runvil Briefer would follow the Agora pattern, because Vinnie's case for it is that it "can take advantage of extra data sources if they're available" (huddle with Jason, 2026-10-20, 23:31): offer its research Pack fixed, every extra and the `mcp` Pack dynamic, and let the model decide.
-
-**A split offer: read-only tools fixed, the rest dynamic.** Because a tool offered fixed is never discoverable, the second offer can name the whole Pack; the read-only tools stay fixed, and only the rest enter the dynamic set.
+A split offer places a Pack's read-only tools fixed and the rest dynamic. A tool offered fixed stays out of the dynamic set, so the second offer can name the whole Pack.
 
 ```lua
 local gh = packs.get("github")
@@ -1282,7 +1167,7 @@ packs.offer(gh:where{ readOnlyHint = true })
 packs.offer_dynamic(gh)
 ```
 
-**One named tool fixed out of a dynamic Pack.** The same rule makes this the same shape, with a name filter in place of the metadata filter.
+A name filter places one tool fixed out of a dynamic Pack the same way.
 
 ```lua
 local gh = packs.get("github")
@@ -1290,15 +1175,15 @@ packs.offer(gh:where{ names = { "list_commits" } })
 packs.offer_dynamic(gh)
 ```
 
-**Read-only core file tools for a review section.** A shaped Pack exposes no names, so only a metadata filter applies; a filter that splits a combined tool renders it reduced or, failing that, in full with the write parts refused at dispatch (Table 4, row 20).
+A review section can offer the core file tools read-only. Only metadata filters apply to a shaped Pack, and a filter that splits an editor renders it reduced, or in full with refusals if the reduced form performs poorly, as settled.
 
 ```lua
 packs.offer(packs.get("files"):where{ readOnlyHint = true })
 ```
 
-### Appendix C. One MCP catalog, from configuration to call, in each design
+### Appendix C. One MCP catalog from configuration to call
 
-The example Host configuration below names two remote servers. The URLs and the `examples` server are illustrative; `getUser` and `admin.tools.list` are the tool names MCP 2026-07-28 itself gives as examples of valid names (research on MCP naming, 2026-10-20).
+In this example Host configuration, the URLs and the `examples` server are illustrative, and `getUser` and `admin.tools.list` are names MCP 2026-07-28 itself gives as valid examples [E13].
 
 ```json
 {
@@ -1313,28 +1198,26 @@ The example Host configuration below names two remote servers. The URLs and the 
 }
 ```
 
-**From configuration to catalog.** The Host hands the `mcpServers` object to the MCP client, as Workshop does today (`crates/workshop/server/src/agents.rs` lines 145-163). The client starts one background connection per server at Host startup. At the first need, the rendezvous waits until every server has listed its tools or failed, up to the per-server cap of question E3, and the client turns each listing into one catalog, keeping each tool's annotations and output schema.
+The Host hands `mcpServers` to the MCP client, as Workshop does today [C18]. At the rendezvous, each server's listing becomes an MCP catalog that keeps each tool's annotations and output schema, and Lua reads it as `packs.get("mcp"):catalog("paperstore")`.
 
-**From catalog to ids and wire names.** Table C1 shows the recommended mapping (question E2) for Design P, with Design L's prefix form for comparison. Ids are lowercased, and the server's own name is kept for the call. `getUser` and a hypothetical `getuser` on the same server would collide after lowercasing, so the second is refused, and the refusal names both tools (question E2).
+Each tool gets a lowercased id and a wire name, and the server's own name is kept for the call (Table C1, with the prefix form MCP would use as an Engine feature). A hypothetical `getuser` beside `getUser` on one server would collide after lowercasing, so the client refuses the second and names both.
 
-**Table C1.** Sample MCP tools as ids, wire names, and Lua lookups.
+**Table C1.** Sample MCP tools as ids and wire names.
 
-| Server | Tool as listed | Design P id | Wire name | Design L id, prefix form | Lua lookup, Design P |
-|-|-|-|-|-|-|
-| `paperstore` | `get_paper` | `mcp/paperstore/get_paper` | `mcp_paperstore_get_paper` | `mcp.paperstore/get_paper` | `packs.get("mcp"):catalog("paperstore")` |
-| `github` | `list_commits` | `mcp/github/list_commits` | `mcp_github_list_commits` | `mcp.github/list_commits` | `packs.get("mcp"):catalog("github")` |
-| `examples` | `getUser` | `mcp/examples/getuser` | `mcp_examples_getuser` | `mcp.examples/getuser` | `packs.get("mcp"):catalog("examples")` |
-| `examples` | `admin.tools.list` | `mcp/examples/admin.tools.list` | `mcp_examples_admin_tools_list` | `mcp.examples/admin.tools.list` | as above |
+| Server | Tool as listed | Id | Wire name | Id if MCP is in the Engine |
+|-|-|-|-|-|
+| `paperstore` | `get_paper` | `mcp/paperstore/get_paper` | `mcp_paperstore_get_paper` | `mcp.paperstore/get_paper` |
+| `github` | `list_commits` | `mcp/github/list_commits` | `mcp_github_list_commits` | `mcp.github/list_commits` |
+| `examples` | `getUser` | `mcp/examples/getuser` | `mcp_examples_getuser` | `mcp.examples/getuser` |
+| `examples` | `admin.tools.list` | `mcp/examples/admin.tools.list` | `mcp_examples_admin_tools_list` | `mcp.examples/admin.tools.list` |
 
-A wire name longer than 64 characters keeps its first 55 characters and takes an underscore and an 8-character hash, so it stays valid on OpenAI's Chat Completions limit; Cline uses the same scheme (research on MCP naming, 2026-10-20).
+A wire name longer than 64 characters keeps its first 55 characters and adds an underscore and an 8-character hash, so it stays within OpenAI's Chat Completions limit; Cline does the same [E7].
 
-**From call to server.** A model's call to `mcp_paperstore_get_paper` maps through the attached catalog to `mcp/paperstore/get_paper`, passes the dispatch checks of question G2, and reaches the `mcp` Pack, which the Harness picks by the id's first segment (`crates/harness-internal/runner/src/host-run.rs` lines 10-11). The Pack sends `tools/call` to `paperstore` with the server's own name, `get_paper`. A Lua `tools.call("mcp/paperstore/get_paper", { paper_id = "p4003" })` takes the same route without the model.
+A model's call to `mcp_paperstore_get_paper` maps through the rendered catalog to `mcp/paperstore/get_paper` and passes the dispatch gates. The Harness routes it to the `mcp` Pack by the id's first segment [C4], and the Pack sends `tools/call` to `paperstore` as `get_paper`. A Lua `tools.call` of the same id takes the same route without the model.
 
 ### Appendix D. Reflection examples
 
-These sketches use the read-only objects of question H1 under Design P-general. They are illustrative.
-
-Listing server status at once, without waiting for the rendezvous (question H2):
+These illustrative sketches use the recommended read-only objects, with MCP as a Pack. Server status reads at once, before the rendezvous:
 
 ```lua
 for _, server in ipairs(packs.get("mcp"):servers()) do
@@ -1342,7 +1225,7 @@ for _, server in ipairs(packs.get("mcp"):servers()) do
 end
 ```
 
-Checking for a newer paper store function, here a hypothetical `search_papers`, before using it, Vinnie's backward-compatibility case (huddle with Jason, 2026-10-20, 41:49). Reading the catalog's tools waits for the rendezvous.
+Vinnie's backward-compatibility case checks for a newer paper store function, here a hypothetical `search_papers`, before using it [H 41:49]. Reading a catalog's tools waits for the rendezvous.
 
 ```lua
 local ps = packs.get("mcp"):catalog("paperstore")
@@ -1352,7 +1235,7 @@ for _, tool in ipairs(ps.tools) do
 end
 ```
 
-Reading metadata and placement, for a section that wants to know what its model can change:
+Metadata and placement show which of the model's fixed tools can make changes:
 
 ```lua
 for _, tool in ipairs(packs.get("github").tools) do
@@ -1362,129 +1245,291 @@ for _, tool in ipairs(packs.get("github").tools) do
 end
 ```
 
-A shaped Pack answers the same calls with `shaped = true` and an empty `tools` list, because it exposes no named tools.
+A shaped Pack answers the same calls with `shaped = true` and an empty `tools` list.
 
-### Appendix E. Per-harness details behind Table 5
+### Appendix E. Per-harness details
 
-Table E1 gives the per-harness facts that Table 5 summarizes, as surveyed on 2026-10-20. "Not documented" means the sources read do not say, and "not surveyed" means the research did not cover that harness in that area. The sources follow the table.
+The harnesses were surveyed on 2026-10-20 [E7]. "Undocumented" means the sources read are silent, and "not surveyed" means the research skipped that harness in that area.
 
-**Table E1.** Per-harness practice in the areas of Table 5, with always-loaded tools and discovery in one column.
+**Table E1.** Per-harness practice, 2026-10-20.
 
-| Harness | Loaded core and deferral | Mode restriction | MCP names, cap, startup | Per-model tools | Compaction |
+| Harness | Loaded and deferred | Modes | MCP names, cap, startup | Per-model tools | Compaction |
 |-|-|-|-|-|-|
-| Claude Code | File tools, Bash, Agent loaded since v2.1.72; MCP deferred by default; names and server instructions up front | Tool list fixed across modes; plan mode enforced at call time; bare-name deny removes a tool | `mcp__<server>__<tool>`, 128; background start, `MCP_TIMEOUT` 30 s | Not documented beyond one read-before-edit rule | Rewrites context in session; transcript keeps history; stops after 3 failures |
-| Codex CLI | Shell and `apply_patch` direct; MCP deferred when search is on | Approval and OS sandbox at execution; Plan mode by developer text | `mcp__<server>__<tool>`, 128 with hash; per-server `required` | Tool types from a model catalog, longest slug prefix | Replaces history; keeps user messages and a summary |
-| Cursor | Read, search, edit, shell loaded; `Task` and MCP behind discovery | Ask mode is read-only; mechanism not documented; mode switch starts a fresh context | Not documented; reached through `CallDynamicTool` | Not documented | Summarizes in the same chat; history file searchable |
-| Gemini CLI | Everything loaded | Policy engine excludes and refuses; `denyMessage` returned | `mcp_<server>_<tool>`, 63; interactive start not awaited | Not documented | Not surveyed |
-| OpenCode | Native tools loaded; MCP through Code Mode | Tool list per agent, recomputed per request | `<server>_<tool>`, no cap | `patch` for GPT ids, `edit` and `write` otherwise | Summary plus about 15,000 recent tokens; history stored |
-| Cline | Everything loaded | Plan preset removes editors; shell command guard names the alternative | `<server>__<tool>`, 64 with hash | Routing table by provider and model id | SDK projection over append-only history; strict check on custom compactors |
+| Claude Code | File tools, Bash, and Agent loaded since v2.1.72; MCP deferred; names and server instructions up front | List fixed; plan mode enforced at call time; a bare-name deny removes a tool | `mcp__<server>__<tool>`, 128; background, `MCP_TIMEOUT` 30 s | Only a read-before-edit rule documented | Rewrites in session; transcript keeps history; stops after 3 failures |
+| Codex CLI | Shell and `apply_patch` loaded; MCP deferred when search is on | Approval and OS sandbox at execution; Plan mode by developer text | `mcp__<server>__<tool>`, 128 with hash; per-server `required` | Tool types from a model catalog, longest slug prefix | Replaces history; keeps user messages and a summary |
+| Cursor | Read, search, edit, and shell loaded; `Task` and MCP behind discovery | Ask mode read-only, mechanism undocumented; a mode switch starts a fresh context | Undocumented; reached through `CallDynamicTool` | Undocumented | Summarizes in the same chat; history file searchable |
+| Gemini CLI | Everything loaded | Policy engine excludes and refuses, returning `denyMessage` | `mcp_<server>_<tool>`, 63; interactive start not awaited | Undocumented | Not surveyed |
+| OpenCode | Native tools loaded; MCP through Code Mode | List per agent, recomputed per request | `<server>_<tool>`, uncapped | `patch` for GPT ids, `edit` and `write` otherwise | Summary plus about 15,000 recent tokens; history stored |
+| Cline | Everything loaded | Plan preset removes editors; shell guard names the alternative | `<server>__<tool>`, 64 with hash | Routing table by provider and model id | Projection over append-only history; strict check on custom compactors |
 | Qwen Code | MCP and low-use built-ins deferred, including `agent` | Not surveyed | `mcp__<server>__<tool>`, 63 with hash; 5 s remote discovery | Not surveyed | Not surveyed |
-| VS Code | About 30 core tools cover about 88 percent of calls; rest deferred | Agent `tools` list per mode | `mcp_<prefix>_<tool>`, 64 | Not surveyed | Not surveyed |
-| Goose | Loaded by default | Swap to a read-only extension | `<extension>__<tool>`, no cap; waits before the first message | Not surveyed | Visibility flags in session; min of 80 percent and 225,000 tokens |
+| VS Code | About 30 core tools, covering about 88 percent of calls; the rest deferred | Agent `tools` list per mode | `mcp_<prefix>_<tool>`, 64 | Not surveyed | Not surveyed |
+| Goose | Loaded by default | Swap to a read-only extension | `<extension>__<tool>`, uncapped; waits before the first message | Not surveyed | Visibility flags in session; triggers at the lesser of 80 percent and 225,000 tokens |
 
-Sources, all accessed 2026-10-20. Claude Code: [MCP](https://code.claude.com/docs/en/mcp), [prompt caching](https://code.claude.com/docs/en/prompt-caching), [permissions](https://code.claude.com/docs/en/permissions), [env-vars](https://code.claude.com/docs/en/env-vars), [changelog](https://code.claude.com/docs/en/changelog), and [issue 31002](https://github.com/anthropics/claude-code/issues/31002). Codex: `openai/codex` at `d571eaf` (`codex-rs/codex-mcp/src/tools.rs`, `codex-rs/core/src/mcp_tool_call.rs`, `codex-rs/models-manager/src/manager.rs`, `codex-rs/core/src/compact.rs`) and [Codex MCP docs](https://developers.openai.com/codex/mcp). Cursor: [improved token efficiency](https://cursor.com/blog/improved-token-efficiency), [Ask mode](https://cursor.com/help/ai-features/ask-mode), [agent prompting](https://cursor.com/docs/agent/prompting), and first-hand observation of Cursor's own tool list. Gemini CLI: `google-gemini/gemini-cli` at `d00859d` and its [MCP docs](https://geminicli.com/docs/tools/mcp-server/). OpenCode: `anomalyco/opencode` at `aadd4d8` and its [compaction docs](https://opencode.ai/v2/docs/compaction/). Cline: `cline/cline` at `627e51e` and commit `cdcaa744`. Qwen Code: `QwenLM/qwen-code` at `6e6598e`. VS Code: [release 1.118](https://code.visualstudio.com/updates/v1_118). Goose: `aaif-goose/goose` at `7143ddd` and [smart context management](https://goose-docs.ai/docs/guides/sessions/smart-context-management). The research files listed under References hold each line-level citation.
+### Appendix F. Invariants and tests
 
-### Appendix F. Invariants and the tests that pin them
+Each invariant restates a settled rule or a recommendation as something a test can check. Part 2's acceptance tests cover invariants 1 to 4.
 
-Each invariant below restates a settled rule or a recommendation as something a test can check. The section conversation's fourteen acceptance tests are in Part 2 and are not repeated; they pin invariants 1 to 4.
+#### Section conversation
 
-**Section conversation (Part 2).**
+1. Each section has one `messages`, created only by the Engine, along with its VM.
+2. Every list stays in its section; a `jump` or a task arm starts with an empty `messages`.
+3. Compaction swaps validated records into the same `messages`, and the run record keeps the records from before and after.
+4. `models.infer` sends an empty tool list and leaves `messages` untouched.
 
-1. Each section has exactly one `messages`, created with its VM, and no constructor exists.
-2. No list crosses a section boundary; a `jump` or a task arm starts with an empty `messages`.
-3. Compaction swaps records into the same `messages` object, after validation, and records the records before and after.
-4. `models.infer` sends an empty tool list and never touches `messages`.
+#### Rendered catalog
 
-**Rendered catalog.**
+5. The rendered catalog is built at the section's first `models.loop` round and sent byte-identical on every later round. Test: compare every request's `tools` across a multi-round, compacting conversation.
+6. An offer that would change the rendered catalog once it is attached raises at the offer call, and an identical re-offer is a no-op. Test: both cases, with the error text.
+7. After a model change, the catalog stays, and a shaped call still reaches its canonical tool. Test: switch models between rounds, then call a shaped tool.
 
-5. The rendered catalog is built at the section's first `models.loop` round and sent byte-identical on every later round of that section. Test: capture the `tools` of every request in a multi-round, compacting conversation and compare them.
-6. An offer that would change an attached catalog raises at the offer call; an identical re-offer does not. Test: both cases, with the error text checked.
-7. A model change after first render keeps the catalog, and a shaped call still dispatches to its canonical tool. Test: switch models between rounds and call a shaped tool.
+#### Offering and discovery
 
-**Offering and discovery.**
+8. A tool offered fixed stays out of the dynamic set. Test: offer a filtered view fixed and its Pack dynamic, then list with `GetDynamicTools`.
+9. The discovery tools appear if and only if the dynamic set holds tools. Test: sections with and without a dynamic offer.
+10. A Lua `tools.call` leaves the dynamic set unchanged. Test: list the dynamic set before and after a Lua call to a dynamic tool.
+11. `CallDynamicTool` refuses a tool outside the dynamic set with a tool result naming an alternative. Test: call a fixed tool through it.
+12. Offering a shaped Pack dynamic raises. Test: `packs.offer_dynamic` on the file-tools Pack.
 
-8. A tool offered fixed never appears in the dynamic set. Test: offer a filtered view fixed and the whole Pack dynamic, then list `GetDynamicTools`.
-9. The discovery tools appear exactly when the dynamic set is not empty. Test: one section with a dynamic offer, one without.
-10. A Lua `tools.call` never changes what the model can discover. Test: call a dynamic tool from Lua and list the dynamic set before and after.
-11. A `CallDynamicTool` call to a tool outside the dynamic set returns a refusal that names an alternative, as a tool result. Test: call a fixed tool through `CallDynamicTool`.
-12. Offering a shaped Pack dynamic raises (question F1). Test: `packs.offer_dynamic` on the file-tools Pack.
+#### MCP
 
-**MCP.**
+13. MCP tools and catalogs exist in a run only when servers are configured. Test: a Host with an empty `mcpServers`.
+14. The first need waits until every server has listed or failed, and later needs answer at once. Test: time two reflections against one fast and one slow fake server.
+15. A failed server stays out until the Host restarts. Test: a fake server that fails, then recovers after the rendezvous.
+16. MCP configuration and credentials stay hidden from Lua. Test: search every reflected value for the header token.
 
-13. With no servers configured, no MCP tool and no MCP catalog exist. Test: a Host with an empty `mcpServers`.
-14. The first need waits until every server has listed or failed, and later needs answer at once. Test: one fast and one slow fake server, timing the first and second reflection.
-15. A server that fails stays out for the session. Test: a failing fake server that recovers after the rendezvous.
-16. Lua never reads the MCP configuration or credentials. Test: reflect over every object and search the values for the header token.
+#### Dispatch and metadata
 
-**Dispatch and metadata.**
+17. The dispatch gates run in their fixed order, and each refusal is text the Engine writes itself. Test: one call failing each gate.
+18. Ask mode refuses a write call at dispatch and leaves the catalog unchanged. Test: compare catalog bytes around a refused call.
+19. Annotations from an untrusted server read as MCP's defaults. Test: a server marking a write tool `readOnlyHint: true`.
 
-17. Dispatch checks run in the fixed order of question G2, and each refusal is the Engine's trusted text. Test: one call that fails each check.
-18. Ask mode refuses a write call at dispatch without changing the catalog. Test: catalog bytes before and after a refused call.
-19. Annotations from a server the Host does not trust read as MCP's defaults. Test: a server marking a write tool `readOnlyHint: true`.
+#### Replay
 
-**Replay.**
+20. A recorded run, including its rendered catalog, MCP results, and compactions, replays from its record alone, without Plugins or servers. Test: record, unload, replay, compare.
 
-20. A recorded run replays with no Plugin and no server loaded, including the attached catalog, MCP results, and compactions. Test: record, unload, replay, compare.
+### Appendix G. Decision log
 
-### Appendix G. The decision log: Vinnie Falco's statements, verbatim
+Vinnie Falco made these statements in the design discussion of 2026-10-20, Pacific time, and Table 3 rests on them. Spelling is as written. The 6:36 PM and 6:50 PM statements answered question dialogs, which the transcript file lacks, and were confirmed verbatim separately. Ellipses mark cut passages, and drafting instructions are left out.
 
-These are Vinnie Falco's statements in the design discussion of 2026-10-20, Pacific time, which Table 4 rests on. Spelling is preserved as written. The 6:36 PM and 6:50 PM statements were answers to question dialogs in that discussion. Passages about how this report was to be prepared are summarized or marked with an ellipsis, and a closing remark about its preparation is omitted.
-
-- **5:27 PM:** "tools.offer adds the tool to a running "offer catalog" which is rendered once for the agent session, just before the tools are first offered to the OpenAI-compatible endpoint (or equivalent). They are rendered late for the case where a Plugin Pack's tools are model-shaped (tools whose name, description, parameters, or semantics are modified to adapt to a specific vendor's model, due to training)"
-- **5:28 PM:** "shaped tools will be anonymous, they wont be callable in the Lua"
-- **5:47 PM:** two statements.
-  - He answered "yes" to "front matter offers packs only, and Lua can offer filtered sets after inspecting mcp.servers()". That was later refined: front matter offers nothing, and offering is Lua's job.
-  - On format: "for questions the design still has to answer, when I ask you for a report I want you, for each question, to propose a handful of possible answers."
-- **5:54 PM:** "1. no front matter solutions allowed. prefer solutions which are general and flexible. "withhold" is kind of specific. give me a few options 2. my gut tells me, not to tie the discovery to the actual usage of tools in Lua. Only tools.offer should affect discovery, in the sense that if a tool or pack is explicitly offered then it should not be also discoverable. and if there is no discoverable tool set then the discovery tools (GetDynamicTools, CallDynamicTool) should be squelched from the late-rendered tool catalog 3. MCP Tools are never model-shaped. Only specific packs are model-shaped: core tools like ReadFile, WriteFile, Grep, Rg, the subagents pack (those are not even individually offerable). and actually that's all I can think of. The number of model-shaped packs is small and enumerable. It is tied to how the closed-weight frontier model vendors decide to train their models. 4. I was thinking MCP annotations should be applicable to pack tools as well, not just MCP tools (i.e. allow each pack tool to have metadata). I'm not sure about the rest of the question 5. Ask-mode is a specific feature for a specific prompt (i.e. the general Agent window prompt used in Workshop). it is a HostService probably only offered to that one prompt. Maybe new prompts which are slight variations but its a "chat agent" type prompt. It would not be used in things like paperweight. So it would not need to apply to Lua calls. And we just need to trust."
-- **6:02 PM:** "shaped packs have to be filterable. or else how could we apply readOnlyHint=true as a filter to the core tools (allow ReadFile, disallow WriteFile, disallow StrReplace for example) progressive tool discovery is independent of MCP. The 2 discovery tools are built-in to the engine and they appear only when a model is offered the withheld tool set. The idea here is to make the mcp client treat its catalog as just another source of tools, the server acts like a "pack", and the Lua controls whether these tools are progressive or fixed. And I want to shape Runvil so that tools that do not come from mcp can become discoverable. For example a "github" pack that has 18 tools for interacting with github. the Lua should be able to offer the entire pack as a rendered catalog, or it should be able to offer the pack as progressive discovery."
-- **6:06 PM:** "I want a beautiful report using @tools-public/rulebooks/reports-rulebook.md and I dont mind if there are 6 questions or even 7 for an open issue. Every question should have a couple of sentences of explanation at least, and every offered answer should have some explanation as well. The report should be written for someone who is just starting on maintaining Runvil."
-- **6:15 PM:** "for now, any attempt to change the tool catalog after it is rendered the first time should result in a hard error. we can always loosen this later, with evidence. what this means when a filter splits a shaped tool, is that we should render it reduced, and refuse disallowed calls at dispatch. however, if this results in poor performance (because the model was trained on the full description) then we have to fall back to full rendering, and refusing the disallowed operation at dispatch. For 2 I agree, filters already allow matching a tool subset so why not a subset of 1 named tool. the shaped-tool packs will just not offer any named tools to the Lua, so it will not be able to select one in the first place. for 3. how about packs.offer and packs.dynamic_offer ? Maybe? I am thinking maybe the frontmatter needs to have a flag that tells the harness "only load named packs. ignore available packs that are not in 'uses'. 4. if a tool is offered fixed, it never can be discovered. this prevents wasteful overlap and waste in general, because discovery consumes an extra model turn and there are 2 more tools competing for attention (the discovery tools) 5. my instinct is that shaped packs are never progressive. core tools like ReadFile, StrReplace - do these feel progressive to you? subagents also, they have to be explicit offerings I think. ... 6. I am not sure. give me options and show examples of what mcp packs look like."
-- **6:20 PM:** "The mcp client is going to be either a builtin pack or a linked pack or whatever, because it is special, it creates tool catalogs and puts them in the dynamic set which is something a regular tool cannot do. The mcp client on startup will connect to the servers in the background, but if it gets called then it has to wait until all the servers are finished. so it doesnt have to block on startup but it does have to block on the first toolcall. Not block, but you know, introduce latency in the first response. This helps startup go faster because the mcp client is connecting servers asynchronously while the prompt is getting started. and then the prompt and the mcp client rendezvous the first time the mcp client's tool catalog is needed. ... I like dynamic tool set / dynamic set / DynamicTools much better than "withheld {anything}" naming ..."
-  - The rendezvous was then stated back to him with two assumed consequences, which he did not contradict:
-    - A server that fails stays out for the session.
-    - With Host-wide connections, only the first run after Host startup pays the wait.
-- **6:25 PM:** "there is an open question: should mcp even be a pack or should be an engine feature? and the availability of the feature depends on if there are servers. no servers = no mcp. I also want reflection designed. I want the report to show choices for Lua APIs that allow introspection into all the objects. The pack. The pack's list of tools. The tool's data. Metadata. The mcp client's list of servers." The same message proposed config editing and internet discovery, which 6:33 PM cut.
-- **6:30 PM:** ""uses: [mcp.paperstore]" I dont know if I like that. Shouldn't we instead make mcp a feature of the language, and then make "mcp" a front-matter key? because you adding mcp-specific syntax to the uses which feels wrong in general ... this report needs to be thorough, because it will be the foundation of tooling / mcp in Runvil. So, more questions is fine. group them smartly. expand the scope if needed. chase down some leads (But bound the scope-growth of the report reasonably)."
-- **6:33 PM:** "Now that I think about it.. the dynamic MCP config is a bad idea., cut it. I forgot about credentials. and security. its a headache we don't need. I am not certain MCP should be a built-in language feature. I am saying, that the report should explore what the MCP feature would look like for either choice."
-- **6:36 PM**, answering a review question:
+- 5:27 PM: "tools.offer adds the tool to a running "offer catalog" which is rendered once for the agent session, just before the tools are first offered to the OpenAI-compatible endpoint (or equivalent). They are rendered late for the case where a Plugin Pack's tools are model-shaped (tools whose name, description, parameters, or semantics are modified to adapt to a specific vendor's model, due to training)"
+- 5:28 PM: "shaped tools will be anonymous, they wont be callable in the Lua"
+- 5:47 PM: He answered "yes" to "front matter offers packs only, and Lua can offer filtered sets after inspecting mcp.servers()". Later refined: front matter offers nothing, and Lua does all offering.
+- 5:54 PM: "1. no front matter solutions allowed. prefer solutions which are general and flexible. "withhold" is kind of specific. give me a few options 2. my gut tells me, not to tie the discovery to the actual usage of tools in Lua. Only tools.offer should affect discovery, in the sense that if a tool or pack is explicitly offered then it should not be also discoverable. and if there is no discoverable tool set then the discovery tools (GetDynamicTools, CallDynamicTool) should be squelched from the late-rendered tool catalog 3. MCP Tools are never model-shaped. Only specific packs are model-shaped: core tools like ReadFile, WriteFile, Grep, Rg, the subagents pack (those are not even individually offerable). and actually that's all I can think of. The number of model-shaped packs is small and enumerable. It is tied to how the closed-weight frontier model vendors decide to train their models. 4. I was thinking MCP annotations should be applicable to pack tools as well, not just MCP tools (i.e. allow each pack tool to have metadata). I'm not sure about the rest of the question 5. Ask-mode is a specific feature for a specific prompt (i.e. the general Agent window prompt used in Workshop). it is a HostService probably only offered to that one prompt. Maybe new prompts which are slight variations but its a "chat agent" type prompt. It would not be used in things like paperweight. So it would not need to apply to Lua calls. And we just need to trust."
+- 6:02 PM: "shaped packs have to be filterable. or else how could we apply readOnlyHint=true as a filter to the core tools (allow ReadFile, disallow WriteFile, disallow StrReplace for example) progressive tool discovery is independent of MCP. The 2 discovery tools are built-in to the engine and they appear only when a model is offered the withheld tool set. The idea here is to make the mcp client treat its catalog as just another source of tools, the server acts like a "pack", and the Lua controls whether these tools are progressive or fixed. And I want to shape Runvil so that tools that do not come from mcp can become discoverable. For example a "github" pack that has 18 tools for interacting with github. the Lua should be able to offer the entire pack as a rendered catalog, or it should be able to offer the pack as progressive discovery."
+- 6:15 PM: "for now, any attempt to change the tool catalog after it is rendered the first time should result in a hard error. we can always loosen this later, with evidence. what this means when a filter splits a shaped tool, is that we should render it reduced, and refuse disallowed calls at dispatch. however, if this results in poor performance (because the model was trained on the full description) then we have to fall back to full rendering, and refusing the disallowed operation at dispatch. For 2 I agree, filters already allow matching a tool subset so why not a subset of 1 named tool. the shaped-tool packs will just not offer any named tools to the Lua, so it will not be able to select one in the first place. for 3. how about packs.offer and packs.dynamic_offer ? Maybe? I am thinking maybe the frontmatter needs to have a flag that tells the harness "only load named packs. ignore available packs that are not in 'uses'. 4. if a tool is offered fixed, it never can be discovered. this prevents wasteful overlap and waste in general, because discovery consumes an extra model turn and there are 2 more tools competing for attention (the discovery tools) 5. my instinct is that shaped packs are never progressive. core tools like ReadFile, StrReplace - do these feel progressive to you? subagents also, they have to be explicit offerings I think. ... 6. I am not sure. give me options and show examples of what mcp packs look like."
+- 6:20 PM: "The mcp client is going to be either a builtin pack or a linked pack or whatever, because it is special, it creates tool catalogs and puts them in the dynamic set which is something a regular tool cannot do. The mcp client on startup will connect to the servers in the background, but if it gets called then it has to wait until all the servers are finished. so it doesnt have to block on startup but it does have to block on the first toolcall. Not block, but you know, introduce latency in the first response. This helps startup go faster because the mcp client is connecting servers asynchronously while the prompt is getting started. and then the prompt and the mcp client rendezvous the first time the mcp client's tool catalog is needed. ... I like dynamic tool set / dynamic set / DynamicTools much better than "withheld {anything}" naming ..."
+  - Two consequences of the rendezvous were stated back to him, and he did not object:
+    - A server that fails stays out until the Host restarts.
+    - With Host-wide connections, only the first run after Host startup waits.
+- 6:25 PM: "there is an open question: should mcp even be a pack or should be an engine feature? and the availability of the feature depends on if there are servers. no servers = no mcp. I also want reflection designed. I want the report to show choices for Lua APIs that allow introspection into all the objects. The pack. The pack's list of tools. The tool's data. Metadata. The mcp client's list of servers." The same message proposed configuration editing and internet discovery, both cut at 6:33 PM.
+- 6:30 PM: ""uses: [mcp.paperstore]" I dont know if I like that. Shouldn't we instead make mcp a feature of the language, and then make "mcp" a front-matter key? because you adding mcp-specific syntax to the uses which feels wrong in general"
+- 6:33 PM: "Now that I think about it.. the dynamic MCP config is a bad idea., cut it. I forgot about credentials. and security. its a headache we don't need. I am not certain MCP should be a built-in language feature. I am saying, that the report should explore what the MCP feature would look like for either choice."
+- 6:36 PM, answering a review question:
   - "The rendered tool catalog is attached to the messages array the first time the catalog is rendered and then it sticks. if the model changes, so be it but we can't redo the tools. If the messages are compacted, the rendered catalog has to be transfered to the new messages array."
-  - In the same answer he approved additions to this report's scope, among them the questions on the discovery tools' contract and on dispatch refusals, the replay criterion, the migration inventory, the invariant-tests appendix, this log, and options such as catalog providers and naming rules for every tool. He asked that the Slack-sketches appendix stay.
-- **6:49 PM:** "a message list can't cross a section boundary"
-- **6:50 PM:** "I might even say, that you cannot create more than one message list in a section?" Then: "Consider it as an option. The Engine would create `messages` when it creates the VM. compaction would receive a 2nd empty messages array to insert into or something like that"
-- **6:53 PM:** "if messages becomes the section's list itself, then there is no constructor. the Lua cannot create a new one. the compaction function will be given a 2nd constructed empty messages object that it can fill, which it is then required to return. what do you think?"
-- **6:55 PM:** "no one is "ferrying history to a new section" - the whole point of Runvil is that sections clear the history! if someone wants history preserved, they stay in the section"
-- **6:55 PM:** "I like your swap idea for compaction".
+- 6:49 PM: "a message list can't cross a section boundary"
+- 6:50 PM: "I might even say, that you cannot create more than one message list in a section?" Then: "Consider it as an option. The Engine would create `messages` when it creates the VM. compaction would receive a 2nd empty messages array to insert into or something like that"
+- 6:53 PM: "if messages becomes the section's list itself, then there is no constructor. the Lua cannot create a new one. the compaction function will be given a 2nd constructed empty messages object that it can fill, which it is then required to return. what do you think?"
+- 6:55 PM: "no one is "ferrying history to a new section" - the whole point of Runvil is that sections clear the history! if someone wants history preserved, they stay in the section"
+- 6:55 PM: "I like your swap idea for compaction".
   - The swap, as proposed to him and accepted:
     - The compactor fills the empty list the Engine handed it, and returns it.
     - The Engine validates it, then swaps record contents between that list and the section's `messages`.
     - `messages` keeps its identity and now holds the compacted history. The staging list holds the old records, which can go to the run record.
-  - Because `messages` keeps its identity, the attached catalog never has to move.
-- **6:57 PM:** "we can settle it yes but I need a section which explores it, so you can pre-flight any problems. and it will serve as a description which I can use as the starting point for implementation"
+  - Because `messages` keeps its identity, the rendered catalog stays attached.
+- 6:57 PM: "we can settle it yes but I need a section which explores it, so you can pre-flight any problems. and it will serve as a description which I can use as the starting point for implementation"
+
+### Appendix H. Glossary
+
+Older documents use other names for the terms in Table 2, and most of those terms already have a home in today's code (Table H1). The people, products, and smaller terms that recur in later parts are defined in Table H2.
+
+**Table H1.** Older names and code locations for the terms in Table 2, at `runvil` `b1bbe33eb`. "New" marks parts still to build. Paths are under `crates/`, and Engine paths also under `runvil-internal/`.
+
+| Term | Older names | Code |
+|-|-|-|
+| Pack | "Plugin" | `runvil-plugin/src/pack.rs` |
+| Plugin | Before 2026-10-19, a Pack | `plugin-*` |
+| Extras | "offered" | `lua/src/packs.rs` |
+| Tool id | "canonical id" | `types/src/tools/ids.rs` |
+| Wire name | "alias" | `context-bound.rs` |
+| Run catalog | `ToolCatalog` | `runner/src/host-run.rs` |
+| Rendered catalog | "tools array" | Rebuilt each round today, `scheduler/chat.rs` |
+| MCP catalog | "namespace" | `plugin-mcp/src/server.rs` |
+| Fixed offer | "direct" | New |
+| Dynamic offer | "progressive" | New |
+| Dynamic set | "withheld set" | New; `DynamicTools` in code |
+| Discovery tools | "the facade" | Today `plugin-mcp/src/dynamic.rs` |
+| Filtered view | "toolset" | New |
+| Shaped Pack | "model-shaped pack", "dialect" | New |
+| Shape mapping | | New |
+| Section conversation | "message list" | `lua/src/messages.rs` |
+| Compactor | "compaction policy" | `lua/src/compactors.rs` |
+| Rendezvous | | New |
+| Ask mode | "read-only mode" | New |
+| Dispatch gate | "enforced hiding" | Today the scope gate, which checks a model's call against the names the round advertised, in `scheduler/chat.rs` |
+| Reflection | "introspection" | `lua/src/tools/userdata.rs` |
+| Run record | "run log" | `harness::record` |
+
+**Table H2.** Other terms.
+
+| Term | Meaning | Older names | Code |
+|-|-|-|-|
+| Host | The application that builds the Pack registry and hands services to Packs | | `workshop/server/src/agents.rs` |
+| Pack registry | The Host's set of Packs | "bag of plug-ins", "tool bag" | `runvil-plugin/src/registry.rs` |
+| Run pick | The Harness choosing a run's Packs: those declared, plus every undeclared `runvil` Pack | | `runner/src/host.rs` |
+| Offer verbs | `packs.offer` and its dynamic counterpart | "advertise", "expose" | `lua/src/packs.rs` |
+| Split offer | One Pack offered partly fixed and partly dynamic | | New |
+| Progressive discovery | The dynamic set and the discovery tools together | "progressive tool disclosure" | New |
+| MCP client | The part of the `plugin-mcp` crate that talks to MCP servers; it provides the `mcp` Pack | "the MCP Plugin" | `plugin-mcp` |
+| Canonical tool | A tool as its Pack defines it, as opposed to its shaped form | | |
+| Split shaped tool | A shaped tool cut by a filter, rendered reduced to its allowed parts | | New |
+| Staging list | The empty list the compactor fills | "fresh" | New |
+| Swap | Exchanging record contents between the staging list and `messages` | | New |
+| HostService | A typed object the Host hands to Packs | "Host services" | `runvil-plugin/src/service.rs` |
+| Untrusted text | Tool or server output, marked so the model treats it as data rather than instructions | | `ToolOutput::untrusted` |
+| Error kind | A Runvil error's `kind`, such as `lua` for an author's mistake | | `lua/src/error-value.rs` |
+| Workshop | Runvil's desktop app, whose built-in chat agent is the main interactive prompt | | `workshop` |
+| Paperweight | A prompt with its own command-line Host that judges the evidence a WG21 paper gives for standardization | | In `wg21-paperflow` |
+| Agora | A web-research prompt, known here from the huddle with Jason | | |
+| Paper store | An MCP server for WG21 papers | | |
+| Briefer | Vinnie's analysis tool, the example of a prompt that improves when optional data sources exist | | |
+
+Vinnie Falco owns Runvil and settles its design. Jason writes the Paperweight and Agora prompts.
+
+### Appendix I. How the design developed
+
+Discovery and MCP each changed course more than once (Table I1). Discovery went from an optional Pack to the Engine, then into the MCP Pack, then back to the Engine, because it is independent of MCP. MCP went from one Pack per server to one Pack with two static tools, and then to one client that builds an MCP catalog per server. Per-server Packs went partly because each needed its own install, through an API the rename removed [P2].
+
+**Table I1.** Plan notes and reports, 2026-08-08 to 2026-10-20. Plan notes are in `runvil/vibe/`, and reports in `runvil-design/research/`.
+
+| Date | Record | What it decided or proposed | Where it stands |
+|-|-|-|-|
+| 2026-08-08 | Tool-dialect plan | "Dialect" is a model's wire protocol, resolved by the Gateway; "do more with less" | Dialects stay in the Gateway |
+| 2026-09-13 | Capabilities plan | A discovery Pack whose results stay advertised; unadvertised names refused | Growth rule dropped; refusal kept for dispatch checks |
+| 2026-10-07 | Plugin API plan | Every usable Pack reaches every run; the Host decides availability, the prompt decides exposure | Holds |
+| 2026-10-08 | MCP client plan | One Pack per server; runs wait up to two minutes; `mcp.json` read only when a setting names it | Per-server Packs rejected |
+| 2026-10-09 | Messages plan | `messages.new()` lists; prefix changes "visible and explicit" | One list per section |
+| 2026-10-13 | Offering plan | Whole-Pack offers, resolved each round; "There is no withholding" | Replaced by render once |
+| 2026-10-14 | "Tool Offering in runvil..." huddle and report | Ignored, dynamic, or direct; Engine discovery; frozen tools array; Cursor token counts | "Direct" became "fixed" |
+| 2026-10-14 | "What to steal..." report | Three-tool bridge; 64-character cap with hash; measure before renaming | Bridge rejected; the cap and the measuring remain open questions |
+| 2026-10-18 | Plugin naming review | Lua cannot name late-rendered tools; select by traits like `readOnlyHint` | Became filtered views |
+| 2026-10-19 | Pack and Plugin rename plan | Plugin became Pack; MCP one Pack with two static tools | Static tools to be replaced |
+| 2026-10-20 | Library Plugin loading plan | "Only Packs can be offered"; `subagents` built in; `tools.allow_tasks` removed | Holds |
+| 2026-10-20 | Slack thread and huddle with Jason | Engine discovery; wrapper sections; `promote_server` rejected; reflection | In Table 3 |
+| 2026-10-20 | Design discussion with Vinnie Falco | The settled design | Settled |
 
 ## References
 
-**Code, at the commits read on 2026-10-20.**
+**Citation keys.** A bracketed key points to a source listed here, and each prefix is numbered in order of first use. [D 6:15] is the design discussion with Vinnie Falco on 2026-10-20 at that Pacific time (all PM); Appendix G quotes each statement by its time. [H 29:43] is an offset into the huddle with Jason, and [S 5:17] is a message time in the Runvil Slack thread. One key can hold several locators, as in [D 5:54, 6:02], and a semicolon separates sources, as in [P1; D 6:15].
 
-- `runvil` at `b1bbe33eb` (2026-10-20, "Close plan: library-plugin-loading"). Each file is cited by path and lines where the text uses it.
-- `runvil-docs` at `62ae759` (2026-10-19): `src/language/11-conversations.md`, `12-tools.md`, `15-tasks.md`, `04-how-a-prompt-runs.md`.
-- `wg21-paperflow` at `693ef8ab` (2026-10-19): `crates/paperweight/paperweight.md` and `crates/paperweight/src/app.rs`; submodule `vendor/runvil` at `07e7e01b1`.
-- `rmcp` 3.5.1, as fetched by Cargo: `src/service/client.rs` and `src/model.rs`.
+**Code. Paths are in the `runvil` repository at `b1bbe33eb` unless an entry names another repository or commit.**
 
-**Runvil plan notes, in `runvil/vibe/`.**
+- C1: `README.md` line 6, the one-line description of Runvil.
+- C2: `crates/harness-internal/runner/src/host.rs` lines 12-14 (the run pick) and 116-154 (the Harness checks declared Packs while preparing a run).
+- C3: `crates/runvil-internal/parser/src/frontmatter.rs` lines 38-81 (the `Frontmatter` struct, whose `deny_unknown_fields` at line 43 rejects unknown keys) and 69-71 (a `uses:` entry makes a Pack required and offers nothing).
+- C4: `crates/harness-internal/runner/src/host-run.rs` lines 5-11, the run catalog, read once at run start.
+- C5: `crates/runvil-internal/engine/src/execute/context-bound.rs` lines 40-79 (binding by wire name, and the tools dropped) and 81-84 (bindings that are "never advertised").
+- C6: `crates/runvil-internal/model-client/src/detail.rs` lines 53-95, the wire-name rule.
+- C7: `crates/runvil-internal/lua/src/tools.rs` lines 150-170 and 199-225 (`tools.offer`) and 227-265 (`tools.offer_local`).
+- C8: `crates/runvil-internal/lua/src/packs.rs` lines 1-13 (the Pack object), 66-79 (`packs.get`), 142-167 (`packs.offer`), 175-179 (`packs.offer` refuses a second argument), and 243-248 (Pack objects group tools by the first id segment).
+- C9: `crates/workshop/agents/agents/chat.md` lines 28-35, the chat agent's offers and loop.
+- C10: `crates/runvil-internal/lua/src/vm/state.rs` lines 128-135, the effective tools, rebuilt at each model operation.
+- C11: `crates/runvil-internal/engine/src/execute/scheduler/chat.rs` lines 119-124 (task notices pushed onto the list), 125-128 ("messages must not be empty"), 133-140 (the model binding resolved), 141-155, 167-168, and 186-195 (building, recording, and sending a round's tools), 169-181 (the precheck), 294-302 (a provider's context overflow), and 349-391 (the scope gate and `out_of_scope_tool`).
+- C12: `crates/runvil-internal/engine/src/execute/scheduler/dispatch.rs` lines 242-250, where `models.infer` sends an empty tool list.
+- C13: `crates/runvil-internal/engine/src/execute/scheduler/tool_call.rs` lines 13-16 (script calls by canonical id) and 19-24 (how model calls and script calls fail).
+- C14: `crates/runvil-internal/lua/src/tools/userdata.rs` lines 43-49, the tool object's fields.
+- C15: `crates/runvil-internal/types/src/tools/info.rs` lines 24-43, `ToolInfo`.
+- C16: `crates/plugin-mcp/src/lib.rs` lines 1-24 (one Pack with two static tools), 49-60 (background connection, ready at once), and 72-75 (the empty capability set the client declares).
+- C17: `crates/plugin-mcp/src/server.rs` lines 48-68, what the client keeps from each listed tool.
+- C18: `crates/workshop/server/src/agents.rs` lines 145-163 (`with_plugins`, which links the web, user-input, and MCP Plugins and hands Workshop's `mcpServers` configuration to the MCP Plugin) and 234-243 (MCP connections started in the background).
+- C19: `runvil-docs` at `62ae759`, `src/language/11-conversations.md` lines 44-52 (the `messages` global), 64-66 (two lists in one section), 882-886 (records copied into a second list), and 1425 (a round refused for overflow "adds no records to the list").
+- C20: `runvil-docs` at `62ae759`, `src/language/12-tools.md` lines 944-951 (two lists in one block, with an offer between the loops), 963 (a section entered with `call` starts with no tools offered), and 1496 and 1533 (the H1 decision-tool idiom).
+- C21: `runvil-docs` at `62ae759`, `src/language/15-tasks.md` lines 2493-2501, a second list built to receive a task notice.
+- C22: `crates/runvil-internal/engine/src/execute/scheduler/walk.rs` lines 158-173, where every section entry, a task chain's included, builds a new section context and so a new VM.
+- C23: `crates/runvil-internal/lua/src/sys.rs` lines 87-91, where `var` refuses userdata.
+- C24: `crates/runvil-internal/lua/src/vm/run.rs` lines 242-251, where a section may return only a scalar.
+- C25: `crates/runvil-internal/engine/src/execute/scheduler/h1.rs` lines 1-10 (H1 runs as section 0 on the same install path, and a Lua failure there stops the run at start as `Error::RequirementsUnmet`) and 78-82 (the H1 freeze reads `var` and `argv` as JSON and drops the VM).
+- C26: `prompts/research-person.md` lines 21 (its `tools.offer` call) and 40-43 (one list, one loop).
+- C27: `crates/workshop/server/tests/it/chat_gate/canonical_sequence.rs` lines 65-110, which assert that the chat agent's requests accumulate one history byte for byte.
+- C28: `crates/runvil-internal/lua/src/messages.rs` lines 37-49 (`install_messages`, which installs a table holding `new`), 61-73 (system records only in the leading block), 163-171 (`replace` builds a new record vector in the same list), 174-188 (`commit` and the per-list send state), 409-415 (`__index` reads nil for any key that is not an integer), and 431-432 (the assignment refusal, which names the constructor).
+- C29: `crates/runvil-internal/lua/src/messages-view.rs` lines 18-28 (a view holds the record itself) and 98-99 (the view's read-only refusal, which names the constructor).
+- C30: `crates/runvil-internal/lua/src/globals.rs` lines 3-12 (the `_G` guard owns only `argv` and `prose`), 22-24 (the sandbox removes `rawset` and the debug library), and 163-191 (`RESERVED_NAMES`, which the setup tests compare with a set-up VM's globals).
+- C31: `crates/runvil-internal/lua/src/models_loop.rs` lines 114-131, the `models.loop` argument checks.
+- C32: `crates/runvil-internal/lua/src/models_loop/machine.rs` lines 33-36 and 195-200 (a returning compactor raises "replacement compactors are deferred"), 233-243 (rounds counted against the cap), 249-257 (overflow enters `Compacting`), and 320-341 (records pushed only after the whole batch has results).
+- C33: `crates/runvil-internal/lua/src/vm/inject.rs` lines 135-151, the injection order, with `messages` at line 150.
+- C34: `crates/runvil-internal/types/src/models.rs` lines 163-169, where a model binding names an optional `provider` and no finer model family or tool dialect.
+- C35: `crates/runvil-internal/lua/src/__impl_coro.lua` lines 112-116 (`models.infer` yields a prompt and no list), 236-238 (the compactor called with the reason alone), and 247-258 (the `models.loop` and `handle:loop` shims).
+- C36: `crates/runvil-internal/lua/src/compactors.rs` lines 30-68 (the overflow reasons), 117-126 (`Fail`, the only shipped policy), 171-219 (the precheck's anchor count), and 221-237 (the precheck estimate, which leaves out tool schemas).
+- C37: `crates/runvil-internal/lua/src/projection.rs` lines 4-16, the cross-record rules checked before every dispatch.
+- C38: `crates/workshop/agents/src/transcript.rs` lines 1-9, where the transcript is built from run events.
+- C39: `runvil-docs` at `62ae759`, `src/language/04-how-a-prompt-runs.md` line 1550, where a prose-only section runs without a model call.
+- C40: `crates/runvil-internal/engine/src/execute/tests/models_loop_contract.rs` lines 276-299, the test `the_compactor_gets_only_the_reason_and_may_suspend_before_raising`.
+- C41: `wg21-paperflow` at `693ef8ab`: `crates/paperweight/paperweight.md` lines 2-15 (front matter without `uses:`), 21-25 (the comment on its H1 section), and 534 (the bare `fanout` call); `crates/paperweight/src/app.rs` line 22 (the `harness::plugin::{HostContext, HostServices, PackageRegistry}` import) and lines 173-182 (the command-line Host's registry, holding only the native built-ins); and the vendored `runvil` at `07e7e01b1`, `crates/harness-internal/runner/src/packages.rs` lines 59-63 (a new registry holds only the native built-ins).
+- C42: `runvil-docs` at `62ae759`, `src/language/14-fanout.md` line 682 and `src/language/17-quick-reference.md` line 115, which name the constructor without parentheses.
+- C43: `crates/runvil-internal/lua/src/test_vm.rs` lines 254-259 and 289-300, the test helper that installs a list as the global `msgs`.
+- C44: `crates/runvil-plugin/src/registry.rs` lines 32-34 (the Pack registry, keyed by compile-time names) and 195-198 (a built-in "must never offer tools, carry a prelude, or need services"); `crates/runvil-plugin/src/pack.rs` lines 29-45 (the Harness reads a Pack's tools once per run, after awaiting `ready`) and 128-132 and 150-154 (a Pack's compile-time name, and `construct` as a plain function pointer).
+- C45: `crates/runvil-internal/types/src/tools/ids.rs` lines 10-13 (a tool id has two or more segments, the Pack id first) and 26-32 (the lowercase segment charset); `crates/runvil-internal/types/src/packs.rs` lines 25-31 and 219-222 (the Pack id and its charset), 67-76 (a tool belongs to the Pack its first segment names), and 183-206 (a `uses:` entry deserializes only from a string, so a map such as `- mcp: { servers: [...] }` fails).
+- C46: `crates/plugin-mcp/src/dynamic.rs` lines 294-315, the `mcp` Pack's two static tools (`tools()` at 295-297).
+- C47: `crates/runvil-internal/engine/src/execute/scheduler/builtins.rs` lines 5-15, the task built-ins answered by the scheduler before alias lookup.
+- C48: `crates/runvil-internal/parser/src/contract.rs` lines 54-120, the map deserializer that `models:` and `args:` share, which validates keys and refuses duplicates.
+- C49: `crates/plugin-mcp/src/server.rs` lines 50-73 at commit `808028b3f`, before `176c78340` replaced the per-server MCP Pack: each MCP tool name lowercased into a tool id, the original kept for the call, and a tool whose lowercased name repeats an earlier one dropped with a warning naming only that tool (read with `git show 808028b3f:crates/plugin-mcp/src/server.rs`).
+- C50: `Cargo.toml` line 116 (`rmcp` pinned at `=3.5.1`) and `crates/plugin-mcp/src/connect.rs` lines 18-19 (the two-minute `STARTUP_DEADLINE` for a server to finish the handshake and list its tools) and 84-85 (`client_config().serve(transport)`).
+- C51: `crates/plugin-mcp/src/result.rs` lines 72-82, where a call result's text is its joined blocks, and `structuredContent` is used only when the content list is empty.
+- C52: `rmcp` 3.5.1, as fetched by Cargo: `src/service/client.rs` line 639 (legacy initialization) and lines 642-655 (`server/discover` only under the `Discover` or `Auto` lifecycle), and `src/model.rs` lines 156-201 (`LATEST` and `LATEST_WITH_INITIALIZE`).
+- C53: The workspace's `tools-public/analysis/briefer.md`, `diligence.md`, and `staker.md`, which are Cursor agent instruction documents; and the gitignored `runvil: 1` Briefer port in `runvil/local/`, whose removed APIs the Engine refuses (`crates/runvil-internal/engine/src/execute/run.rs` lines 297-299).
+- C54: `git grep` counts at the pinned commits. In `runvil` `crates/`, Rust test files containing `tools.offer(` (39), `packs.offer(` (4), `tools.extras(` or `tools.required(` (5), and `messages.new(` (58). In `runvil-docs` `src/language/`, chapters containing `tools.offer(` (seven: 01, 05, 11, 12, 13, 15, 16) and `tools.offer` other than `tools.offer_local` (ten).
+- C55: `crates/harness/src/lib.rs` lines 28-52, where `harness::pack` holds `HostContext`, `HostServices`, and `PackRegistry`, and `harness::plugin` holds the library-Plugin loader.
+- C56: `crates/runvil-internal/lua/src/coro.rs` line 259, where the Engine installs `tasks.fanout`, its only fan-out function.
+- C57: `crates/plugin-mcp/src/entry.rs` lines 11-13, the refusal of local `command` entries.
 
-- "Library Plugin loading", 2026-10-20 (`2026-10-20-1-library-plugin-loading.md`).
-- "Pack and Plugin rename", 2026-10-19 (`2026-10-19-2-pack-plugin-rename.md`).
-- Offering plan, 2026-10-13; messages plan, 2026-10-09; MCP client plan, 2026-10-08; Plugin API plan, 2026-10-07 (all in `2026-10/`); capabilities plan, 2026-09-13 (`2026-09/`); tool-dialect plan, 2026-08-08 (`2026-08/`).
+**Plan notes.**
+
+- P1: "Library Plugin loading", 2026-10-20 (`runvil/vibe/2026-10-20-1-library-plugin-loading.md`): lines 886-888 (a pure Engine; replay without Plugins), 900 (the objection to special cases), 903-904 (only Packs are offered), 939 (the same behavior under every Host), 966-968 (the deferred per-run Pack instance), 978-983 (the subagents rule), 984-987 (what goes and what stays), and 1016 (the Engine's banned crates).
+- P2: "Pack and Plugin rename", 2026-10-19 (`runvil/vibe/2026-10-19-2-pack-plugin-rename.md`): lines 45 and 623-625 (per-server Packs called "broken" and "a mistake", and needing one install each) and 626-628 (two tools instead of the three-tool bridge).
+- P3: Tool-dialect plan, 2026-08-08 (`runvil/vibe/2026-08/2026-08-08-8-tool-dialect-plugins.md`), line 46, "do more with less".
+- P4: Messages plan, 2026-10-09 (`runvil/vibe/2026-10/2026-10-09-2-messages-userdata-refactor.md`), line 523, on prefix changes being "visible and explicit".
 
 **Prior reports, in `runvil-design/research/`.**
 
-- "Tool Offering in runvil: Three States per Plugin, a Built-in Discovery Facade, and a Frozen Tools Array", 2026-10-14.
-- "What to steal: how popular harnesses handle MCP servers and dynamic tools, and how models are trained for them", 2026-10-14.
-- "Runvil: Naming the Subagents Plugin's Model Tools So Models Call Them Without Coaching", 2026-10-10, and its companion subagent catalog and task-tools reports, 2026-10-10.
-- "Runvil's Plugin and Tool Names: The Rename Plan Fixes Seven Problems, and Seven Remain Open", 2026-10-18.
-- The mlua C wrapper report, 2026-10-18.
+- R1: "Tool Offering in runvil: Three States per Plugin, a Built-in Discovery Facade, and a Frozen Tools Array", 2026-10-14: the Anthropic and OpenAI prompt-caching statements (not re-fetched on 2026-10-20), section 3.1 (cache stability), the Cursor token measurements, and lines 95 (the fail-loudly rule from Jason and Andrew Wheeler), 212 (the four-server token count), 250 (the placement argument), 268-271 (the discovery tools' rules), and 290 (the extras-dynamic workflow).
+- R2: "What to steal: how popular harnesses handle MCP servers and dynamic tools, and how models are trained for them", 2026-10-14: the Hermes `clarify` result, the 24-tool bridge cost, and lines 36 (the share of vendor-reported claims), 886 (OpenAI's 64-character function-name limit), 1370-1374 (the name cap with a hash and a loud clash failure), and 1421 (30 runs per arm).
+- R3: "Runvil: Naming the Subagents Plugin's Model Tools So Models Call Them Without Coaching", 2026-10-10 (`runvil-design/research/2026-10-10-subagent-tool-naming.md`), line 50, recommendation 11 (a failed tool result for an unoffered tool).
 
-**Research gathered for this report, 2026-10-20.** Ten research collections: prior Runvil decisions; code facts for tools and catalogs; code facts for the section conversation; MCP naming across twelve harnesses; author-facing tool surfaces and reflection APIs; tool discovery and always-loaded tools; modes and filter syntax; model-shaped tools; MCP beyond tools; and compaction practice. They hold the line-level citations behind Table 5 and Appendix E and can be kept with this report on request.
+**External sources, all accessed 2026-10-20.**
+
+- E1: Anthropic, [How tool use works](https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works), on trained tool signatures.
+- E2: OpenAI, [Codex prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide), on `apply_patch`.
+- E3: Claude Code, [prompt caching](https://code.claude.com/docs/en/prompt-caching) and [permissions](https://code.claude.com/docs/en/permissions), on a fixed tool list across mode switches and call-time enforcement.
+- E4: Cline, [commit `cdcaa744`](https://github.com/cline/cline/commit/cdcaa744223465a9bf5beb4d5b5a5316d4a4ea65), the strict check on a custom compactor's result.
+- E5: OpenAI Codex, [`spec_plan.rs` lines 1272-1281](https://github.com/openai/codex/blob/d571eaf/codex-rs/core/src/tools/spec_plan.rs#L1272-L1281) at `d571eaf`, which adds the MCP resource helper tools only when servers exist.
+- E6: Continue, [Configuring models, rules, and tools](https://docs.continue.dev/guides/configuring-models-rules-tools), on `uses:` blocks with `with:` for inputs.
+- E7: Per-harness sources behind Table E1 and the wire-name hash scheme; the research collections hold each line-level citation. Claude Code: [MCP](https://code.claude.com/docs/en/mcp) (the 128-character name limit, the output cap, the cut on server instructions, `strict-mcp-config`), [env-vars](https://code.claude.com/docs/en/env-vars) (`MCP_TIMEOUT`), [changelog](https://code.claude.com/docs/en/changelog), and [issue 31002](https://github.com/anthropics/claude-code/issues/31002) (the v2.1.69 deferral and v2.1.72 restoration). Codex: [MCP docs](https://developers.openai.com/codex/mcp) (`required`, `startup_timeout_sec`, `mcp_optional_startup_grace_ms`); `openai/codex` at `d571eaf`: `codex-rs/codex-mcp/src/tools.rs`, `codex-rs/codex-mcp/src/rmcp_client.rs` lines 915-930 (instructions as the namespace description), `codex-rs/core/src/mcp_tool_call.rs` lines 2535-2552 (approval by annotation), `codex-rs/models-manager/src/manager.rs` lines 875-944 with `model_info.rs` lines 106-145 (model-catalog matching), and `codex-rs/core/src/compact.rs`; and at `c7234c11`, `codex-rs/protocol/src/models.rs` lines 2467-2502 (`structuredContent` sent alone). Cursor: [improved token efficiency](https://cursor.com/blog/improved-token-efficiency), [Ask mode](https://cursor.com/help/ai-features/ask-mode), [agent prompting](https://cursor.com/docs/agent/prompting), and first-hand observation on 2026-10-20 of its tool list and of `GetDynamicTools`. Gemini CLI: `google-gemini/gemini-cli` at `d00859d` (`docs/reference/policy-engine.md`; `packages/core/src/policy/policies/plan.toml` lines 86-93), at `e9171fd7` (`packages/core/src/tools/mcp-tool.ts`), and its [MCP docs](https://geminicli.com/docs/tools/mcp-server/). OpenCode: `anomalyco/opencode` at `aadd4d8` and its [compaction docs](https://opencode.ai/v2/docs/compaction/). Cline: `cline/cline` at `627e51e` (`sdk/packages/core/src/extensions/mcp/name-transform.ts` lines 4-36, a 55-character prefix plus a hash; `sdk/packages/core/src/extensions/tools/command-guard.ts` lines 514-520, the plan-mode refusal). Qwen Code: `QwenLM/qwen-code` at `6e6598e` (`packages/core/src/core/environmentContext.ts`; `packages/core/src/config/config.ts` lines 4655-4683) and its [MCP docs](https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/). VS Code: [release 1.118](https://code.visualstudio.com/updates/v1_118). Goose: `aaif-goose/goose` at `7143ddd` and [smart context management](https://goose-docs.ai/docs/guides/sessions/smart-context-management).
+- E8: OpenAI, [connectors and MCP guide](https://platform.openai.com/docs/guides/tools-connectors-mcp) and `openai/openai-python` at `de6d70d`, `src/openai/types/responses/tool_param.py` lines 49-97: the Responses API's `allowed_tools` filter, `{"read_only": true, "tool_names": [...]}`, which matches tools annotated `readOnlyHint`.
+- E9: Anthropic, [tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool), and OpenAI, [tool search](https://developers.openai.com/api/docs/guides/tools-tool-search), on what each searches and on appending discovered tools after the cached prefix.
+- E10: Hermes, [tool search](https://hermes-agent.nousresearch.com/docs/user-guide/features/tool-search), on its up-front listing and 60-character summaries.
+- E11: OpenClaw, [tool search](https://raw.githubusercontent.com/openclaw/openclaw/main/docs/tools/tool-search.md), on refusing direct-only tools with guidance.
+- E12: Goose, [issue 6678](https://github.com/block/goose/issues/6678), maintainer comment of 2026-01-27, on recipes that load only the extensions they name.
+- E13: MCP specification, revision 2026-07-28: [tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools) (example names, structured results, annotation defaults and trust, tool errors as results), [schema](https://modelcontextprotocol.io/specification/latest/schema) (`structuredContent`), and [changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog) and [discover](https://modelcontextprotocol.io/specification/2026-07-28/server/discover) (the stateless protocol, `server/discover` and `instructions`, deprecated features, and the credential obligations of SEP-2468 and SEP-2352).
+- E14: OpenAI, [plugins reference](https://developers.openai.com/plugins/reference), tool results table, on what ChatGPT passes to the model.
+- E15: Anthropic, [text editor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool) and [tool reference](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference), on `str_replace_based_edit_tool` and its versions.
+- E16: Aider, [unified diffs](https://aider.chat/docs/unified-diffs.html): edit format moved `gpt-4-1106-preview` from 20 to 61 percent on one benchmark.
+- E17: Bas Nijholt, [native harness tools in MindRoom](https://www.nijho.lt/post/native-harness-tools/), 2026-10-11 (secondary), on native tool shapes, token use, and pass rates.
+- E18: Goose, [issue 6193](https://github.com/aaif-goose/goose/issues/6193), on command-level filtering of `text_editor`.
+- E19: VS Code, [MCP developer guide](https://code.visualstudio.com/api/extension-guides/ai/mcp), on confirming read-only tools.
+- E20: Zed, `zed-industries/zed` at `fae8a354`: `assets/settings/default.json` lines 1328-1348 (the Ask profile's MCP setting) and `crates/agent/src/thread.rs` line 3781 (the refusal text for disabled and unknown tools).
+- E21: Roo Code, `RooCodeInc/Roo-Code` at `b867ec9`, `src/core/assistant-message/presentAssistantMessage.ts` lines 593-607: a refused call returns a `tool_result` with `is_error: true`.
+- E22: [Lua 5.5 reference manual](https://www.lua.org/manual/5.5/manual.html) (`__index` and `__newindex` apply only to absent keys; `rawset` bypasses `__newindex`; `__pairs`; `__metatable`) and mlua, [`Table`](https://docs.rs/mlua/latest/mlua/struct.Table.html) (`set_readonly` exists only for Luau).
+- E23: Neovim at `1944cb32`, `runtime/doc/lsp.txt` lines 1288-1305 (`vim.lsp.get_clients()` for running clients, separate from `vim.lsp.get_configs()`), and the MCP TypeScript SDK at `c05225a6`, `packages/client/src/client/client.ts` lines 1344-1408 and 2529-2584 (handshake getters return snapshots; `listTools()` fetches on demand).
+
+**Repositories, read on 2026-10-20.**
+
+- `runvil` at `b1bbe33eb` (2026-10-20, "Close plan: library-plugin-loading").
+- `runvil-docs` at `62ae759` (2026-10-19): `src/language/04-how-a-prompt-runs.md`, `11-conversations.md`, `12-tools.md`, `14-fanout.md`, `15-tasks.md`, and `17-quick-reference.md`.
+- `wg21-paperflow` at `693ef8ab` (2026-10-19): `crates/paperweight/paperweight.md` and `crates/paperweight/src/app.rs`; submodule `vendor/runvil` at `07e7e01b1`.
+- `rmcp` 3.5.1, as fetched by Cargo: `src/service/client.rs` and `src/model.rs`.
+
+**Other records named in Appendix I.** The offering plan, 2026-10-13; MCP client plan, 2026-10-08; and Plugin API plan, 2026-10-07 (all in `runvil/vibe/2026-10/`); the capabilities plan, 2026-09-13 (`runvil/vibe/2026-09/`); and "Runvil's Plugin and Tool Names: The Rename Plan Fixes Seven Problems, and Seven Remain Open", 2026-10-18 (`runvil-design/research/`).
+
+**Research collections, 2026-10-20.** Ten collections: prior Runvil decisions; code facts for tools and catalogs; code facts for the section conversation; MCP naming across twelve harnesses; author-facing tool APIs and reflection; tool discovery and always-loaded tools; modes and filter syntax; tools shaped for particular models; MCP beyond tools; and compaction practice. They hold the line-level citations behind Table 4 and Appendix E and are available on request.
 
 **Transcripts.**
 
@@ -1492,14 +1537,4 @@ These are Vinnie Falco's statements in the design discussion of 2026-10-20, Paci
 - Huddle with Jason, 2026-10-20, 4:32 to 5:10 PM Pacific, auto-generated transcript.
 - Design discussion with Vinnie Falco, 2026-10-20, about 5:26 to 6:59 PM Pacific.
 
-**External sources, all accessed 2026-10-20.**
-
-- MCP specification 2026-07-28: [versioning](https://modelcontextprotocol.io/specification/versioning), [changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog), [tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools), [discover](https://modelcontextprotocol.io/specification/2026-07-28/server/discover), [schema](https://modelcontextprotocol.io/specification/latest/schema), [local server security](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/local-server-security).
-- Anthropic: [tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool), [text editor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool), [tool reference](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference), [how tool use works](https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works), [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Lessons from building Claude Code](https://claude.com/blog/lessons-from-building-claude-code-prompt-caching-is-everything).
-- Claude Code: [MCP](https://code.claude.com/docs/en/mcp), [prompt caching](https://code.claude.com/docs/en/prompt-caching), [permissions](https://code.claude.com/docs/en/permissions), [issue 31002](https://github.com/anthropics/claude-code/issues/31002).
-- OpenAI: [tool search](https://developers.openai.com/api/docs/guides/tools-tool-search), [prompt caching](https://platform.openai.com/docs/guides/prompt-caching), [Codex prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide), [Codex MCP](https://developers.openai.com/codex/mcp), and `openai/codex` at `d571eaf`.
-- Cursor: [improved token efficiency](https://cursor.com/blog/improved-token-efficiency).
-- Other harness sources: `cline/cline` at `627e51e` and commit `cdcaa744`; `google-gemini/gemini-cli` at `d00859d`; `anomalyco/opencode` at `aadd4d8`; `QwenLM/qwen-code` at `6e6598e`; [Hermes tool search](https://hermes-agent.nousresearch.com/docs/user-guide/features/tool-search); [goose issue 6193](https://github.com/aaif-goose/goose/issues/6193) and [goose issue 6678](https://github.com/block/goose/issues/6678); [Aider unified diffs](https://aider.chat/docs/unified-diffs.html); [Continue configuration](https://docs.continue.dev/guides/configuring-models-rules-tools).
-- Secondary: Bas Nijholt, [native harness tools in MindRoom](https://www.nijho.lt/post/native-harness-tools/), 2026-10-11; JetBrains Research, [The Complexity Trap](https://arxiv.org/abs/2508.21433).
-
-*2026-10-20 20:49 - Claude Opus 5.5 (Cursor agent)*
+*2026-10-21 06:05 - Claude Opus 5.5 (Cursor agent)*
