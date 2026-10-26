@@ -1,1 +1,5 @@
 __pycache__/
+
+# Scratch for specs work. Reports and research stay tracked.
+specs/temp/*
+!specs/temp/.gitkeep
