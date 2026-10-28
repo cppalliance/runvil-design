@@ -308,7 +308,7 @@ For a Rust implementation the estimate is that a Pack-level walk costs roughly 2
 A search touches every file. So what does it claim? Four candidates:
 
 1. **Claim each visited path as a read.** Correct, precise, and unusable. 200,000 entries in the claim table, and the claim is taken incrementally as the walk proceeds, so a concurrent write can land halfway through the search and you get a torn view with no way to say so.
-2. **Claim the subtree.** `Claims::claim_subtree` already exists and is what recursive delete uses. It conflicts with any write anywhere under the root. This is coarse but accurate, it is one table entry, and it is the same semantic you already ship for `remove(recursive: true)`. A search that conflicts with a concurrent write to the searched tree is arguably right.
+2. **Claim the subtree.** `Claims::claim_subtree` already exists and is what recursive delete uses. It records a write, so it conflicts with any read, listing, glob or write anywhere under the root, in either order (`claims_tree.rs`, `claim_subtree` and `check_subtree`). This is coarse but accurate, it is one table entry, and it is the same semantic you already ship for `remove(recursive: true)`. A search that conflicts with a concurrent write to the searched tree is arguably right, but two searches, or a search and a read, would also conflict.
 3. **Claim nothing, and document that a search is a best-effort snapshot.** Cheapest, and a search is a read so this is not obviously wrong. The risk is that a caller reads a match, then acts on it, and the line is gone. But that risk exists in Cursor too, and Cursor takes no claim at all on the grep path. Grep does not touch the per-file lock manager.
 4. **Claim the pattern.** This is what `claim_glob` does: "the pattern itself is the claim, not each match." A search that mirrors that would claim the (pattern, filters) pair and conflict with writes that would change its answer, which is not computable in general.
 
@@ -562,7 +562,7 @@ U$.Ikc({
 })
 ```
 
-`U$.Ikc` is the strict object builder, so unknown keys are rejected before the executor sees them. There is no `.passthrough()` and no `.loose()`.
+`U$.Ikc` is zod's plain `object` factory, not a strict one. The bundle's zod module 77602 exports it as `function ye`, which sets no catchall, and in that module `strict()` and `loose()` each set a catchall while `strip()` clears it. So an unknown key is stripped without an error before the executor sees it. `wIe` has no `.strict()`, `.passthrough()` or `.loose()`.
 
 Flattened:
 

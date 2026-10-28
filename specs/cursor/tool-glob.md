@@ -415,7 +415,7 @@ This is a limitation, and Cursor has no error for it. On a POSIX filesystem a by
 
 Ripgrep always emits `\n` between records on every platform, including Windows. The parser strips a trailing `\r` before each `\n` anyway, which matters only if something upstream re-emits CRLF. Both behaviors are correct and neither is visible to the model.
 
-The one place line endings could leak is the rendered output. The templates use `\n` explicitly, so the model receives LF regardless of host platform. A reimplementation that uses Rust's `writeln!` on Windows would produce `\r\n` and diverge by one byte per line. Use explicit `\n`.
+The one place line endings could leak is the rendered output. The templates use `\n` explicitly, so the model receives LF regardless of host platform. Rust's `writeln!` writes `\n` on every platform, so a Rust port gets this right by default. A port that joins lines with a platform line separator would diverge by one byte per line on Windows. Use explicit `\n`.
 
 There is no CR-only handling, and no need for any: no record in this tool can contain a bare `\r`, except through a filename containing one, which falls under the newline-in-filename problem above.
 
