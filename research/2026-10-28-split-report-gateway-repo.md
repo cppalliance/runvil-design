@@ -47,7 +47,7 @@ The compatibility rule also applies: Gateway's API matches OpenAI's and adds onl
 
 **Three first actions.**
 
-1. Send the Gateway team the ranges deletion notice, and push `38e13409e` when you choose. Owner: Vinnie. Next step: send the notice (section 7 has the text) with 2026-11-06 as the last date to object, then push the commit. Nothing waits on it. Only a reply saying a client needs the token would change the plan, and the way back is `git revert 38e13409e`.
+1. Send the Gateway team the ranges deletion notice, and push `38e13409e` when Vinnie chooses. Owner: Vinnie. Next step: send the notice (section 7 has the text) with 2026-11-06 as the last date to object, then push the commit. Nothing waits on it. Only a reply saying a client needs the token would change the plan, and the way back is `git revert 38e13409e`.
 2. Run the spikes in scratch copies. Owner: the Gateway team for spec generation (three days, eight things to prove) and the five-target release dry run (one day); the Workshop maintainer for the 15-minute check that a stub sidecar satisfies `tauri-build`. Next step: start the spec generation spike on four routes (Appendix J).
 3. Start cutting references inside the current repository. Owner: the Workshop maintainer. Next step: add a check to `crates/build-xtask/src/product.rs` so any Workshop-to-Gateway edge fails, then clear the seven edges that exist today.
 
@@ -1462,7 +1462,7 @@ The register below lists all 13, with the answers Vinnie gave on 2026-10-28.
 
 Stage 0 creates artifacts that name `cppalliance/runvil-gateway`, and the discovery option is the fork. The ranges deletion is done locally, so the first AsyncAPI file never promises the two fields. The tolerant decoder timing means the move changes no behavior, and from the first Gateway release on the Gateway team can treat a new optional field on a known event as a minor change. Confidence: high that the four strict cases survive (missing required field, wrongly typed known field, malformed envelope, non-monotonic revision). Reason: each rests on a guard the work leaves in place. Confidence: medium that tolerance plus the three literal relaxations make a specific foreign server work. Reason: no foreign server was run against this code.
 
-**Recommendation.** Send the Gateway team the ranges notice now, and push when you choose. The deletion is already done locally in `38e13409e`. Owner: Vinnie. Next step: send the notice (section 7 has the text), then push `38e13409e`. The tolerant decoder decision blocks nothing, because the decoder stays exact until after the first Gateway release. Confidence: high. Reason: the ranges deletion is already decided, so the notice costs one message and blocks nothing, and every open decision has a default.
+**Recommendation.** Send the Gateway team the ranges notice now, and push when Vinnie chooses. The deletion is already done locally in `38e13409e`. Owner: Vinnie. Next step: send the notice (section 7 has the text), then push `38e13409e`. The tolerant decoder decision blocks nothing, because the decoder stays exact until after the first Gateway release. Confidence: high. Reason: the ranges deletion is already decided, so the notice costs one message and blocks nothing, and every open decision has a default.
 
 ## 11. Unknowns, assumptions, and limits
 
