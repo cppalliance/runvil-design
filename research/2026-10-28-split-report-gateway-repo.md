@@ -2,7 +2,7 @@
 
 # Moving Gateway to its own repository: go, cut in place first, extract second
 
-Report type: analytical and recommendation (feasibility variant). Prepared for Vinnie Falco, owner of the Runvil repository. Evidence snapshot: commit `08801150f` of `runvil`, 2026-10-27. Revised 2026-10-28 to record the owner's answers (decisions 1, 2, 3, 4, 5, and 6 are settled, and decision 11 stays open), the owner's standard-first principle for the contract (premise 6, section 1.2), and the decoder tolerance that decision 5 sets for after the first Gateway release (section 6.6).
+Report type: analytical and recommendation (feasibility variant). Prepared for Vinnie Falco, owner of the Runvil repository. Evidence snapshot: commit `08801150f` of `runvil`, 2026-10-27. Revised 2026-10-28 to record the owner's answers (decisions 1, 2, 3, 4, 5, and 6 are settled), the owner's standard-first principle for the contract (premise 6, section 1.2), and the decoder tolerance that decision 5 sets for after the first Gateway release (section 6.6). Revised 2026-10-30 to record decision 11 as settled: only the Gateway leaves, so it was a scope premise and not an open choice, and no open decision needs the owner before the first Gateway release.
 
 ## Executive summary: go, but cut in place first and extract second
 
@@ -27,7 +27,7 @@ Report type: analytical and recommendation (feasibility variant). Prepared for V
 4. Thirty speech-to-text fixture files and two baseline files are read or written by tests in both products, so the split strands shared test data.
 5. Outside consumers break on the first Monday after the move. `runvil-cloud-providers` builds Gateway source from `master` every week, so its first run after the move very likely fails. Confidence in that evidence: high. Rewriting `runvil` history would also orphan pins held by other repositories.
 
-**Owner decisions: six are settled, one principle governs the contract, and one decision remains open** (details and defaults in section 10).
+**Owner decisions: seven are settled, one principle governs the contract, and no open decision needs the owner before the first Gateway release** (details and defaults in section 10). Six decisions remain open (7 to 10, 12, and 13). Their deciders and deadlines fall in stages 2, 4, and 5 or after the split, and three of them (7, 9, and 12) belong to the Gateway team.
 
 Settled on 2026-10-28, with one governing principle stated the same day:
 
@@ -38,14 +38,13 @@ Settled on 2026-10-28, with one governing principle stated the same day:
 - **Decision 4, the realtime ranges extension: deleted before the first publication.** The extension is an opt-in token that adds `finalized_through_ms` and `finalized_seq` to the live transcript snapshots. The owner decided on 2026-10-28 to delete it before the first public publication of the spec, because both fields are a convenience rather than a requirement, no code reads them, Workshop stopped requesting the token on 2026-10-07, and the only remaining requester is an ignored Gateway test. The Gateway team gets a notification with a deadline to object, not a deciding vote; it changes the plan only if they say a client of theirs needs the token before publication (section 7.5).
 - **Decision 5, the Workshop UI decoder: tolerant after the first Gateway release.** The owner answered "tolerant seems right" on 2026-10-28. The decoder ignores unknown extra fields on events it knows and ignores unknown event types, while it keeps rejecting a missing or wrongly typed field on an event it knows. It does this after the first Gateway release, not during the move, so the move itself carries no behavior change. Premise 6 is the reason: a client pointed at a server we do not control is exactly where unknown fields and unknown event types arrive, so strictness defeats the substitutability the principle requires (sections 6.6 and 7.6). The precise boundary and the work it creates are in section 6.6.
 - **Decision 6, guide chapters: they stay in `runvil-docs`.** The agent writes them from the spec, the owner of record is Vinnie Falco, and the `CODEOWNERS` item is one line naming him.
+- **Decision 11, scope: only the Gateway leaves.** Engine, Harness, Plugins, Workshop, and the shared build tooling stay in the Runvil repository. The owner answered "of course everything else stays", so this was a scope premise and never a real choice (section 1.1).
 
-Still open, with the assumed default:
-
-- **Decision 11, Engine, Harness, and Plugins stay in the Runvil repository.** The owner did not answer. The default is that they stay.
+Still open: decisions 7 to 10, 12, and 13, each with a safe default. None needs the owner before the first Gateway release. Decisions 8, 10, and 13 are the owner's, and they fall at stage 4, stage 5, and after the split. Decisions 7, 9, and 12 are the Gateway team's, and they fall at stage 2.
 
 **Three actions to start.**
 
-1. Notify the Gateway team about the ranges deletion, with the 2026-11-06 deadline to object, and confirm decision 11. Owner: Vinnie. Next step: send the notification in section 7.5 to the Gateway team this week, open the Gateway pull request for the six deletion steps, and reply "keep" or "change" on decision 11. The notification holds up no stage; only an answer that a client needs the token before publication would.
+1. Notify the Gateway team about the ranges deletion, with the 2026-11-06 deadline to object. Owner: Vinnie. Next step: send the notification in section 7.5 to the Gateway team this week and open the Gateway pull request for the six deletion steps. The notification holds up no stage; only an answer that a client needs the token before publication would.
 2. Run the spikes in scratch copies. Spec generation and the five-target cargo-dist dry run belong to the Gateway team (three days and one day, with eight proofs for the first in Appendix J). The 15-minute check that a stub sidecar satisfies `tauri-build` belongs to the Workshop maintainer.
 3. Start cutting references inside the current repository. Owner: Workshop maintainer. Next step: add a check to `crates/build-xtask/src/product.rs` so any Workshop-to-Gateway edge fails, then clear the seven edges that exist today.
 
@@ -118,7 +117,7 @@ Confidence in the recommended order: high. Reason: it is the only path in which 
   - [9.3 Assets and licenses move with the code, and `local/` leaves the workspace](#93-assets-and-licenses-move-with-the-code-and-local-leaves-the-workspace)
   - [9.4 Names such as `runvil-gateway` and `.runvil` act as contracts, so keep them](#94-names-such-as-runvil-gateway-and-runvil-act-as-contracts-so-keep-them)
   - [9.5 The cleanup list: 25 prose sites and about 2,400 lines would stay visible after a naive split](#95-the-cleanup-list-25-prose-sites-and-about-2400-lines-would-stay-visible-after-a-naive-split)
-- [10. Six decisions are settled and seven remain open, and one of them needs the owner before the first release](#10-six-decisions-are-settled-and-seven-remain-open-and-one-of-them-needs-the-owner-before-the-first-release)
+- [10. Seven decisions are settled and six remain open, and none needs the owner before the first release](#10-seven-decisions-are-settled-and-six-remain-open-and-none-needs-the-owner-before-the-first-release)
 - [11. Unknowns, assumptions, and limits stay visible, each with what would resolve it](#11-unknowns-assumptions-and-limits-stay-visible-each-with-what-would-resolve-it)
   - [11.1 Twenty-seven unknowns, each with a way to resolve it](#111-twenty-seven-unknowns-each-with-a-way-to-resolve-it)
   - [11.2 Assumptions, and the limits of the method](#112-assumptions-and-the-limits-of-the-method)
@@ -144,7 +143,7 @@ This section states the premises, the governing principle, the terms, the eviden
 
 ### 1.1 Five owner decisions are premises, not options
 
-The report treats these as fixed and does not re-argue them.
+The report treats these as fixed and does not re-argue them. Scope: only the Gateway leaves. Engine, Harness, Plugins, Workshop, and the shared build tooling stay in the Runvil repository. The owner confirmed this on 2026-10-28 ("of course everything else stays") and called it a scope premise, so the register keeps it as decision 11 only to hold the number steady (section 10).
 
 1. The Gateway moves to its own repository because another team now works on it.
 2. Workshop and the Harness depend on a documented API (OpenAPI plus AsyncAPI), never on Gateway source. This includes speech-to-text.
@@ -197,7 +196,7 @@ The owner asked for options with ranking wherever a real choice exists. At the t
 
 ### 2.1 Four options compete
 
-**Option A: stage the split (recommended).** Stage 0 confirms decision 11 and runs two spikes. Stage 1 removes every Workshop-to-Gateway reference inside the current repository and adds a check that fails if one returns. Stage 2 builds the Gateway repository and rehearses the history extraction on a scratch repository. Stage 3 freezes the Gateway paths, extracts for real, and cuts the first Gateway release for five targets. Stage 4 wires the Runvil repository to that release. Stage 5 deletes the Gateway code and repoints outside consumers. Stage 6 settles rulesets, runner, and tokens. Each stage is verified before the next starts. Section 8.6 gives the full ordered plan and marks what runs in parallel.
+**Option A: stage the split (recommended).** Stage 0 sends the ranges notice and runs the spikes. Stage 1 removes every Workshop-to-Gateway reference inside the current repository and adds a check that fails if one returns. Stage 2 builds the Gateway repository and rehearses the history extraction on a scratch repository. Stage 3 freezes the Gateway paths, extracts for real, and cuts the first Gateway release for five targets. Stage 4 wires the Runvil repository to that release. Stage 5 deletes the Gateway code and repoints outside consumers. Stage 6 settles rulesets, runner, and tokens. Each stage is verified before the next starts. Section 8.6 gives the full ordered plan and marks what runs in parallel.
 
 **Option B: keep one repository and finish the contract work in place.** This is the do-nothing option, with the contract work done. The team would generate and commit the spec, add the CI check, tighten the product matrix so Workshop cannot name Gateway crates, and replace Workshop's two Gateway crate dependencies. The Gateway would stay in `runvil`.
 
@@ -224,7 +223,7 @@ Option C ranks third. The Gateway set has 7 inbound edges from Workshop, 22 outb
 
 Option D ranks last. It defeats premises 2 and 4 during the transition, `deny.toml` would need an `allow-git` entry for any git dependency (`deny.toml` sets `unknown-git = "deny"`), and transitions have a habit of lasting. A bridge is acceptable only as a short rehearsal tool, never as a shipped state.
 
-**Recommendation.** Take option A. Owner: Vinnie. Next step: approve stage 0 and settle decision 11, the last one open that needs the owner before the first release. Confidence: high. Reason: it is the only option in which a machine check proves each cut before anything is deleted.
+**Recommendation.** Take option A. Owner: Vinnie. Next step: approve stage 0 and start it. No open decision needs the owner before the first Gateway release (section 10). Confidence: high. Reason: it is the only option in which a machine check proves each cut before anything is deleted.
 
 ### 2.3 Staging puts the first Gateway release at the hinge
 
@@ -1190,7 +1189,7 @@ flowchart TD
   P6 --> P7[Settle]
 ```
 
-**Stage 0: decide and spike (serial, first).** Decisions 1 to 6 are settled (2026-10-28). The owner confirms decision 11 and the order, and the Gateway team gets notice of the ranges deletion (decision 4) with a deadline to object. Run the spikes in scratch copies: spec generation (three days), the five-target cargo-dist dry run on a rehearsal repository, the stub sidecar (15 minutes), and the throwaway-clone checks listed in Appendix J. Create a private scratch repository for rehearsals. Nothing changes in the real repositories.
+**Stage 0: decide and spike (serial, first).** Decisions 1 to 6 are settled (2026-10-28). The owner starts the stage, and the Gateway team gets notice of the ranges deletion (decision 4) with a deadline to object. Run the spikes in scratch copies: spec generation (three days), the five-target cargo-dist dry run on a rehearsal repository, the stub sidecar (15 minutes), and the throwaway-clone checks listed in Appendix J. Create a private scratch repository for rehearsals. Nothing changes in the real repositories.
 
 **Stage 1: cut in place (in the current repository).** This track runs in parallel with stage 2.
 - Replace `gateway_api_types::Progress` with a Workshop-owned type and a contract test.
@@ -1342,9 +1341,9 @@ Also decide: `vibe/` (section 9.2), `AGENTS.md` (section 9.2), and the `README.m
 
 **Recommendation.** Work this list in stage 5, in the same pull request as the deletion where the edit is mechanical, and close the two local cleanup items in stage 6. Owner: Workshop maintainer for the Runvil repository, Gateway team for the Gateway repository, Vinnie for the local cleanup. Next step: after the deletion, run the scan above and treat each hit as a defect. Confidence: high on the list; medium on completeness, because the prose count is a floor.
 
-## 10. Six decisions are settled and seven remain open, and one of them needs the owner before the first release
+## 10. Seven decisions are settled and six remain open, and none needs the owner before the first release
 
-Table 17 collects every decision. The owner settled six of them on 2026-10-28: decisions 1, 2, 3, 4, 5, and 6. Seven remain open. Decision 11 needs the owner before the first Gateway release, because the owner has not answered it. Each open decision has a default that the plan assumes if nobody decides. The other six open decisions (7 to 10, 12, and 13) have safe defaults and can wait for the stage that needs them. Where a decision belongs to the Gateway team, the table says so.
+Table 17 collects every decision. The owner settled seven of them on 2026-10-28: decisions 1, 2, 3, 4, 5, 6, and 11. Decision 11 was a scope premise and not a real choice: only the Gateway leaves. Six remain open (7, 8, 9, 10, 12, and 13). The first Gateway release is cut at the end of stage 3, and the Needed-by and Decides columns show that no open decision falls to the owner before then. Decisions 8 and 10 are the owner's and fall at stage 4 and stage 5, and decision 13 is the owner's after the split. Decisions 7, 9, and 12 fall at stage 2, before the release, but they belong to the Gateway team. Each open decision has a default that the plan assumes if nobody decides, so no stage waits on an answer. Where a decision belongs to the Gateway team, the table says so.
 
 **Table 17. The decision register, with the owner's answers of 2026-10-28.**
 
@@ -1360,13 +1359,13 @@ Table 17 collects every decision. The owner settled six of them on 2026-10-28: d
 | 8 | Does the Workshop nightly use the pinned Gateway or the Gateway's rolling nightly? | Open | Reproducibility versus early breakage | Pinned, plus a scheduled canary job that opens an issue on failure | Stage 4 | Owner |
 | 9 | Immutable releases on or off in the Gateway repository? | Open | Immutability conflicts with a rolling `nightly` release | On, with dated nightly tags | Stage 2 | Gateway team |
 | 10 | How are `vibe/` records split? | Open | Premise 4 exposure | Split by topic and move the Gateway-centric records | Stage 5 | Owner |
-| 11 | Do Engine, Harness, and Plugins stay in the Runvil repository? | Open. The owner did not answer | The `build-ceiling` `#[path]` includes and the product matrix assume they do | They stay | Stage 0 | Owner |
+| 11 | Do Engine, Harness, and Plugins stay in the Runvil repository? | Decided 2026-10-28: yes, everything except the Gateway stays. This was a scope premise and not a real choice, so the register keeps the row only to keep its number | The `build-ceiling` `#[path]` includes and the product matrix assume they do. Only the Gateway leaves; Engine, Harness, Plugins, Workshop, and the shared build tooling stay in the Runvil repository | Not needed. The answer matched the default | Done | Owner (answered) |
 | 12 | Does the Gateway repository keep the 500-line rule and the `build-xtask` checks? | Open | Decides what the scaffold commit copies | Keep both, copied | Stage 2 | Gateway team |
 | 13 | Should the Workshop relay pass 429 and 503 through instead of collapsing them to 502? | Open | The UI could say why dictation is unavailable instead of "connecting" | Leave as is; a product choice for later | After the split | Owner |
 
-Decisions 1 to 3 are settled, so stage 0 creates artifacts that name `cppalliance/runvil-gateway`, and the discovery option is the fork. Decision 2 had the largest effect, and the owner's strict reading keeps the fork on top in Table 6. Decisions 4 and 5 are about the contract's promise. Decision 4 is fixed: the contract publishes without the ranges extension, so the first AsyncAPI file never promises the two fields, and premise 6 backs that deletion because the two fields are an addition beyond the minimum. Decision 5 is now fixed too: the Workshop decoder becomes tolerant after the first Gateway release, ignoring unknown extra fields on events it knows and unknown event types while it still rejects a missing required field, a wrongly typed known field, a malformed envelope, and a non-monotonic revision (section 6.6). Premise 6 is why, and it makes the direction plainer than version skew alone did: pointing Workshop at a server we do not control is exactly the case where unknown fields and unknown event types arrive. The timing is part of the answer, so the move carries no behavior change, and the Gateway team can treat a new optional field on a known event as a minor change from that point (sections 6.5 and 6.6). Confidence: high that the four strict cases survive, because each rests on a guard the work leaves in place; medium that tolerance plus the three literal relaxations make a specific foreign server work, because no foreign server was run against this code. Only decision 11 still needs the owner.
+Decisions 1 to 3 are settled, so stage 0 creates artifacts that name `cppalliance/runvil-gateway`, and the discovery option is the fork. Decision 2 had the largest effect, and the owner's strict reading keeps the fork on top in Table 6. Decisions 4 and 5 are about the contract's promise. Decision 4 is fixed: the contract publishes without the ranges extension, so the first AsyncAPI file never promises the two fields, and premise 6 backs that deletion because the two fields are an addition beyond the minimum. Decision 5 is now fixed too: the Workshop decoder becomes tolerant after the first Gateway release, ignoring unknown extra fields on events it knows and unknown event types while it still rejects a missing required field, a wrongly typed known field, a malformed envelope, and a non-monotonic revision (section 6.6). Premise 6 is why, and it makes the direction plainer than version skew alone did: pointing Workshop at a server we do not control is exactly the case where unknown fields and unknown event types arrive. The timing is part of the answer, so the move carries no behavior change, and the Gateway team can treat a new optional field on a known event as a minor change from that point (sections 6.5 and 6.6). Confidence: high that the four strict cases survive, because each rests on a guard the work leaves in place; medium that tolerance plus the three literal relaxations make a specific foreign server work, because no foreign server was run against this code. Decision 11 needs no discussion, because the scope was never in doubt. No open decision needs the owner before the first Gateway release.
 
-**Recommendation.** Notify the Gateway team about the ranges deletion and confirm decision 11 now. Owner: Vinnie. Next step: send the notification in section 7.5 and open the Gateway pull request for the deletion, then reply "keep" or "change" on decision 11. Decision 5 no longer blocks anything, because the answer is the decoder stays exact until after the first Gateway release. Confidence: high. Reason: decision 11 has a default that the evidence favors, and decision 4 is already answered, so the notification costs one message and blocks nothing.
+**Recommendation.** Notify the Gateway team about the ranges deletion now. Owner: Vinnie. Next step: send the notification in section 7.5 and open the Gateway pull request for the deletion. Decision 5 no longer blocks anything, because the answer is the decoder stays exact until after the first Gateway release. Confidence: high. Reason: decision 4 is already answered, so the notification costs one message and blocks nothing, and every open decision has a default.
 
 ## 11. Unknowns, assumptions, and limits stay visible, each with what would resolve it
 
@@ -1410,7 +1409,7 @@ Table 18 lists the unknowns, with a likelihood for each bad outcome, the confide
 
 ### 11.2 Assumptions, and the limits of the method
 
-**Assumptions.** The plan assumes that Engine, Harness, and Plugins stay with Workshop in the Runvil repository (decision 11). It assumes that "the Gateway team" is the second team and that its members have or will get write access. It assumes the Gateway keeps the name `runvil-gateway` for its binary. It assumes the evidence snapshot, commit `08801150f` of 2026-10-27 with a clean tree, represents the state at cutover; the repository gained commits during analysis, and the extraction is designed to re-run on the frozen tip.
+**Assumptions.** The scope is a fact, not an assumption: only the Gateway leaves, and Engine, Harness, Plugins, Workshop, and the shared build tooling stay in the Runvil repository (decision 11, settled 2026-10-28). The plan assumes that "the Gateway team" is the second team and that its members have or will get write access. It assumes the Gateway keeps the name `runvil-gateway` for its binary. It assumes the evidence snapshot, commit `08801150f` of 2026-10-27 with a clean tree, represents the state at cutover; the repository gained commits during analysis, and the extraction is designed to re-run on the frozen tip.
 
 **Limits.** No build, test, or `npm` command was run, so every "would fail" claim is inferred from reading. Counts from pattern searches are floors, because a paraphrase with no matching name is missed. CI timings are single samples with cache state unknown. External-tool facts come from the vendor pages cited in Appendix L, and several rest on a search answer, which the text marks. A throwaway extraction clone from the dry run sits under the system temporary folder and can be deleted.
 
@@ -1844,3 +1843,5 @@ Repository evidence is cited inline by `path:line`, commit, or command. External
 *2026-10-28 08:37 - deepseek-v4.1-flash-1017 (standard-first principle added, compatibility criterion, spec extension register, Workshop fallback)*
 
 *2026-10-28 09:03 - deepseek-v4.1-flash-1017 (decoder tolerance decided, realtime compatibility rows relaxed, decision counts recomputed)*
+
+*2026-10-30 11:50 - claude-sonnet-5-5 (decision 11 recorded as a settled scope premise, open counts recomputed)*
