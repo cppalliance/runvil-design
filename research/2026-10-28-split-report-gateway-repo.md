@@ -2,7 +2,7 @@
 
 # Moving the Gateway to its own repository
 
-A feasibility study with a recommendation, prepared for Vinnie Falco, owner of the Runvil repository. The evidence is commit `08801150f` of `runvil` (2026-10-27), and every line citation is read at that commit, so a citation may not match the tree today. Two commits came after it: `c73db8f7f` (2026-10-28, the compatibility rule README, already pushed) and `38e13409e` (2026-10-30, the ranges deletion, local and not pushed).
+A feasibility study with a recommendation, prepared for Vinnie Falco, owner of the Runvil repository. The evidence is commit `08801150f` of `runvil` (2026-10-27), and every line citation is read at that commit, so a citation may not match the tree today. Three changes came after it: `c73db8f7f` (2026-10-28, the compatibility rule README, pushed), `38e13409e` (2026-10-30, the ranges deletion, local and not pushed), and uncommitted work on top of `4206be908` (2026-10-30) that takes Workshop off the Gateway's test fixtures, so the six relative fixture paths in section 7 are gone.
 
 ## Executive summary
 
@@ -42,7 +42,7 @@ The compatibility rule also applies: Gateway's API matches OpenAI's and adds onl
 1. No Gateway release exists. The cargo-dist workflow has only ever run in plan mode on pull requests, and it targets two Linux triples. Likelihood that the first Windows or macOS build needs a fix: roughly even chance. Confidence in that evidence: medium.
 2. Replacing `gateway-api-discovery` is the largest cut. It is a 2,445-line process-lifecycle protocol that OpenAPI cannot describe, used by 22 Workshop files and 12 test files.
 3. The spec generator is unproven. Today the Workshop UI's realtime decoder rejects unknown fields and hard-codes three Gateway names, so any additive realtime change breaks every installed Workshop and no other server works with it. The tolerant decoder decision removes the first problem after the first Gateway release, and relaxing the three names is separate work.
-4. Thirty speech-to-text fixture files and two baseline files are read or written by tests in both products, so the split breaks tests on one side unless the data is divided first.
+4. Thirty speech-to-text fixture files and two baseline files were read or written by tests in both products, so the split broke tests on one side unless the data was divided first. Workshop now owns its copies, on 2026-10-30 and uncommitted on top of `4206be908`, so neither side reads a file the other writes.
 5. Outside consumers break on the first Monday after the move. `runvil-cloud-providers` builds Gateway source from `master` every week, so its first run after the move very likely fails. Confidence in that evidence: high. Rewriting `runvil` history would also break the pins that other repositories hold, so the plan never does that.
 
 **Three first actions.**
@@ -266,7 +266,7 @@ The "Repo" column says where the break is. The fix column names the stage of the
 | 2 | Runvil | Workshop code links Gateway crates | 22 Workshop files import `gateway_api_discovery` (12 in `workshop`, 9 in `workshop-gateway`, 1 in `workshop-server`); 5 import `gateway_api_types`; 12 test files use the `ValidatedGateway` fixture built on the real discovery crate (`crates/workshop/gateway/src/test_gateway.rs`) | Workshop-owned `Progress` type and a forked discovery reader behind a written contract (stage 1) |
 | 3 | Runvil | The sidecar build chain and every CI and release path compile `-p gateway` | `crates/workshop/desktop/build.rs:30-61`, `tauri.conf.json:13`, `crates/build-workshop/src/main/pipeline.rs:106`, `ci.yml:153,232`, `release-workshop.yml:159,163`, `nightly.yml:196,200`, `workshop-installer-smoke.yml:35` | Fetch a pinned release binary or a stub (stages 1 and 4) |
 | 4 | Gateway | No Gateway release exists to download | `dist-workspace.toml:17` targets two Linux triples; no `gateway-v*` tag exists locally, on `upstream`, or on `origin`; the cargo-dist workflow has only plan-mode `pull_request` runs | Add three targets, extend the release-test gate, cut the first release (stage 3) |
-| 5 | Runvil | Tests cannot find 30 Gateway fixture files, and one test writes into them | `crates/workshop/server/tests/it/realtime_relay.rs:53` uses compile-time `include_bytes!`, so the whole `workshop-server` integration-test binary stops compiling; five UI tests read the folder; `crates/workshop/ui/test/stt-replay.mjs:14` also rewrites the `ui` section of two JSON files | Vendor protocol examples, snapshot the replay streams, split the `ui` data (stage 1) |
+| 5 | Runvil | Tests cannot find 30 Gateway fixture files, and one test writes into them | `crates/workshop/server/tests/it/realtime_relay.rs:53` used compile-time `include_bytes!`, so the whole `workshop-server` integration-test binary stopped compiling; five UI tests read the folder; `crates/workshop/ui/test/stt-replay.mjs:14` also rewrote the `ui` section of two JSON files. Cut on 2026-10-30: Workshop reads only its own copies, and `rg "crates/gateway" crates/workshop` finds nothing | Vendor protocol examples, snapshot the replay streams, split the `ui` data (stage 1) |
 | 6 | Gateway | The 16 manifests cannot parse and the shared crates are missing | Every crate inherits `[workspace.package]` and `[workspace.lints]` and uses `workspace = true`; the Gateway repository has no root manifest, lockfile, or toolchain file; `build-ceiling` (16 crates), `shared-error-source` (3), `shared-loopback` (2), `build-ui` (1), and npm `shared-ui` are all outside the set | Scaffold commit plus the component decisions (stage 2) |
 | 7 | Gateway | `cargo test -p gateway-config` does not compile | `crates/gateway/config/src/config/tests/schema.rs:79-82` uses `include_str!` on `../../../gateway.local.example.toml`, a file at the Runvil repository root | Move the file and fix the path (stage 2) |
 
@@ -942,14 +942,16 @@ The audio path has ten hops. Four of them touch no Gateway file: microphone capt
 
 Types are duplicated by hand. Server events are one typed serde enum in Rust (`wire/server.rs:153-230`) and a hand-written strict decoder in TypeScript. Client events are untyped object literals in TypeScript and a raw-map parser in Rust (`wire/client.rs:10-98`). The number 24,000 is written by hand in at least five places. Today, drift is caught only because both sides read the same fixture files: `crates/workshop/ui/test/realtime-wire-fixtures.mjs` (553 lines) requires the decoder to accept every canonical event and reject every field mutation, addition, and removal. That is the strongest drift check in the system, and it covers only shapes that appear in the fixtures.
 
-**Six files outside `crates/gateway/` read Gateway fixtures by relative path.**
+**Six files outside `crates/gateway/` read Gateway fixtures by relative path.** All six were cut on 2026-10-30, on top of `4206be908` and uncommitted. The list is kept because it records what the work had to cover.
 
-- `crates/workshop/server/tests/it/realtime_relay.rs:52-54`: `include_bytes!` of `valid-sequences.json`, at compile time.
-- `agent-stt.mjs:24-36`: `valid-sequences.json`.
-- `pcm-worklet.mjs:9-18`: `audio/pcm16le-24khz.json`.
-- `realtime-wire-fixtures.mjs:22-30`: all five `realtime/*.json`.
-- `stt-replay.mjs:14`: the `replay/` folder. It reads 11 `*.snapshots.json` files, and reads and rewrites `baseline.json` and `metrics.json`.
-- `stt-stream.mjs:13`: `client-events.json` and `server-events.json`.
+- `crates/workshop/server/tests/it/realtime_relay.rs:52-54`: `include_bytes!` of `valid-sequences.json`, at compile time. Now reads Workshop's own copy under `crates/workshop/server/tests/fixtures/realtime/`, so the `it` binary compiles with no Gateway files present.
+- `agent-stt.mjs:24-36`: `valid-sequences.json`. Repointed to the same Workshop copy.
+- `pcm-worklet.mjs:9-18`: `audio/pcm16le-24khz.json`. Repointed to `crates/workshop/ui/test/fixtures/audio/`.
+- `realtime-wire-fixtures.mjs:22-30`: all five `realtime/*.json`. Repointed to the Workshop copy.
+- `stt-replay.mjs:14`: the `replay/` folder. It reads 11 `*.snapshots.json` files, and read and rewrote `baseline.json` and `metrics.json`. It now reads and writes only Workshop files: the 11 frozen streams plus `ui-baseline.json` and `ui-metrics.json`, all under `crates/workshop/ui/test/fixtures/replay/`.
+- `stt-stream.mjs:13`: `client-events.json` and `server-events.json`. Repointed to the Workshop copy.
+
+A conformance test keeps the vendored protocol examples honest. `crates/build-xtask/tests/realtime_wire_conformance.rs` compares the five Workshop copies byte for byte against the Gateway originals and fails with the file name and first differing byte, because the wire shape is the Gateway's contract and a copy drifts. It lives in `build-xtask` for the same reason `discovery_conformance.rs` does, and it is expected to be deleted when the Gateway moves. The replay snapshot streams get no drift check, because that test measures how Workshop renders a fixed input rather than how it matches current Gateway output.
 
 No Workshop or Harness crate depends on any `gateway-stt*` crate. The batch endpoint `POST /v1/audio/transcriptions` has no caller outside the Gateway's own tests, so it does not cross the split and needs spec coverage only for completeness.
 
@@ -958,7 +960,7 @@ No Workshop or Harness crate depends on any `gateway-stt*` crate. The batch endp
 - The whole `workshop-server` integration-test binary stops compiling, because `realtime_relay.rs` is one module of the single `it` binary (`tests/it/main.rs:16`). Every Workshop server integration test goes red, including the Windows Workshop job.
 - Five Workshop UI test files fail to load (`agent-stt.mjs` and `stt-stream.mjs` read at top level; the others at first use), and `npm test` goes red.
 - The drift detector disappears. After the split both copies can diverge with both CIs green. A Gateway release that adds a field to a server event makes every deployed Workshop drop that event as `invalid_server_event` until the Workshop decoder becomes tolerant (`realtime-transcription.ts:224-228`).
-- The `ui` sections stay in the wrong repository, and Gateway tuning would force cross-repository baseline edits. Since 2026-10-06, 10 of the 12 commits that changed snapshots also changed the `ui` section.
+- The `ui` sections stay in the wrong repository, and Gateway tuning would force cross-repository baseline edits. Since 2026-10-06, 10 of the 12 commits that changed snapshots also changed the `ui` section. That is now fixed: the `ui` data lives in Workshop files and the Gateway summary files no longer carry it.
 - A Gateway change to the handshake breaks Workshop silently as "Dictation is connecting" (`realtime-stt.ts:314-315`), because the relay collapses 401, 403, 429, and 503 into 502.
 - Two string error codes drive reducer behavior and are copied by hand: `too_much_unfinalized_audio` and `precommit_transcription_failed` (`parts/take/take-registry-events.ts:97-99`). A Gateway rename would pass Workshop CI.
 
@@ -990,7 +992,7 @@ Option 6 does force the Gateway repository to import Workshop source. The replay
 
 Options 1 and 2 do not compete, because they cover different files. Use option 2 for the five `realtime/` files and the audio example, and option 1 for the 11 snapshot streams and the `ui` baseline. Option 3 is a clean fallback if Vinnie prefers to follow `AGENTS.md:44` to the letter. The `ui` baseline is a score threshold that ordinary work edited in 10 of 12 commits.
 
-**Recommendation.** Take options 2 and 1 together, split by kind of file. Owner: Vinnie, in the Runvil repository for the fixed copy and the vendoring, and in the Gateway repository for publishing the examples. Next step: in stage 1, copy the 11 streams into a Workshop-owned folder, move the `ui` sections into `ui-baseline.json` and `ui-metrics.json`, and repoint the six path constants; remove `"ui"` from `FOREIGN_SECTIONS` at `crates/gateway/stt/api/tests/it/replay.rs:36` in the Gateway repository. Confidence: high on splitting by kind, because it follows how each file is used today; medium on fixing the streams, because it gives up the live flicker signal and Vinnie may value that signal.
+**Recommendation.** Take options 2 and 1 together, split by kind of file. Owner: Vinnie, in the Runvil repository for the fixed copy and the vendoring, and in the Gateway repository for publishing the examples. This was carried out on 2026-10-30, uncommitted, on top of `4206be908`: the 11 streams were copied into a Workshop-owned folder, the `ui` sections became `ui-baseline.json` and `ui-metrics.json` in Workshop, and the six path constants were repointed. Removing `"ui"` from `FOREIGN_SECTIONS` in the Gateway's replay test and deleting the `ui` sections from its two summary files happened in the same change, because the Gateway test otherwise parses Workshop's metrics as its own. Confidence: high on splitting by kind, because it follows how each file is used today; medium on fixing the streams, because it gives up the live flicker signal and Vinnie may value that signal.
 
 ### 7.3 What the realtime contract must say
 
@@ -1269,7 +1271,7 @@ Create a private scratch repository for rehearsals. Nothing changes in the real 
 - Done on 2026-10-30: the ranges deletion in `runvil` (`38e13409e`, local, not pushed). It leaves stage 1's list. What remains is to push the commit, and nothing here waits on it. The Workshop decoder becomes tolerant only after the first Gateway release.
 - Replace `gateway_api_types::Progress` with a Workshop-owned type and a contract test.
 - Inline the one `shared-loopback` function into `workshop-server`.
-- Vendor the protocol examples, freeze the 11 snapshot streams, and split the `ui` baseline files.
+- Vendor the protocol examples, freeze the 11 snapshot streams, and split the `ui` baseline files. Done on 2026-10-30, uncommitted on top of `4206be908`: Workshop now owns every test input it reads, `rg "crates/gateway" crates/workshop` finds nothing, and `crates/build-xtask/tests/realtime_wire_conformance.rs` catches drift in the vendored examples.
 - Fork the discovery client half behind the written contract and the conformance test.
 - Add the version check at attach and the `--gateway-binary` flag to `cargo workshop`.
 - Write `tools/bump-gateway.mjs`, `tools/fetch-gateway-sidecar.mjs`, and the pin file.
@@ -1742,29 +1744,29 @@ Workshop-side tests:
 
 | Test | Gateway coupling today | Handling | Action | Confidence |
 |---|---|---|---|---|
-| `stt-replay.mjs` | Reads 11 `*.snapshots.json`; reads and rewrites `ui` in `baseline.json` and `metrics.json` | Needs a split | Stays in Workshop, reading Workshop's own fixed streams and its own `ui` files; the `ui` data leaves the Gateway files | Medium-high |
+| `stt-replay.mjs` | Reads 11 `*.snapshots.json`; reads and rewrites `ui` in `baseline.json` and `metrics.json` | Needs a split | Done 2026-10-30: reads and writes only Workshop files under `crates/workshop/ui/test/fixtures/replay/`, including `ui-baseline.json` and `ui-metrics.json` | High |
 | `stt-capture-score.mjs` | None in the tree; reads a capture file named by `RUNVIL_REALTIME_CAPTURE` | Stays | No change; document the loop | High |
-| `stt-stream.mjs` | `client-events.json`, `server-events.json` (line 13) | Stays | Repoint to the vendored examples | High |
-| `agent-stt.mjs` | `valid-sequences.json` (lines 24-36) | Stays | Repoint to the vendored examples | High |
+| `stt-stream.mjs` | `client-events.json`, `server-events.json` (line 13) | Stays | Repointed 2026-10-30 to the vendored examples | High |
+| `agent-stt.mjs` | `valid-sequences.json` (lines 24-36) | Stays | Repointed 2026-10-30 to the vendored examples | High |
 | `agent-stt-boot.mjs`, `speech-capture.mjs`, `mic-meter.mjs` | None | Stay | None | High |
-| `pcm-worklet.mjs` | `audio/pcm16le-24khz.json` (lines 9-18) | Stays | Vendor the 233-byte example, or inline its 7 samples | Medium-high |
-| `realtime-wire-fixtures.mjs` | All five `realtime/*.json` (lines 22-30) | Stays | The consumer-side conformance test; repoint and add spec-schema validation | High |
+| `pcm-worklet.mjs` | `audio/pcm16le-24khz.json` (lines 9-18) | Stays | Vendored 2026-10-30 at `crates/workshop/ui/test/fixtures/audio/` | High |
+| `realtime-wire-fixtures.mjs` | All five `realtime/*.json` (lines 22-30) | Stays | Repointed 2026-10-30; schema validation against the spec is still to come | High |
 | `take-registry.mjs`, `take-registry-regressions.mjs`, `take-reducer-loader.mjs` | None | Stay | None | High |
-| `crates/workshop/server/tests/it/realtime_relay.rs` and its submodules | Only `canonical_server_frames()` (lines 50-74) includes a Gateway fixture | Stay | Replace that one include with Workshop's own frames; the other submodules already use a fake upstream | High |
+| `crates/workshop/server/tests/it/realtime_relay.rs` and its submodules | Only `canonical_server_frames()` (lines 50-74) includes a Gateway fixture | Stay | Done 2026-10-30: reads Workshop's own copy, and the `it` binary compiles with no Gateway files present | High |
 
 Gateway-side tests and fixtures:
 
 | Item | Kind | Handling | Action | Confidence |
 |---|---|---|---|---|
-| `stt/api/tests/it/replay.rs`, `replay/*`, `fixtures/replay/*` | Gateway quality corpus | Moves | Drop `"ui"` from `FOREIGN_SECTIONS` (keep `"native"`); delete `ui` from the two JSON files; fix the comment at `replay.rs:35` | High |
+| `stt/api/tests/it/replay.rs`, `replay/*`, `fixtures/replay/*` | Gateway quality corpus | Moves | Done 2026-10-30: `"ui"` dropped from `FOREIGN_SECTIONS` (keeping `"native"`), the `ui` sections deleted from the two JSON files as pure line deletions, and the comment at `replay.rs:35` corrected | High |
 | `realtime_fixtures*.rs`, `wire/tests.rs`, app `canonical_sequence.rs`, `realtime_session/*`, app `realtime_stt/*` | Provider-side conformance and behavior tests | Move | Otherwise unchanged, but the ranges cases were removed in `38e13409e`: the token, its field checks, and the ignored capture tests' token request | High |
 | Native tests, `stt-miri.yml`, `whisper-lib.yml`, `local/stt-fixtures` | Native assets and CI | Move | Unchanged; workflows in Appendix H | High |
-| `realtime/*.json` (5 files) | Protocol examples | The Gateway publishes them with the spec; Workshop vendors a pinned copy | Replace the retired `engine_replaced` sample first | High |
-| `audio/pcm16le-24khz.json` | Protocol example | As above | None | High |
+| `realtime/*.json` (5 files) | Protocol examples | The Gateway publishes them with the spec; Workshop vendors a pinned copy | Vendored 2026-10-30 under `crates/workshop/server/tests/fixtures/realtime/`, with a `build-xtask` drift check; the retired `engine_replaced` sample is still to be replaced | High |
+| `audio/pcm16le-24khz.json` | Protocol example | As above | Vendored 2026-10-30 under `crates/workshop/ui/test/fixtures/audio/` | High |
 | `replay/scripted-*.json` (9), `jfk-native*.json` (2) | Gateway quality corpus | Stay in the Gateway | None | High |
-| `replay/*.snapshots.json` (11) | Dual | Gateway keeps its golden copies; Workshop gets a fixed copy | Copy once, refresh by script | Medium-high |
-| `replay/baseline.json`, `metrics.json` | Gateway quality measurements | Gateway only, minus `ui` | Remove the `ui` sections | High |
-| `ui` sections (11 entries each) | Workshop data | Move to `ui-baseline.json` and `ui-metrics.json` in the Runvil repository | New files | High |
+| `replay/*.snapshots.json` (11) | Dual | Gateway keeps its golden copies; Workshop gets a fixed copy | Copied 2026-10-30 to `crates/workshop/ui/test/fixtures/replay/` | High |
+| `replay/baseline.json`, `metrics.json` | Gateway quality measurements | Gateway only, minus `ui` | Done 2026-10-30: the `ui` sections are removed and the Gateway test no longer preserves them | High |
+| `ui` sections (11 entries each) | Workshop data | Move to `ui-baseline.json` and `ui-metrics.json` in the Runvil repository | Done 2026-10-30: the two files exist under `crates/workshop/ui/test/fixtures/replay/`, holding the values unchanged | High |
 | `local/stt-fixtures/` | Gateway native-test assets (untracked) | Temporary Gateway checkout only | Move out of `runvil/local/` by hand | High |
 
 ## Appendix H. What happens to each CI workflow
