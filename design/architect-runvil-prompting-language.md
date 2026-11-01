@@ -12,7 +12,7 @@ The host supplies transport, model-tool continuation, confinement, events, cance
 
 The active language work renames heading-based `execute` to synchronous `call` and `tool_call` to `tools.call`, adds pending Markdown capture with thematic-break reset and lazy `prose`, removes `reply`, and retains plain message arrays with optional `messages.new()` builders.
 
-The active model runtime retains `models.infer`, adds Rust-backed `models.loop(handle?, messages, compactor?)`, implements the minimum compactor invocation surface with `compactors.fail` as the only policy, validates provider-neutral messages and correlated model-tool exchanges, and reads model and tool selection at call time. All host operations are namespace functions; handles are pure inspectable values with no methods, so there is exactly one way to invoke anything.
+The active model runtime retains `models.infer`, adds Rust-backed `models.loop`, implements the minimum compactor invocation surface with `compactors.fail` as the only policy, validates provider-neutral messages and correlated model-tool exchanges, and reads model and tool selection at call time. All host operations are namespace functions; handles are pure inspectable values with no methods, so there is exactly one way to invoke anything.
 
 The active host work generalizes `user_input()`, adapts its model-visible tool, and preserves minimum Agent-window interaction. Only focused tests and migrations required by these changes are active.
 
@@ -247,11 +247,11 @@ models.use(prev)
 
 ### Model handles
 
-A handle is a read-only value with the fields `label`, `model_id`, `description`, `context`, `thinking`, and `provider`. It freezes the binding it was read from, and a role's description is the description of the model that fills it. `models.use` accepts a handle as well as a role name, which is how a saved handle restores the current model.
+A handle is a read-only value with the fields `name`, `label`, `model_id`, `description`, `context`, `provider`, `thinking`, `temperature`, and `max_tokens`. It freezes the binding it was read from, and a role's description is the description of the model that fills it. `models.use` accepts a handle as well as a role name, which is how a saved handle restores the current model. A handle is a pure inspectable value: it has no methods, so `models.infer` and `models.loop` are the only ways to run a model, and each takes the handle as its leading argument.
 
-### `models.infer(handle?, prompt)`
+### `models.infer(model?, prompt)`
 
-**Effect:** Performs one fresh tool-free text inference using the chain's current model or, when the first argument is a model handle, that handle's frozen binding. It does not read or mutate a message array or any special output state. **Return:** The completed text. **Failure:** A run with no model, provider failure, context overflow, or a tool-call response raises a typed error. **Example:** `local title = models.infer("Write a title.")` or `local title = models.infer(models.get("small"), "Write a title.")`
+**Effect:** Performs one fresh tool-free text inference using the chain's current model or, when the first argument is a model handle, that handle's frozen binding. It does not read or mutate a message array or any special output state. **Return:** The completed text. **Failure:** A run with no model, provider failure, context overflow, or a tool-call response raises a typed error. Any other argument shape raises `models.infer takes (prompt) or (model, prompt)`. **Example:** `local title = models.infer("Write a title.")` or `local title = models.infer(models.get("small"), "Write a title.")`
 
 The one-request provider turn, model identity, finish reason, request IDs, projection hashes, and metrics remain internal Rust and host-observer mechanisms. Lua receives no public `model_turn` API. Every `models.loop` call reads the chain's current model and current model-visible tool scope (`tools.always`, `tools.add`, `tools.add_local`) at call time. Passing an explicit handle from `models.get`, `models.use`, or `models.current` as the leading argument to `models.infer` or `models.loop` runs on its frozen binding at any time, independent of the chain's current model. Handles are pure inspectable values with no methods.
 
@@ -283,9 +283,9 @@ Bound tools remain unavailable to the model until `tools.always`, `tools.add`, o
 
 **Effect:** Directly dispatches any bound tool, named by alias string or Tool object, without advertising it to a model. **Return:** The decoded result as a string or JSON-representable Lua value. **Failure:** Unknown alias, invalid arguments, denial, or tool failure raises a typed Lua error. **Example:** `local result = tools.call("search", { query = "C++" })`
 
-### `models.loop(handle?, messages, compactor?)`
+### `models.loop(model?, compactor?)`
 
-**Effect:** Runs the Rust-backed model and tool protocol using the section's current model selection and model-visible tool scope or, when the first argument is a model handle, that handle's frozen binding. It performs a request precheck, invokes the selected compactor when required, appends each assistant message, dispatches every structured tool-call batch, appends every correlated result, and repeats until it appends a terminal assistant message.
+**Effect:** Runs the Rust-backed model and tool protocol over the section's `messages` list using the section's current model selection and model-visible tool scope or, when the first argument is a model handle, that handle's frozen binding. It performs a request precheck, invokes the selected compactor when required, appends each assistant message, dispatches every structured tool-call batch, appends every correlated result, and repeats until it appends a terminal assistant message.
 
 Omitted `compactor` means `compactors.fail`. With no model-visible tools, the loop normally performs one model call. Compacted replacements belong to the deferred compactor framework.
 
@@ -293,9 +293,9 @@ On success, the terminal assistant record is `messages[#messages]`. Callers may 
 
 **Return:** nil.
 
-**Failure:** Missing model selection, malformed messages, unknown aliases, exhausted turns, typed context exhaustion, provider failure, or terminal cancellation raises a typed error without appending a terminal assistant message.
+**Failure:** Missing model selection, malformed messages, unknown aliases, exhausted turns, typed context exhaustion, provider failure, or terminal cancellation raises a typed error without appending a terminal assistant message. Any other argument shape raises `models.loop takes (compactor?) or (model, compactor?)`.
 
-**Example:** `models.loop(messages)`
+**Example:** `models.loop()` or `models.loop(models.get("small"), compactors.fail)`
 
 Model and tool selections are read at call time; `models.use`, `tools.add`, and `tools.add_local` remain available throughout the section and affect the next `models.loop` call. An explicit leading handle runs on its frozen binding at any time. Provider projection is computed per dispatch for whichever model the call targets. The message array is the only continuity state and the author owns it.
 
@@ -369,7 +369,7 @@ The other standard reason is `provider_overflow`. Retention policy lives in the 
 
 ### `compactors.fail(messages, budget)`
 
-**Effect:** Refuses compaction. **Return:** None. **Failure:** Always raises typed context exhaustion. **Example:** `models.loop(messages, compactors.fail)`
+**Effect:** Refuses compaction. **Return:** None. **Failure:** Always raises typed context exhaustion. **Example:** `models.loop(compactors.fail)`
 
 ### `compactors.summarize(options)`
 
@@ -558,7 +558,7 @@ local messages = { { role = "system", content = "Verify claims." }, { role = "us
 local compact = compactors.summarize({
     pinned_prefix = 2, keep_recent_turns = 4,
 })
-models.loop(messages, compact)
+models.loop(compact)
 return messages[#messages].content
 ```
 ````
@@ -589,7 +589,7 @@ while true do
     if not available then if args == "" then return text end; text = args end
     if text == "exit" then return last_response or "Done." end
     history:user(text)
-    models.loop(history)
+    models.loop()
     local response = history[#history].content
     if not available then return response end
     last_response = response
