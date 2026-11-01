@@ -41,12 +41,12 @@ Constructs described below are labeled active (changed by this plan), existing (
 - C: `call(heading, input?)`, `call_async(heading, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
 - D: `description`
 - E: events, deferred `execute(path, input?)`, deferred `execute_async(path, input?)`
-- F: `tasks.fanout(worker, collection)`, frontmatter
+- F: `tasks.fanout(worker, collection)`, `tasks.fanout(model, worker, collection)`, frontmatter
 - H: heading references
 - I: `include`, incarnation, inherited Lua, `input`
 - J: `jump(heading)`
 - L: lifecycle, list sections, `local_include`, `log(message)`, `lua`, `lua inherit`
-- M: deferred `markdown` namespace, `max_tool_iterations`, messages, `messages.new()`, `models.loop`, `models.bind`, `models.default`, `models.get`, `models.infer`, `models.use`
+- M: deferred `markdown` namespace, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
 - N: `name`
 - O: `output`
 - P: deferred `pfanout`, `prompt.list(heading)`, `prompt.section(heading)`, `runvil: 0`, `prose`, provider projection
@@ -69,11 +69,6 @@ runvil: 0
 
 # Greeting
 
-```lua
-models.bind("writer", "concise technical writing")
-models.default("writer")
-```
-
 ## Answer
 
 Answer {{ args }}.
@@ -89,7 +84,7 @@ Optional `input` and `output` declarations contain `path` and `description`. Opt
 
 **Sections.** Exactly one non-empty H1 follows the frontmatter. Text before it is inert preface. H2 through H6 headings form the section tree, levels cannot be skipped, and sibling names must be unique.
 
-Fall-through follows source order. The H1 preamble resolves model and tool bindings and may return a scalar to finish the run. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there over the whole top-level slice.
+Fall-through follows source order. The H1 preamble resolves tool bindings and may return a scalar to finish the run. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there over the whole top-level slice.
 
 **Pending prose and thematic breaks.** Each section heading starts an empty pending Markdown buffer. Markdown appends to that buffer.
 
@@ -207,29 +202,58 @@ One request creates one assistant message even when streaming or requesting seve
 
 ## Models
 
-Model aliases resolve capabilities in the H1 preamble. Invocation options include `temperature`, `max_tokens`, `context`, and `thinking`.
+Every prompt has exactly five model roles: `default`, `strong`, `small`, `fast`, and `creative`. A role names a tier that the host maps to a model, and a role the host maps to no model of its own uses the model of `default`. There are no custom roles. A prompt that declares nothing runs on the host's default model.
 
-### `models.bind(alias, capability, options?)`
+### Role requirements
 
-**Effect:** Resolves and freezes one named model capability. **Return:** A read-only handle with name, model ID, description, context, thinking, temperature, and output limit. **Failure:** A non-H1 call, duplicate alias, missing match, or ambiguous match raises a binding error. **Example:** `models.bind("writer", "careful technical writing", { temperature = 0 })`
+The optional `models:` frontmatter key attaches requirements to roles. Each role takes `min_context`, a positive token count that the model filling the role must meet, and `thinking`. A `thinking` of `true` requires a model that can think and turns thinking on for that role's requests, and a `thinking` of `false` requires a model that can run without thinking and turns it off. A role name outside the five, a field outside those two, a repeated role, and a `min_context` of 0 all fail at parse time. Before the run starts, the host checks each requirement against the model that fills the role, fallbacks included, so a role with no model of its own is checked against the model of `default`.
 
-### `models.default(alias)` or `models.default(alias, capability, options?)`
+```yaml
+models:
+  strong: { min_context: 200000, thinking: true }
+  small: { thinking: false }
+```
 
-**Effect:** Selects the prompt fallback for calls without an explicit model, optionally binding it atomically. **Return:** The selected read-only handle. **Failure:** A second default or unknown alias raises a binding error. **Example:** `models.default("writer")`
+### The host's role map
 
-### `models.use(alias)`
+The host passes a map from role to model when it prepares a prompt. A role without an entry uses the `default` entry. An empty map means the host has no model: a prompt that never calls a model still runs, and a call that needs a model fails when it is made. A map with entries must hold `default`, and a run whose map lacks it is refused before it starts.
 
-**Effect:** Selects a bound alias as this section's model. **Return:** The selected read-only handle. **Failure:** An unknown alias raises a Lua error. **Example:** `models.use("writer")`
+### The current model
 
-### `models.get(alias)`
+A chain is one line of sequential execution: the H1 pass, the root walk, a `call` child, or a spawned task. Every fanout arm is a spawned task. Each chain has one current model. A chain starts on the `default` role, and `models.use` changes its current model for the rest of the chain, across its sections, until the next switch.
 
-**Effect:** Looks up a bound alias without selecting it. **Return:** Its read-only handle. **Failure:** An unknown alias raises a Lua error. **Example:** `local writer = models.get("writer")`
+The root walk starts on the model the H1 pass ended on. A `call` child and a task started with `tasks.spawn` or `tasks.fanout` start with a copy of the parent's current model, taken when the call or spawn is dispatched, so a task that waits in the queue is not changed by a later switch in its parent. A child's switch never reaches its parent or its siblings.
+
+A `models.use("strong")` for one expensive step leaves every later section of that chain on `strong`, which is a cost to plan for. Saving the current model and restoring it undoes the switch:
+
+```lua
+local prev = models.current()
+models.use("strong")
+local verdict = models.infer(prose)
+models.use(prev)
+```
+
+### `models.current()`
+
+**Effect:** Reads the chain's current model. **Return:** Its read-only handle. **Failure:** A run whose host supplied no model raises `the caller supplied no model`. **Example:** `local prev = models.current()`
+
+### `models.use(role_or_handle, options?)`
+
+**Effect:** Switches the chain's current model to a role or to a handle, for the rest of the chain. `options` may set `temperature` and `max_tokens`, which apply on top of the role's or the handle's own settings. **Return:** The handle for the new current model. **Failure:** A name outside the five roles raises `models.use label "reviewer" is not a model role: expected default, strong, small, fast or creative`. A role the host gave no model raises `the caller supplied no model for the <role> role`. An argument that is neither a role name nor a handle raises `models.use takes a model role name or a model handle, got <type>`. **Example:** `models.use("fast", { temperature = 0.2, max_tokens = 512 })`
+
+### `models.get(role)`
+
+**Effect:** Looks a role up without switching to it. When the run has an application-state snapshot, a name outside the five roles is read as a raw gateway model id. **Return:** The role's read-only handle. **Failure:** A name outside the five roles, in a run with no snapshot, raises the same error as `models.use`, and a role the host gave no model raises the no-model error. **Example:** `local small = models.get("small")`
+
+### Model handles
+
+A handle is a read-only value with the fields `label`, `model_id`, `description`, `context`, `thinking`, and `provider`. It freezes the binding it was read from, and a role's description is the description of the model that fills it. `models.use` accepts a handle as well as a role name, which is how a saved handle restores the current model.
 
 ### `models.infer(handle?, prompt)`
 
-**Effect:** Performs one fresh tool-free text inference using the selected model or, when the first argument is a model handle, that handle's frozen binding. It does not read or mutate a message array or any special output state. **Return:** The completed text. **Failure:** Missing model selection, provider failure, context overflow, or a tool-call response raises a typed error. **Example:** `local title = models.infer("Write a title.")` or `local title = models.infer(models.get("writer"), "Write a title.")`
+**Effect:** Performs one fresh tool-free text inference using the chain's current model or, when the first argument is a model handle, that handle's frozen binding. It does not read or mutate a message array or any special output state. **Return:** The completed text. **Failure:** A run with no model, provider failure, context overflow, or a tool-call response raises a typed error. **Example:** `local title = models.infer("Write a title.")` or `local title = models.infer(models.get("small"), "Write a title.")`
 
-The one-request provider turn, model identity, finish reason, request IDs, projection hashes, and metrics remain internal Rust and host-observer mechanisms. Lua receives no public `model_turn` API. Every `models.loop` call reads the section's current model selection (`models.default` or `models.use`) and current model-visible tool scope (`tools.always`, `tools.add`, `tools.add_local`) at call time. Passing an explicit handle from `models.get`, `models.use`, `models.bind`, or `models.default` as the leading argument to `models.infer` or `models.loop` runs on its frozen binding at any time, independent of the section's selection. Handles are pure inspectable values with no methods.
+The one-request provider turn, model identity, finish reason, request IDs, projection hashes, and metrics remain internal Rust and host-observer mechanisms. Lua receives no public `model_turn` API. Every `models.loop` call reads the chain's current model and current model-visible tool scope (`tools.always`, `tools.add`, `tools.add_local`) at call time. Passing an explicit handle from `models.get`, `models.use`, or `models.current` as the leading argument to `models.infer` or `models.loop` runs on its frozen binding at any time, independent of the chain's current model. Handles are pure inspectable values with no methods.
 
 ## Tools
 
@@ -375,7 +399,7 @@ Fall-through visits siblings in source order and carries `var`, but no implicit 
 
 **Implementation status:** Active. Rename the current heading-based `execute` operation to `call` as the first behavior change and preserve its synchronous execution semantics.
 
-**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally replaces `args`, clones `var`, creates a fresh target VM, and discards child clipboard writes. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** Missing or ambiguous target, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("## Worker", "new input")`
+**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally sets `args` to the input, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** Missing or ambiguous target, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("## Worker", "new input")`
 
 ### `call_async(heading, input?)`
 
@@ -387,7 +411,7 @@ Fall-through visits siblings in source order and carries `var`, but no implicit 
 
 **Implementation status:** Active.
 
-The `tasks` namespace is in every prompt, with no declaration. Author tasks end with their chain: a chain that ends while a task it spawned is still live fails as `tasks_live`, naming those tasks, and they are abandoned.
+The `tasks` namespace is in every prompt, with no declaration. A task starts on a copy of its parent's current model, taken when the task is spawned. Author tasks end with their chain: a chain that ends while a task it spawned is still live fails as `tasks_live`, naming those tasks, and they are abandoned.
 
 ### Task handles
 
@@ -415,7 +439,15 @@ Model-visible subagent tools use this same runtime through a fixed section targe
 
 **Implementation status:** Active.
 
-**Effect:** Runs the section `worker`, a heading string such as `"### Worker"`, once per member of `collection`, each run as its own task. Each arm sees its member as `item` and its 1-based position as `sys.index`. The collection is any Lua table: its array members first, then its hash pairs sorted by key as `{ key, value }`. **Return:** The arms' results in member order, as read-only tables with `text`, `ok`, `item`, and `exhausted` fields; `tostring` of a result is its `text`. An arm that exhausts its tool loop leaves a stub result and the rest continue. **Failure:** A non-table collection raises an error that points at `prompt.list(heading)`, and an empty collection raises. Any other arm failure cancels the live arms and re-raises. Recursion is capped at 8. **Example:** `local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })`
+**Effect:** Runs the section `worker`, a heading string such as `"### Worker"`, once per member of `collection`, each run as its own task. Each arm sees its member as `item` and its 1-based position as `sys.index`, and starts on a copy of the calling chain's current model. The collection is any Lua table: its array members first, then its hash pairs sorted by key as `{ key, value }`. **Return:** The arms' results in member order, as read-only tables with `text`, `ok`, `item`, and `exhausted` fields; `tostring` of a result is its `text`. An arm that exhausts its tool loop leaves a stub result and the rest continue. **Failure:** A non-table collection raises an error that points at `prompt.list(heading)`, and an empty collection raises. Any other arm failure cancels the live arms and re-raises. Recursion is capped at 8. **Example:** `local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })`
+
+### `tasks.fanout(model, worker, collection)`
+
+**Implementation status:** Active.
+
+**Effect:** Runs the same fanout with a model handle first, and every arm runs on that model. The calling chain's own model is not switched: it is set to the handle only while the arms are spawned and is put back before the first wait, and also when a spawn fails part-way, so the chain ends on the model it had before the call. Inside an arm, `models.use` changes only that arm and the tasks it starts, and `models.use("default")` selects the `default` role, not the model the fanout was given. **Return:** The same results as the two-argument form. **Failure:** A first argument that is not a model handle raises `tasks.fanout: the first argument must be a model handle, got <type>`, and any argument count other than two or three raises `tasks.fanout takes (worker, collection) or (model, worker, collection)`. The two-argument failures apply as well. **Example:** `local reviews = tasks.fanout(models.get("fast"), "### Critic", { "accuracy", "clarity" })`
+
+Saving the current model, running a two-argument fanout, and restoring it also works: `local prev = models.current(); models.use("creative"); local drafts = tasks.fanout("### Worker", items); models.use(prev)`.
 
 ### Deferred `pfanout(section, inputs)`
 
@@ -486,10 +518,6 @@ description: Draft once and review in parallel
 runvil: 0
 ---
 # Fanout Review
-```lua
-models.bind("writer", "concise technical writing")
-models.default("writer")
-```
 ## Draft
 Draft {{ args }}.
 ```lua
@@ -519,13 +547,12 @@ runvil: 0
 ---
 # Compact Analysis
 ```lua
-models.bind("analyst", "evidence-based analysis")
-models.default("analyst")
 tools.bind("search", "search authoritative sources")
 ```
 ## Investigate
 Investigate {{ args }} and cite evidence.
 ```lua
+models.use("strong")
 tools.add("search")
 local messages = { { role = "system", content = "Verify claims." }, { role = "user", content = prose } }
 local compact = compactors.summarize({
@@ -548,11 +575,12 @@ runvil: 0
 ---
 # Analysis Chat
 ```lua
-models.bind("analyst", "evidence-based analysis"); models.default("analyst"); tools.bind("search", "search authoritative sources")
+tools.bind("search", "search authoritative sources")
 ```
 ## Chat
 Be concise, verify claims, and preserve continuity.
 ```lua
+models.use("strong")
 tools.add("search")
 local history = messages.new():system(prose)
 local last_response = nil
