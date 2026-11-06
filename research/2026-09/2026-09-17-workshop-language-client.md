@@ -18,7 +18,7 @@ The options were weighed against six criteria, in order of importance.
 
 - Preserve the existing CodeMirror 6 editor layer (keybindings, search, settings, dockview integration), which represents sunk work that no option should silently discard.
 - Minimize protocol code the team maintains, because LSP client code is a known long-tail maintenance burden.
-- Stay license-clean for a BSL-licensed proprietary product.
+- Stay license-clean for an open-source product under the Boost Software License 1.0 (BSL-1.0).
 - Keep the system testable inside the existing Rust and node test harnesses.
 - Leave a path to the planned line-level Lua debugger.
 - Hold bundle size and startup weight roughly flat.
@@ -46,7 +46,7 @@ Table 1. Options for workshop language-client architecture, scored against the s
 
 ## Zed is design-only: GPL walls off the code, but five designs are worth copying
 
-Zed's editor crates (`lsp`, `project`, `language`, `dap`) are GPL-3.0-or-later and marked `publish = false`, so nothing is on crates.io and no editor code can be lifted into a proprietary product. The two type crates Zed pins are permissive: its `lsp-types` fork is MIT and `dap-types` is MIT or Apache-2.0. The value is therefore architectural. Five designs transfer directly to the relay and server-management layers.
+Zed's editor crates (`lsp`, `project`, `language`, `dap`) are GPL-3.0-or-later and marked `publish = false`, so nothing is on crates.io and no editor code can be lifted into a BSL-1.0 project. The two type crates Zed pins are permissive: its `lsp-types` fork is MIT and `dap-types` is MIT or Apache-2.0. The value is therefore architectural. Five designs transfer directly to the relay and server-management layers.
 
 - A per-(document, server) snapshot log, where incremental `didChange` events are computed from edits since the server's last acknowledged version, never from raw keystrokes.
 - A method-keyed handler registry with a `method_not_found` backstop, because an unanswered server-initiated request can deadlock real servers (gopls is the cited example).
