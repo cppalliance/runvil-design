@@ -1,16 +1,17 @@
-<!-- sources: github.com/unslothai/unsloth at c4052051f488334b2a59d7488b69b70f02375163 (2026-11-09); runvil-gateway at 9369a7d902a4b083e68f59a0353bcb9227c6c0d3 (2026-10-31, v0.3.0); llama.cpp tag b10082; web research 2026-11-09 -->
+<!-- sources: github.com/unslothai/unsloth at c4052051f488334b2a59d7488b69b70f02375163 (2026-11-09); runvil-gateway at 9369a7d902a4b083e68f59a0353bcb9227c6c0d3 (2026-10-31, v0.3.0); runvil Workshop; llama.cpp tag b10082; web research 2026-11-09 -->
 
 # Porting Unsloth Studio's model serving to Rust: assessment and plan
 
 ## Bottom line
 
 - **A full port of Unsloth Studio to Rust is not a realistic project.** Studio's ML core (training, diffusion, MLX, export) is built on torch, transformers, diffusers, and Unsloth's own kernels, so it stays in Python no matter what. Replacing just the FastAPI server with axum means rewriting roughly 336k lines of non-ML Python, much of it business logic, against a codebase that took 517 commits in `studio/` in one week. Several engineer-years, and a fork would never catch up.
-- **The Tauri part already exists.** Unsloth Desktop is a Tauri 2.12 app. On the Runvil side, Workshop is a Tauri 2.11 app that already ships Gateway as a pinned sidecar.
-- **Scoped to what overlaps with Gateway (serving local and remote models), this stops being a port.** Gateway is already the Rust + axum version of that slice. What remains is a list of features Studio has and Gateway lacks.
-- **The cheapest high-value gap turned out to be much cheaper than first estimated.** The llama-server build Gateway pins (b10082) already serves Anthropic `/v1/messages`, `count_tokens`, OpenAI `/v1/responses`, legacy `/v1/completions`, and `/tokenize`. Gateway can pass these through to local children instead of translating them: about 1 to 2 weeks, and it lets Claude Code and Codex use local models through Gateway.
+- **The Tauri part already exists.** Unsloth Desktop is a Tauri 2.12 app. On the Runvil side, Workshop is a Tauri 2.11 app that already ships Gateway as a pinned sidecar and embeds Gateway's config page.
+- **Scoped to what overlaps with Gateway (serving local and remote models, plus the UI to download, configure, and manage them and their files), this stops being a port.** Gateway is already the Rust + axum version of that slice. What remains is a list of features Studio has and Gateway lacks.
+- **The model management UI is the largest gap by volume.** Studio spends about 99k to 117k frontend lines on discovering, downloading, configuring, and managing models; Gateway's config UI is about 12k. Gateway is ahead on config review (diff, apply, revert), pinning, and cloud pricing, but has no download progress, no runtime control, no LoRA, and a shallow local library. Two of Gateway's own design choices (models fixed at boot, downloads deferred to the next boot) block the biggest UI gaps.
+- **The cheapest high-value API gap turned out to be much cheaper than first estimated.** The llama-server build Gateway pins (b10082) already serves Anthropic `/v1/messages`, `count_tokens`, OpenAI `/v1/responses`, legacy `/v1/completions`, and `/tokenize`. Gateway can pass these through to local children instead of translating them: about 1 to 2 weeks, and it lets Claude Code and Codex use local models through Gateway.
 - **There is no "Rust PyTorch" that can load arbitrary Hugging Face safetensors models.** A safetensors file holds tensors but no compute graph; the architecture lives in Python modeling code. Every non-Python engine hand-ports architectures. mistral.rs is the only broad Rust engine, with excellent LoRA support but weak Windows packaging and no auth.
-- **Recommended path:** serve Unsloth fine-tunes as GGUF through the existing llama-server path first; add pass-through routes; use Apache-2.0 parser crates from SMG for tool-call repair; add a Gateway-built mistral.rs wrapper for direct safetensors serving; keep vLLM and SGLang as a Linux-only opt-in.
-- **License caveat:** Studio's serving code is AGPLv3 and Gateway is BSL-1.0. Use Studio as a behavior reference, not a source to translate.
+- **Recommended path:** add pass-through routes; serve Unsloth fine-tunes as GGUF through llama-server; finish Gateway's two existing UI plans (download during Apply, Restart to Apply) and build a real downloads panel on top; then runtime control, tool-call repair via Apache-2.0 parser crates from SMG, a Gateway-built mistral.rs wrapper for direct safetensors serving, and vLLM and SGLang as a Linux-only opt-in.
+- **License caveat:** Studio's serving and UI code is AGPLv3 and Gateway is BSL-1.0. Use Studio as a behavior reference, not a source to translate.
 
 ## 1. What Unsloth Studio is
 
@@ -60,7 +61,7 @@ Gateway also has things Studio does not: rerank, realtime transcription on whisp
 |---|---|---|
 | Pass `/v1/messages`, `count_tokens`, `/v1/responses`, `/v1/completions`, `/tokenize` through to llama-server children, plus `x-api-key` auth | n/a (llama-server does the work) | 1 to 2 weeks |
 | Translation for clients whose protocol does not match the upstream (for example Claude Code to an OpenAI-only cloud provider) | about 6k | 2 to 4 weeks, optional |
-| Tool-call repair for local models, using SMG's parser crates (section 6) | about 10k in Studio | 2 to 4 weeks |
+| Tool-call repair for local models, using SMG's parser crates (section 7) | about 10k in Studio | 2 to 4 weeks |
 | Reasoning effort controls (`--reasoning-budget`, template kwargs) | about 1k | about 1 week |
 | Native Anthropic and Gemini upstream protocols | about 1.6k each | 1 to 2 weeks each |
 | LoRA adapters on GGUF models in `[[local_model]]` | n/a | 1 to 2 weeks |
@@ -68,9 +69,8 @@ Gateway also has things Studio does not: rerank, realtime transcription on whisp
 | Automatic VRAM fitting and offload | about 25k to 30k | 1 to 2 months basic, open-ended for parity |
 | AMD, Apple, Intel, multi-GPU detection | about 9k to 12k | 2 to 4 weeks |
 | Linux CUDA and ROCm llama.cpp builds, runtime updates | about 15k to 20k | 2 to 4 weeks, mostly release work |
-| Reuse the HF cache, scan local folders, download on Apply | part of about 30k | 2 to 4 weeks |
 
-Effort assumes one experienced developer working in Gateway's existing style (low-medium confidence).
+Effort assumes one experienced developer working in Gateway's existing style (low-medium confidence). The UI for downloading, configuring, and managing models is covered separately in section 4.
 
 Notes on the biggest items:
 
@@ -85,14 +85,63 @@ Notes on the biggest items:
 
 ### What to skip
 
-- Studio's chat UI (about 180k lines of AGPL TypeScript). Workshop is already the client.
+- Studio's chat conversation UI. Workshop is already the chat client. Studio's model management UI is a different matter and is in scope (section 4).
 - Codex subscription OAuth login and multi-account auth.
 
 ### A Gateway bug found along the way
 
 The docs say Gateway maps 181 Hugging Face repo IDs to template families automatically. In `local/src/launch_templates.rs`, `inspect_chat_template` only puts the mapped family in `detected_family` for display; the launch decision ignores it. A mapped model with no embedded template still refuses to launch. Either the docs or the code should change.
 
-## 4. Child servers already speak the protocols
+## 4. Model management UI
+
+Downloading, configuring, and managing local and remote models and their files is squarely in the Gateway overlap. It is separate from the chat conversation UI, which Workshop already covers.
+
+### Where the UI lives
+
+- **Studio:** about 99k to 117k frontend lines across the model hub, model picker, loaded-models panel, provider dialogs, and the relevant settings tabs, backed by about 92k to 140k backend lines (estimates).
+- **Runvil:** Gateway's config UI at `/config/`, about 12.3k lines of TypeScript across seven pages (Settings, Discover, Local, Remote, Cloud, Profiles, Secrets), plus about 1.6k in `shared-ui` and 3.2k lines of admin Rust.
+- **Workshop** has no model management UI of its own. It embeds Gateway's config page and adds a Ctrl+/ chat model picker. So this work lands in Gateway's config UI, not in Tauri. Workshop's proxy refuses `/admin/progress` and `/v1/cache` today, so a live downloads panel needs a matching Workshop change.
+
+### Where Gateway is already ahead
+
+- **Config review.** Dirty markers, pending chips, a Review dialog with secrets redacted, Apply with cancel, and Revert All. Studio has no review flow and no settings export.
+- **Cloud catalog.** Models from 23 providers via a weekly sheet, with context, max output, capability pills, price per million tokens, and one-click Add. Studio keeps pricing in its backend only.
+- **Per-model editing.** Every knob Gateway supports is editable, the `gpu_layers` slider knows the GGUF layer count, and the chat template control explains its source and reason.
+- **Integrity.** Every download is hash-verified; Studio checks declared sizes only.
+
+### Gaps
+
+| Area | Studio | Gateway today | Effort guess |
+|---|---|---|---|
+| Downloads | Floating manager with bytes, speed, ETA; cancel keeps partials; resume; jobs survive restart | No download UI; Download stages a config entry; local-model changes download at the next boot; progress is a busy flag and one text line | 2 to 3 weeks for download during Apply with a live progress panel |
+| Restart to apply | Not needed (loads at runtime) | `/admin/restart` exists but no button; the October plan has three open to-dos | about 1 week |
+| Runtime control | Loaded-models panel with memory, placement, eject; load progress; idle unload; log viewer | Running/Stopped dot; no start, stop, or unload; per-model stderr tails exist but are not shown | 1 to 2 weeks of UI on top of the runtime load and unload backend (section 3) |
+| Fit estimate and companions | Fit badges mirror the loader's placement logic; mmproj and drafter files added automatically | Size times 1.2, ignoring context and KV, first NVIDIA GPU only; companions only by hand; multi-part quants disabled | 2 to 3 weeks |
+| Local library | Sizes, delete with impact preview, scan folders, adopts the HF cache and LM Studio and Ollama folders, per-cache purge, low-disk notice | Configured entries only; partial files hidden and never cleaned; no file picker; no reuse of outside caches; size sort is a stub | 2 to 4 weeks |
+| Discovery | Six sorts; capability, size, context, and fits-on-device filters; curated rows; ModelScope source | Hugging Face only, three sorts, 30 results, no pagination, no curated lists | 1 to 2 weeks |
+| Per-model knobs Gateway lacks | MoE layers on CPU, GPU pick and tensor split, batch sizes, reasoning budget, chat template editor, extra llama-server args validated against the build, named run presets | Not in the config schema | 2 to 3 weeks with the backend knobs |
+| LoRA | Fine-tune rows with their base model; import by folder scan | None | about 1 week of UI, with the GGUF LoRA backend item |
+| Remote providers | Test connection, live model listing from the provider, custom headers, per-connection enabled models | Test connection only for Hugging Face; no live listing; keys need Apply plus restart | 1 to 2 weeks |
+| Hardware panel | Per-GPU VRAM, utilization, temperature, reasons a GPU is unusable | First NVIDIA GPU only | about 1 week of UI, with the hardware detection backend item |
+| Config export | None | None, and no raw TOML view | a few days |
+
+Total: roughly 2 to 4 months of UI work for one developer on top of the backend items, low-medium confidence. The first three rows are the core and take about 4 to 6 weeks. Adopting files from outside caches has to either hash them on adoption (slow for large models) or record them as unpinned local paths, which Gateway already allows.
+
+### The design tension
+
+- Gateway's August plan (download-on-apply) removed the old separate download flow to kill three bugs: orphaned files after a revert, models invisible until refresh, and stuck progress bars. The plan says files download during Apply through `ArtifactStore::ensure_model`.
+- The code defers further than the plan: local-model changes report `restart_required` and download at the next boot (`boot_load.rs`: "an apply swaps only the remote table").
+- Doing what the plan describes, downloading during Apply with byte-level progress, keeps all three fixes and gives users a real downloads panel. The `provision_model` handler, with cancellation, already exists in `commands.rs`. Starting the new model without a restart is the runtime load and unload item in section 3.
+
+### Smaller issues found in the config UI
+
+- Embedding and reranker repos picked in Discover are staged as `kind: "chat"`; only STT is special-cased.
+- `mmproj-*-f16.gguf` files appear to be grouped into the F16 quant by the grouping regex (inferred from the code, not tested).
+- Partial `.part` downloads are hidden and never cleaned up.
+- Size sort on the Local list falls back to name order.
+- `10-config-ui.md` documents six views; the code has seven (Cloud is undocumented), and its Recommended rule is out of date.
+
+## 5. Child servers already speak the protocols
 
 | Server | Anthropic `/v1/messages` + count_tokens | OpenAI `/v1/responses` | Notes |
 |---|---|---|---|
@@ -102,11 +151,11 @@ The docs say Gateway maps 181 Hugging Face repo IDs to template families automat
 
 This is why pass-through is cheap: Gateway rewrites the model name, enforces its own auth, and relays the stream, the same pattern it already uses for chat completions.
 
-## 5. Safetensors serving
+## 6. Safetensors serving
 
 What cannot move to Rust is Studio's own transformers-based worker. That does not rule out safetensors: engines that serve safetensors can run as child processes, exactly like llama-server.
 
-### 5.1 Is there a "Rust PyTorch"?
+### 6.1 Is there a "Rust PyTorch"?
 
 No. The closest projects:
 
@@ -119,7 +168,7 @@ No. The closest projects:
 
 The building blocks are already Rust: the `safetensors` library itself (now under the PyTorch Foundation), `tokenizers`, `hf-hub`, and `minijinja` for chat templates. The missing piece is always per-architecture model code. Config-driven generic decoders exist for Llama-shaped models but break on new blocks (MLA, hybrid linear attention, new MoE routers).
 
-### 5.2 Rust-native engines
+### 6.2 Rust-native engines
 
 **mistral.rs** ([repo](https://github.com/EricLBuehler/mistral.rs), MIT) is the only broad option:
 
@@ -139,7 +188,7 @@ Others:
 - **[TEI](https://github.com/huggingface/text-embeddings-inference)** covers embeddings and rerank with a real API key on every inference route; no Windows binaries.
 - **TGI** was archived on 2026-03-21. vllm.rs was renamed **xinfer** (no Windows build, no LoRA). candle-vllm, Crane, Kalosm, Ratchet, shimmy, lm.rs, and rustformers/llm are Linux-only, narrow, stale, or not servers.
 
-### 5.3 vLLM and SGLang as managed children
+### 6.3 vLLM and SGLang as managed children
 
 Studio already runs both as optional child servers (about 5.4k lines). What it takes:
 
@@ -153,20 +202,20 @@ Studio already runs both as optional child servers (about 5.4k lines). What it t
 - **SGLang security.** Six CERT-listed CVEs including an unauthenticated remote code execution in LoRA loading ([VU#281278](https://www.kb.cert.org/vuls/id/281278)); patch status unverified.
 - **Upside.** vLLM loads LoRA adapters at runtime, the natural way to serve many fine-tunes.
 
-### 5.4 Compiled runtimes (export once with Python, serve without it)
+### 6.4 Compiled runtimes (export once with Python, serve without it)
 
 - **[ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai)** is the strongest option on Windows across GPU vendors: continuous batching and paged attention on CUDA and WebGPU, multi-LoRA via converted adapters. Export needs Python (model builder, Olive); no official Rust bindings; DirectML is in maintenance mode.
 - **[OpenVINO GenAI](https://openvinotoolkit.github.io/openvino.genai/)** loads raw PEFT LoRA safetensors at runtime and has official Rust crates, but only accelerates Intel GPUs.
 - **TensorRT-LLM** dropped Windows. MLC-LLM, AOTInductor, and ExecuTorch are poor fits.
 
-### 5.5 Converting to GGUF instead
+### 6.5 Converting to GGUF instead
 
 - `convert_hf_to_gguf.py` and `convert_lora_to_gguf.py` need Python with CPU-only torch, once, at export time. Unsloth already exports GGUF.
 - llama-server loads LoRA adapters at startup only; scales can change globally or per request. Requests with different LoRA settings are not batched together.
 - The LoRA converter fails on adapters that include full embedding or output-layer weights, which some Unsloth recipes produce.
 - No maintained non-Python converter exists. Ollama v0.34.1 dropped its own: "GGUF model creation now requires using llama.cpp tooling for safetensor conversion and quantization" ([release](https://github.com/ollama/ollama/releases/tag/v0.34.1)).
 
-## 6. Existing practice
+## 7. Existing practice
 
 - **Desktop apps use llama.cpp everywhere plus MLX on Mac.** No mainstream app runs vLLM natively on Windows. Ollama serves safetensors only through its MLX engine.
 - **Unsloth Studio is the only product automating vLLM on Windows** (the private WSL2 distro above). Its follow-up fixes are a ready-made list of edge cases: GPU numbering differs between Windows and WSL, `wsl.exe` re-parses commands, Windows port-range exhaustion, ROCm-on-WSL memory caps.
@@ -178,47 +227,55 @@ Studio already runs both as optional child servers (about 5.4k lines). What it t
 - **Reusable parsers exist.** SMG publishes `tool-parser` and `reasoning-parser` (Apache-2.0, 1.10.1 on crates.io, updated 2026-11-03), and vLLM depends on them. Dynamo publishes `dynamo-parsers`, used by SGLang. These are a license-compatible source for Gateway's tool-call repair instead of Studio's AGPL code.
 - **Recurring pain points:** orphaned engine processes (especially on Windows), VRAM conflicts between engines (no project measures live VRAM across engine types), slow vLLM cold starts, and loopback engine traffic accidentally sent through a system proxy. Gateway already calls `.no_proxy()` on its local-child clients.
 
-## 7. Recommendations
+## 8. Recommendations
 
 In order:
 
 1. **Add pass-through routes** for `/v1/messages`, `/v1/messages/count_tokens`, `/v1/responses`, `/v1/completions`, and `/tokenize` to llama-server children, plus `x-api-key` auth (high confidence: llama-server b10082 already implements them, and this unlocks Claude Code and Codex on local models).
-2. **Serve Unsloth fine-tunes as GGUF through the existing llama-server path**, with LoRA settings in `[[local_model]]` and conversion at export time (high confidence: no new engine, and it works on NVIDIA, AMD, and Intel GPUs on Windows).
-3. **Use SMG's `tool-parser` and `reasoning-parser` crates for tool-call repair** behind a Gateway-owned trait, pinned to exact versions (medium confidence: vLLM depends on them, but their fit for repairing llama-server output after the fact is untested).
-4. **For direct safetensors serving, build a small Gateway-owned wrapper around mistral.rs** that embeds `mistralrs-server-core`'s router at a pinned git revision and adds Gateway's bearer key and CORS lock. Build it in CI per CUDA target for Windows and Linux plus Metal for macOS, and pin it like llama.cpp (medium confidence: open Windows build issues, a bus factor of one, and no paged attention on native Windows).
-5. **Offer vLLM and SGLang as a Linux-only opt-in**, run from a container pinned by digest, with an explicit exception to the runtime-compile rule (medium confidence: depends on whether that exception is acceptable). Defer the WSL2 route until users ask.
-6. **Treat runtime load and unload, then automatic fitting, as separate later projects.** Build fitting on llama-server's `--fit` rather than copying Studio's heuristics (medium confidence: depends on how well `--fit` handles real user hardware).
-7. **Watch** Paddock (if it adds LoRA), Tracel's Burn engine (if it ships with Vulkan), and ONNX Runtime GenAI (if safetensors on AMD and Intel Windows GPUs becomes a requirement).
+2. **Serve Unsloth fine-tunes as GGUF through the existing llama-server path**, with LoRA settings in `[[local_model]]`, a LoRA section in the Local page, and conversion at export time (high confidence: no new engine, and it works on NVIDIA, AMD, and Intel GPUs on Windows).
+3. **Finish Gateway's two existing UI plans:** download during Apply with a live progress panel (bytes, speed, ETA, cancel), as the August plan describes, and the Restart to Apply button from the October plan (high confidence: both are already planned, the `provision_model` handler exists, and it fixes the most visible UI gap without bringing back the bugs the August plan removed).
+4. **Use SMG's `tool-parser` and `reasoning-parser` crates for tool-call repair** behind a Gateway-owned trait, pinned to exact versions (medium confidence: vLLM depends on them, but their fit for repairing llama-server output after the fact is untested).
+5. **Add runtime control:** expose load and unload, then a loaded-models panel with memory use, eject, and per-model log tails (medium confidence: relaxes the fixed-at-boot design, which is a product decision).
+6. **Improve Discover and the local library:** a KV-aware fit estimate from GGUF metadata, automatic mmproj and drafter companions, split GGUF support, partial-file cleanup, and a file picker for local GGUFs (medium confidence: the fit estimate needs more GGUF fields than Gateway reads today).
+7. **For direct safetensors serving, build a small Gateway-owned wrapper around mistral.rs** that embeds `mistralrs-server-core`'s router at a pinned git revision and adds Gateway's bearer key and CORS lock. Build it in CI per CUDA target for Windows and Linux plus Metal for macOS, and pin it like llama.cpp (medium confidence: open Windows build issues, a bus factor of one, and no paged attention on native Windows).
+8. **Offer vLLM and SGLang as a Linux-only opt-in**, run from a container pinned by digest, with an explicit exception to the runtime-compile rule (medium confidence: depends on whether that exception is acceptable). Defer the WSL2 route until users ask.
+9. **Treat automatic fitting at load time as a separate later project**, built on llama-server's `--fit` rather than copying Studio's heuristics (medium confidence: depends on how well `--fit` handles real user hardware).
+10. **Watch** Paddock (if it adds LoRA), Tracel's Burn engine (if it ships with Vulkan), and ONNX Runtime GenAI (if safetensors on AMD and Intel Windows GPUs becomes a requirement).
 
 Do not attempt:
 
 - A full port of Studio's backend (high confidence: years of work, the ML core stays Python, and upstream moves too fast).
-- Porting Studio's frontend (high confidence: AGPL, about 180k lines, and Workshop already does that job).
+- Translating Studio's frontend code. Rebuild the model management features it shows inside Gateway's config UI instead, and leave chat to Workshop (high confidence: the code is AGPL, about 100k lines for model management alone, and Gateway's config UI already has the structure).
 - Embedding Python or vLLM inside the Gateway process (high confidence: no precedent, and CUDA failures would take down Gateway).
 
-## 8. Effort summary
+## 9. Effort summary
 
 | Phase | Contents | Effort guess |
 |---|---|---|
-| 1 | Pass-through routes, GGUF LoRA, reasoning controls | 3 to 5 weeks |
-| 2 | Tool-call repair via SMG crates, native Anthropic and Gemini upstreams | 4 to 8 weeks |
-| 3 | mistral.rs wrapper child with CI builds for Windows, Linux, macOS | 4 to 6 weeks |
-| 4 | vLLM and SGLang Linux opt-in | 3 to 5 weeks |
-| 5 | Runtime load and unload, idle unload, basic auto-fit, broader hardware detection | 3 to 5 months |
+| 1 | Pass-through routes, GGUF LoRA with its UI, reasoning controls | 3 to 5 weeks |
+| 2 | Download during Apply with live progress, Restart to Apply, provider test connection and live model listing, Discover staging fixes | 4 to 6 weeks |
+| 3 | Tool-call repair via SMG crates, native Anthropic and Gemini upstreams | 4 to 8 weeks |
+| 4 | Runtime load and unload with a loaded-models panel, per-model logs, idle unload | 4 to 8 weeks |
+| 5 | Fit estimate, companions, split GGUF, local library and discovery improvements, broader hardware detection and its panel | 2 to 3 months |
+| 6 | mistral.rs wrapper child with CI builds for Windows, Linux, macOS | 4 to 6 weeks |
+| 7 | vLLM and SGLang Linux opt-in | 3 to 5 weeks |
+| Later | Automatic fitting at load | 1 to 2 months for a basic version |
 | Optional | WSL2 route for vLLM on Windows | another 3 to 5 weeks |
 
-One developer, low-medium confidence. Phases 1 and 2 deliver most of the user-visible value of Studio's serving layer.
+One developer, low-medium confidence. Phases 1 to 3 (about 3 to 5 months) cover most of what users see in Studio's serving and model management.
 
-## 9. Licensing
+## 10. Licensing
 
-- Unsloth Studio (`studio/`, including all serving code and the Tauri shell) is AGPLv3. Only the core `unsloth/` library is Apache 2.0.
+- Unsloth Studio (`studio/`, including all serving code, the frontend, and the Tauri shell) is AGPLv3. Only the core `unsloth/` library is Apache 2.0.
 - Runvil Gateway is BSL-1.0, copyright The C++ Alliance, Inc.
 - Translating Studio's code into Gateway would likely make the result a derivative work under AGPL. Use Studio as a behavior reference (flags, formats, fallbacks) and write from public sources: llama.cpp docs, the Anthropic and OpenAI API specs, the models' chat templates, and Apache-2.0 or MIT crates.
 - Every framework and engine recommended here (mistral.rs, Candle, SMG crates, Dynamo crates, ort, minijinja, tokenizers) is MIT or Apache-2.0.
 - This is not legal advice; check with whoever handles licensing at The C++ Alliance before anyone works from Studio's source.
 
-## 10. Open questions
+## 11. Open questions
 
+- Whether downloading during Apply can stage files atomically enough to keep the August plan's no-orphans-on-revert guarantee when a user reverts mid-download.
+- Whether adopting models from the HF cache, Ollama, or LM Studio folders should hash each file on adoption (slow for large models) or record them as unpinned local paths.
 - Throughput and stability of a native Windows CUDA mistral.rs build without paged attention, compared with llama-server on the same GPU.
 - Whether mistral.rs accepts Unsloth adapter folders that include tokenizer files.
 - Whether SMG's parser crates can be driven on completed or streamed llama-server output.
@@ -239,4 +296,4 @@ All produced 2026-11-09:
 - Rust front ends and Python engine cores (vLLM Rust frontend, SMG, Dynamo, TGI, PyO3)
 - Compiled LLM runtimes without Python at serve time (ORT GenAI, OpenVINO GenAI, TensorRT, MLC, AOTInductor, ExecuTorch)
 
-*2026-11-09 10:30 - Claude Opus 5.5*
+*2026-11-09 10:50 - Claude Opus 5.5*
