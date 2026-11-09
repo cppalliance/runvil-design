@@ -8,9 +8,11 @@
 - **The Tauri part already exists.** Unsloth Desktop is a Tauri 2.12 app. On the Runvil side, Workshop is a Tauri 2.11 app that already ships Gateway as a pinned sidecar and embeds Gateway's config page.
 - **Scoped to what overlaps with Gateway (serving local and remote models, plus the UI to download, configure, and manage them and their files), this stops being a port.** Gateway is already the Rust + axum version of that slice. What remains is a list of features Studio has and Gateway lacks.
 - **The model management UI is the largest gap by volume.** Studio spends about 99k to 117k frontend lines on discovering, downloading, configuring, and managing models; Gateway's config UI is about 12k. Gateway is ahead on config review (diff, apply, revert), pinning, and cloud pricing, but has no download progress, no runtime control, no LoRA, and a shallow local library. Two of Gateway's own design choices (models fixed at boot, downloads deferred to the next boot) block the biggest UI gaps.
+- **Of Studio's 218 routes in Gateway's scope, 17 have a direct Gateway equivalent, 61 a partial one, 109 none, and 31 do not apply.** Gateway has 46 routes. Most of the partial matches go through a single whole-document config route.
+- **Gateway can already be configured over HTTP, but not in a way an agent can use safely.** `PUT /admin/config` replaces the whole document, has no revision check or dry run, and reports one error string. There is no OpenAPI document or config schema, no harness model can reach the admin routes, and some settings are reachable only through CLI flags, environment variables, or a restart that a standalone Gateway cannot perform. The fix is three layers: a complete resource-oriented admin API that stages every write, docs generated from code, and a small curated tool set for harness models with a separately confirmed apply.
 - **The cheapest high-value API gap turned out to be much cheaper than first estimated.** The llama-server build Gateway pins (b10082) already serves Anthropic `/v1/messages`, `count_tokens`, OpenAI `/v1/responses`, legacy `/v1/completions`, and `/tokenize`. Gateway can pass these through to local children instead of translating them: about 1 to 2 weeks, and it lets Claude Code and Codex use local models through Gateway.
 - **There is no "Rust PyTorch" that can load arbitrary Hugging Face safetensors models.** A safetensors file holds tensors but no compute graph; the architecture lives in Python modeling code. Every non-Python engine hand-ports architectures. mistral.rs is the only broad Rust engine, with excellent LoRA support but weak Windows packaging and no auth.
-- **Recommended path:** add pass-through routes; serve Unsloth fine-tunes as GGUF through llama-server; finish Gateway's two existing UI plans (download during Apply, Restart to Apply) and build a real downloads panel on top; then runtime control, tool-call repair via Apache-2.0 parser crates from SMG, a Gateway-built mistral.rs wrapper for direct safetensors serving, and vLLM and SGLang as a Linux-only opt-in.
+- **Recommended path:** add pass-through routes; serve Unsloth fine-tunes as GGUF through llama-server; make the admin API complete and generate its docs from code; ship the agent tool layer; finish Gateway's two existing UI plans (download during Apply, Restart to Apply) and build a real downloads panel on top; then runtime control, tool-call repair via Apache-2.0 parser crates from SMG, a Gateway-built mistral.rs wrapper for direct safetensors serving, and vLLM and SGLang as a Linux-only opt-in.
 - **License caveat:** Studio's serving and UI code is AGPLv3 and Gateway is BSL-1.0. Use Studio as a behavior reference, not a source to translate.
 
 ## 1. What Unsloth Studio is
@@ -61,7 +63,7 @@ Gateway also has things Studio does not: rerank, realtime transcription on whisp
 |---|---|---|
 | Pass `/v1/messages`, `count_tokens`, `/v1/responses`, `/v1/completions`, `/tokenize` through to llama-server children, plus `x-api-key` auth | n/a (llama-server does the work) | 1 to 2 weeks |
 | Translation for clients whose protocol does not match the upstream (for example Claude Code to an OpenAI-only cloud provider) | about 6k | 2 to 4 weeks, optional |
-| Tool-call repair for local models, using SMG's parser crates (section 7) | about 10k in Studio | 2 to 4 weeks |
+| Tool-call repair for local models, using SMG's parser crates (section 9) | about 10k in Studio | 2 to 4 weeks |
 | Reasoning effort controls (`--reasoning-budget`, template kwargs) | about 1k | about 1 week |
 | Native Anthropic and Gemini upstream protocols | about 1.6k each | 1 to 2 weeks each |
 | LoRA adapters on GGUF models in `[[local_model]]` | n/a | 1 to 2 weeks |
@@ -158,7 +160,471 @@ Total: roughly 2 to 4 months of UI work for one developer on top of the backend 
 - Size sort on the Local list falls back to name order.
 - `10-config-ui.md` documents six views; the code has seven (Cloud is undocumented), and its Recommended rule is out of date.
 
-## 5. Child servers already speak the protocols
+## 5. Routes in scope: Studio vs Gateway
+
+This section lists every route in Gateway's scope: serving local and remote models, and managing them (discovery, downloads, files, configuration, runtime, providers, hardware, auth). Studio's chat storage, agent tools, RAG, training, export, data recipes, datasets, and image, video, and audio generation routes are excluded; they account for 480 of its 703 route decorators.
+
+- Studio: 218 routes in scope.
+- Gateway: 46 method and path pairs on 43 paths (default build).
+
+How to read the Gateway column in section 5.2:
+
+- **Same:** Gateway has a direct equivalent.
+- **Partial:** Gateway covers part of it, usually through the whole-document config API or a narrower route.
+- **None:** no Gateway equivalent.
+- **n/a:** does not apply to Gateway's design (Python-only, MLX-only, multi-user accounts, Studio-specific notices, training outputs).
+
+| Studio group | Routes | Same | Partial | None | n/a |
+|---|---|---|---|---|---|
+| Serving (OpenAI, Anthropic, llama-server compatible) | 24 | 3 | 1 | 19 | 1 |
+| Model lifecycle and runtime settings | 25 | 1 | 4 | 14 | 6 |
+| Discovery and hub proxying | 25 | 0 | 6 | 17 | 2 |
+| Downloads | 17 | 0 | 8 | 6 | 3 |
+| Local library and files | 35 | 6 | 15 | 14 | 0 |
+| Per-model configuration | 10 | 0 | 4 | 4 | 2 |
+| LoRA and fine-tunes | 5 | 0 | 0 | 2 | 3 |
+| Remote providers | 20 | 2 | 6 | 8 | 4 |
+| llama.cpp runtime and managed engines | 20 | 0 | 4 | 16 | 0 |
+| Hardware and system | 7 | 3 | 3 | 0 | 1 |
+| Auth | 16 | 2 | 4 | 3 | 7 |
+| Other model settings | 14 | 0 | 6 | 6 | 2 |
+| **Total** | **218** | **17** | **61** | **109** | **31** |
+
+Notes:
+
+- Most "Partial" entries map to Gateway's whole-document `PUT /admin/config`. That is the main reason section 6 proposes per-resource routes.
+- Studio mounts its inference router twice, so every Studio path shown under `/v1` also answers under `/api/inference`. That includes Studio's own management routes (`/v1/load`, `/v1/unload`, `/v1/status`, `/v1/estimate-memory`, and others), plus 27 out-of-scope routes that leak under `/v1` the same way.
+- Ten `/api/models/*` routes are older twins of `/api/hub/*` routes. Twins share a row below.
+- At least 57 of Studio's in-scope routes are owner-only; a few also refuse API keys and need a UI session.
+
+### 5.1 Gateway's routes
+
+Auth tiers: **bearer** admits the key, the config UI's session cookie, or a keyless loopback caller when `trust_loopback` is on (the default). **Walled** does the same but first refuses any non-loopback peer. Feature gates are in parentheses.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/v1/chat/completions` | bearer | Chat, routed by model to a remote endpoint or a local llama-server child; SSE when streaming |
+| POST | `/v1/embeddings` | bearer | Embeddings for embedding models |
+| POST | `/v1/rerank` | bearer | Rerank in the Jina and Cohere shape |
+| POST | `/v1/audio/speech` | bearer | Speech synthesis relay to remote speech models |
+| GET | `/v1/audio/voices` | bearer | Voice catalog across speech models |
+| GET | `/v1/models` | bearer | Model catalog with kind, context, thinking mode, capabilities |
+| POST | `/v1/audio/transcriptions` | bearer (stt) | Batch transcription on whisper.cpp |
+| GET | `/v1/realtime?intent=transcription` | bearer plus Origin check (stt) | Realtime transcription over WebSocket |
+| POST | `/v1/tools/web_search` | bearer (web-search) | Brave web search |
+| GET | `/v1/cache` | bearer (local) | List cached blobs with path, sha256, size |
+| POST | `/v1/cache` | bearer (local) | Ensure a blob is cached; SSE byte progress on a miss |
+| DELETE | `/v1/cache/{sha256}` | bearer (local) | Delete one cached blob |
+| GET | `/health` | none | Liveness |
+| GET | `/admin/profiles` | bearer | Profile names |
+| POST | `/admin/switch-profile` | bearer | Persist the profile selection; takes effect at restart |
+| GET | `/admin/status` | bearer | Running profile, models, local children, queue, endpoints, speech |
+| GET | `/admin/progress` | bearer | SSE of a busy flag and one status line |
+| POST | `/admin/queue/cancel` | bearer | Cancel the active command (boot load, apply) |
+| POST | `/admin/queue/cancel-pending` | bearer | Remove a waiting command |
+| GET | `/admin/config` | walled | Running config as JSON, secrets as `"***"` |
+| PUT | `/admin/config` | walled | Validate and stage the whole config document as `gateway.toml.next` |
+| GET | `/admin/config-pending` | walled | Staged config plus the profile selection |
+| GET | `/admin/config-dirty` | walled | Pending files, changed sections, restart flag |
+| POST | `/admin/config-apply` | walled | Promote staged files and reload remote routing |
+| POST | `/admin/config-revert` | walled | Discard staged files |
+| GET | `/admin/env` | walled | `gateway.env` with plaintext values |
+| PUT | `/admin/env` | walled | Stage the whole env file |
+| POST | `/shutdown` | walled | Graceful stop |
+| POST | `/admin/restart` | walled | Exit for a supervisor to relaunch; 409 unless launched with `--supervised` |
+| GET | `/admin/system` | walled | CPU, RAM, cache disk, first NVIDIA GPU |
+| GET | `/admin/cloud-models` | walled | Cached cloud provider model sheet |
+| POST | `/admin/cloud-models/refresh` | walled | Re-download the sheet |
+| GET | `/admin/hf/search` | walled | Hugging Face search proxy with an allowlisted query |
+| GET | `/admin/hf/model/{owner}/{name}` | walled | Hub model detail with file blobs |
+| GET | `/admin/hf/model/{owner}/{name}/readme` | walled | Model card markdown, 1 MiB cap |
+| POST | `/admin/reveal` | walled | Open the OS file manager at a path inside the cache |
+| GET | `/admin/chat-templates` | walled (local) | Template families, repo mappings, each model's template decision |
+| GET | `/admin/orphans` | walled (local) | Cache files no config entry references |
+| GET | `/admin/model-info?path=` | walled (local) | GGUF header of a cached file |
+| GET | `/config` | loopback (config-ui) | Redirect to `/config/` |
+| GET | `/auth?key=` | loopback (config-ui) | Exchange the key for a session cookie |
+| GET | `/config/`, `/config/app.js`, `/config/app.css`, two icon files | loopback (config-ui) | Settings page assets (5 routes) |
+
+Gateway routes with no in-scope Studio counterpart: `/v1/rerank` (Studio returns 404 on purpose), the four speech routes (Studio has its own, outside this comparison), `/v1/tools/web_search` (an agent tool in Studio), profiles and profile switching, the staged change set (`config-pending`, `config-dirty`, `config-apply`, `config-revert`), queue cancellation, shutdown and restart, GGUF header inspection, and the config UI routes.
+
+### 5.2 Studio's in-scope routes and their Gateway equivalents
+
+#### Serving (24 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `POST /v1/chat/completions` | OpenAI chat to a local model, managed engine, or remote provider | Same: `POST /v1/chat/completions` |
+| `POST /v1/completions` | OpenAI text completions | None (llama-server serves it; pass-through planned) |
+| `POST /v1/embeddings` | OpenAI embeddings | Same: `POST /v1/embeddings` |
+| `POST /v1/responses` | OpenAI Responses API | None (llama-server serves it; pass-through planned) |
+| `POST /v1/messages` | Anthropic Messages | None (llama-server serves it; pass-through planned) |
+| `POST /v1/messages/count_tokens` | Anthropic token count | None (pass-through planned) |
+| `POST /v1/chat/count_tokens` | Token count for a chat payload | None (llama-server has `/v1/chat/completions/input_tokens`) |
+| `GET /v1/models` | Loaded plus locally available models | Same: `GET /v1/models` |
+| `GET /v1/models/{model_id}` | One model | None |
+| `POST /v1/generate/stream` | Studio-native SSE chat | n/a (Studio-specific) |
+| `POST /api/inference/cancel` | Cancel in-flight generations by id | None |
+| `GET /api/inference/monitor` | Recent API activity | None |
+| `DELETE /api/inference/monitor` | Clear API history | None |
+| `GET /api/inference/monitor/{entry_id}` | One recorded request and reply | None |
+| `GET /api/inference/loaded-models` | Loaded models only | Partial: `GET /admin/status` (models, local children) |
+| `GET /props` (also `/v1/props`) | llama-server props | None |
+| `GET /version` | Version string | None (the version is in the discovery file) |
+| `GET /metrics` | llama-server metrics passthrough | None |
+| `GET /slots` | llama-server slots passthrough | None |
+| `POST /tokenize` | Tokenize passthrough | None (pass-through planned) |
+| `POST /detokenize` | Detokenize passthrough | None |
+| `GET /models` | llama.cpp router style model list | None |
+| `POST /models/load` | Open WebUI style load | None |
+| `POST /models/unload` | Open WebUI style unload | None |
+
+#### Model lifecycle and runtime settings (25 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `POST /v1/load` | Load a model | None (handler exists in `commands.rs`, not exposed) |
+| `POST /v1/unload` | Unload a model | None (same) |
+| `POST /v1/validate` | Check a model resolves, fits, and can coexist | Partial: `PUT /admin/config` validates the whole document while staging |
+| `GET /v1/status` | Active model and backend | Same: `GET /admin/status` |
+| `GET /v1/load-progress` | Byte-level load progress | Partial: `GET /admin/progress` (busy flag and one text line) |
+| `POST /v1/estimate-memory` | Price a load from model metadata | None |
+| `GET /v1/llama-flags` | Flags the installed llama-server accepts | None |
+| `POST /v1/mlx-drafters` | MLX drafters for a model | n/a (MLX) |
+| `POST /v1/int8-prefill-availability` | MLX int8 prefill check | n/a (MLX) |
+| `POST /v1/ane-prefill-availability` | MLX Neural Engine prefill check | n/a (MLX) |
+| `POST /v1/fast-verify-availability` | MLX Fast Verify check | n/a (MLX) |
+| `GET /api/inference/sampling-defaults` | Effective sampling for a model | None |
+| `GET /api/inference/active-generations` | In-flight generations and decode capacity | None (status lists queue commands, not generations) |
+| `POST /api/inference/transformers-upgrade-check` | Whether a model needs newer transformers | n/a (Python) |
+| `POST /api/inference/install-latest-transformers` | Install a transformers overlay | n/a (Python) |
+| `GET`, `PUT /api/settings/multi-model` | Multi-model mode (off, fit, always) | None (every profile model stays resident) |
+| `GET`, `PUT /api/settings/model-memory` | Keep resident and mlock switches | None |
+| `GET`, `PUT /api/settings/openai-auto-switch` | Auto-switch, idle unload, keep KV, auto-download | None |
+| `GET`, `PUT /api/settings/vram-budget` | Fraction of VRAM loads may use | Partial: local `[[dominion]]` `vram_gb` via `PUT /admin/config` |
+| `GET`, `PUT /api/settings/first-token-timeout` | First-token timeout | None (timeouts are compile-time constants) |
+
+#### Discovery and hub proxying (25 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/models/list` | Suggested plus loaded models | None |
+| `GET /api/models/config/{model}` | A model's config and capabilities from cache or the Hub | Partial: `GET /admin/hf/model/{owner}/{name}` |
+| `POST /api/models/remote-code-scan` | Scan a repo for `trust_remote_code` code | n/a (transformers) |
+| `POST /api/models/discard-remote-code` | Purge a declined scan's download | n/a (transformers) |
+| `GET /api/models/check-vision/{model}` | Whether a model is vision capable | None |
+| `GET /api/models/check-embedding/{model}` | Whether a model is an embedding model | None |
+| `GET /api/models/kv-cache-estimate` | KV cache size for a quant and context | None |
+| `GET /api/hub/gguf-variants` (twin `/api/models/gguf-variants`) | GGUF quants with sizes | Partial: the config UI derives quants from `GET /admin/hf/model/{owner}/{name}` |
+| `POST /api/hub/token/validate` | Validate a Hugging Face token | Partial: the config UI tests the token through `GET /admin/hf/search` |
+| `GET`, `HEAD /api/hub/proxy/{path}` | General same-origin relay to the Hugging Face endpoint | Partial: `GET /admin/hf/search`, `/admin/hf/model/{owner}/{name}`, and `.../readme` (allowlisted) |
+| `GET /api/hub/modelscope/api/{kinds}` | ModelScope search | None |
+| `GET /api/hub/modelscope/api/{kinds}/{owner}/{name}` | ModelScope repo info | None |
+| `GET /api/hub/modelscope/api/{kinds}/{owner}/{name}/revision/{revision}` | Repo info at a revision | None |
+| `GET /api/hub/modelscope/api/{kinds}/{owner}/{name}/auth-check` | Gated access check | None |
+| `GET /api/hub/modelscope/api/{kinds}/{owner}/{name}/tree/{revision}` | File tree | None |
+| `POST /api/hub/modelscope/api/{kinds}/{owner}/{name}/paths-info/{revision}` | Paths info | None |
+| `GET`, `HEAD /api/hub/modelscope/{owner}/{name}/resolve/{revision}/{path}` | Resolve a model file | None |
+| `GET`, `HEAD /api/hub/modelscope/datasets/{owner}/{name}/resolve/{revision}/{path}` | Resolve a dataset file | None |
+| `GET`, `HEAD /api/hub/modelscope/` | Reachability probe | None |
+| `GET /api/hub/modelscope/datasets/{owner}/{name}` | Redirect to the dataset page | None |
+| `GET /api/hub/modelscope/{owner}/{name}` | Redirect to the model page | None |
+| `POST`, `PUT`, `PATCH`, `DELETE /api/hub/modelscope/{rest}` | Refuse writes with 403 | None |
+| `GET /api/picker/chat-template/{model}` | Default chat template for a model | Partial: `GET /admin/chat-templates` |
+| `POST /api/picker/validate-chat-template` | Validate a custom chat template | None |
+
+#### Downloads (17 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `POST /api/hub/download` | Start a download job | Partial: `POST /v1/cache` (unused by the UI); otherwise stage a config entry and download at the next boot |
+| `POST /api/hub/download/cancel` | Cancel a download | Partial: `POST /admin/queue/cancel` (cancels boot provisioning) |
+| `GET /api/hub/download-status` | One job's status | Partial: `GET /admin/status` (queue and provisioning flags) |
+| `GET /api/hub/active-downloads` | Running jobs | Partial: `GET /admin/status` queue |
+| `GET /api/hub/transport-status` | Which transport a download would use and why | None (HTTP only) |
+| `GET /api/hub/gguf-download-progress` (twin under `/api/models`) | GGUF byte progress | Partial: `GET /admin/progress` text; `POST /v1/cache` streams byte progress |
+| `GET /api/hub/download-progress` (twin under `/api/models`) | Repo byte progress | Partial: same |
+| `GET /api/studio/download-transport-capabilities` | Xet and HTTP capabilities | None |
+| `GET`, `PUT /api/settings/download-transport` | Transport mode | None |
+| `GET`, `PUT /api/settings/download-speed-limit` | Download speed cap | None |
+| `POST /api/settings/xet-notice/reserve` | Consume an Xet notice | n/a |
+| `GET`, `PUT /api/settings/helper-precache` | Pre-download Studio's helper model | n/a (Studio-specific) |
+
+#### Local library and files (35 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/hub/local` (twin `/api/models/local`) | On-device models from every known store | Partial: `GET /v1/cache` (tracked blobs) and configured entries in `GET /admin/config` |
+| `GET`, `POST /api/hub/scan-folders` and `DELETE /api/hub/scan-folders/{folder_id}` (three twins under `/api/models`) | Custom scan folders | None |
+| `GET /api/models/recommended-folders` | Known model folders that hold weights (LM Studio, Ollama) | None |
+| `GET /api/models/browse-folders` | Server-side folder browser | None |
+| `GET /api/hub/models-folder` | Models folder location | Partial: `[local].cache_dir` in `GET /admin/config` |
+| `GET /api/hub/cached-gguf` and `GET /api/hub/cached-models` (twins under `/api/models`) | Cached repos in Hugging Face and other caches | Partial: `GET /v1/cache` |
+| `GET /api/hub/hidden-models` | Hidden-model matchers | None |
+| `POST /api/hub/delete-impact` | Preview what a delete removes | None |
+| `GET /api/hub/orphan-companions` | Unused companion files | Partial: `GET /admin/orphans` (lists them; no route deletes them) |
+| `POST /api/hub/local/reveal` | Reveal a model outside the Hugging Face cache | Partial: `POST /admin/reveal` (cache paths only) |
+| `DELETE /api/hub/local/delete` | Delete a model outside the Hugging Face cache | None |
+| `DELETE /api/hub/delete-cached` (twin under `/api/models`) | Delete a cached repo or one variant | Same: `DELETE /v1/cache/{sha256}` |
+| `GET /api/models/cached-model-path` | Path of a cached model | Partial: `GET /v1/cache` returns paths |
+| `POST /api/models/reveal-cached-model` | Reveal a cached model | Same: `POST /admin/reveal` |
+| `GET`, `PUT /api/settings/hugging-face-cache` | Hugging Face cache location | Partial: `[local].cache_dir` via `GET` and `PUT /admin/config` (Gateway keeps its own cache) |
+| `GET /api/settings/caches` | Cache inventory with sizes | Partial: `GET /v1/cache` sizes and `GET /admin/system` disk |
+| `GET /api/settings/caches/{key}/breakdown` | One cache's size breakdown | None |
+| `POST /api/settings/caches/purge` | Purge selected caches | None |
+| `GET /api/library` | Unified library with disk usage | Partial: `GET /v1/cache` |
+| `POST /api/library/items/delete` | Delete a library item | Same: `DELETE /v1/cache/{sha256}` |
+| `POST /api/library/items/reveal` | Reveal a library item | Same: `POST /admin/reveal` |
+| `GET /api/library/locations` | Storage roots | Partial: `[local].cache_dir` in `GET /admin/config` |
+| `POST /api/library/locations/reveal` | Reveal a storage root | Same: `POST /admin/reveal` |
+| `POST /api/library/locations/move` | Move a storage root and its files | None (changing `cache_dir` does not move files) |
+
+#### Per-model configuration (10 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET`, `PUT /api/settings/openai-auto-switch/overrides` | Per-model load overrides | Partial: per-model knobs in `[[local_model]]` via `GET` and `PUT /admin/config` |
+| `GET`, `PUT /api/settings/model-sampling-defaults` | Per-model sampling defaults | None (sampling presets follow the thinking mode) |
+| `GET`, `PUT /api/settings/model-aliases` | Public model aliases | Partial: `[[model]]` `name` and `upstream` via `PUT /admin/config` |
+| `GET`, `PUT /api/settings/pinned-models` | Pinned and connected models for the picker | None |
+| `GET`, `PUT /api/settings/last-local-model` | Last loaded model, for restore | n/a (models are fixed per profile) |
+
+#### LoRA and fine-tunes (5 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/models/loras` | LoRA adapters and exported models | None |
+| `GET /api/models/loras/{lora_path}/base-model` | Base model of an adapter | None |
+| `GET /api/models/checkpoints` | Training checkpoints as model sources | n/a (training outputs) |
+| `GET /api/hub/unsloth-models` | Unsloth fine-tunes and exports | n/a (training outputs) |
+| `DELETE /api/models/delete-finetuned` | Delete a fine-tune or one exported quant | n/a (training outputs) |
+
+#### Remote providers (20 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/providers/public-key` | RSA key for browser-side key encryption | n/a (keys stay on the machine; see `PUT /admin/env`) |
+| `GET /api/providers/registry` | Supported provider types and defaults | Partial: `GET /admin/cloud-models` (23 providers) |
+| `GET /api/providers/pricing` | Price table | Same: `GET /admin/cloud-models` (prices per model) |
+| `GET /api/providers/` | Saved providers | Partial: `[[endpoint]]` entries in `GET /admin/config` |
+| `POST /api/providers/` | Create a provider | Partial: `PUT /admin/config` (whole document) plus `PUT /admin/env` for the key |
+| `PUT /api/providers/{provider_id}` | Update a provider | Partial: same |
+| `PUT /api/providers/{provider_id}/api-key/migrate` | Re-wrap a stored key | n/a |
+| `DELETE /api/providers/{provider_id}` | Delete a provider | Partial: `PUT /admin/config` without the entry |
+| `POST /api/providers/test` | Test a connection | None |
+| `GET /api/providers/model-catalog` | Cached remote model catalog | Same: `GET /admin/cloud-models` and `POST /admin/cloud-models/refresh` |
+| `POST /api/providers/model-capabilities` | Capabilities of a provider's models | Partial: `GET /admin/cloud-models` |
+| `POST /api/providers/models` | Live model list from a provider | None |
+| `POST /api/providers/{id}/oauth/start`, `GET /api/providers/{id}/oauth/flows/{flow_id}`, `POST /api/providers/{id}/oauth/flows/{flow_id}/complete`, `DELETE /api/providers/{id}/oauth/flows/{flow_id}`, `GET /api/providers/{id}/codex/models`, `DELETE /api/providers/{id}/oauth` | Codex subscription OAuth login (6 routes) | None |
+| `GET`, `PUT /api/settings/managed-provider-urls` | Private or LAN provider URLs for managed accounts | n/a (single user) |
+
+#### llama.cpp runtime and managed engines (20 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/llama/update-status` | Installed vs latest llama.cpp | None (llama.cpp is pinned per Gateway release) |
+| `POST /api/llama/update` | Install or update llama.cpp | None |
+| `GET /api/llama/update-changelog` | Release notes between versions | None |
+| `GET`, `POST /api/llama/backend` | Current and available llama.cpp builds; switch build | Partial: `[local].llama_backend` via `PUT /admin/config` plus restart |
+| `GET`, `PUT /api/settings/llama-cpp-path` | Custom llama.cpp path | Partial: `[local].llama_server_path` via `PUT /admin/config` plus restart |
+| `GET /api/engines`, `POST /api/engines/{engine}/install`, `POST /api/engines/{engine}/cancel`, `DELETE /api/engines/{engine}`, `POST /api/engines/{engine}/rollback`, `DELETE /api/engines/wsl/environment` | Managed vLLM and SGLang engines and the Windows WSL distro (6 routes) | None |
+| `GET /api/npu/status`, `POST /api/npu/enable`, `GET /api/npu/models`, `GET /api/npu/downloads`, `POST` and `GET /api/npu/models/{model_id}/download`, `DELETE /api/npu/models/{model_id}` | AMD NPU runtime and models (7 routes) | None |
+
+#### Hardware and system (7 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/system` | Platform, GPU, memory | Same: `GET /admin/system` |
+| `GET /api/system/disk` | Free space where downloads land | Same: `GET /admin/system` (cache drive) |
+| `GET /api/system/gpu-visibility` | GPUs visible to the backend | Partial: `GET /admin/system` (first NVIDIA GPU only) |
+| `GET /api/system/hardware` | GPU name and total VRAM | Same: `GET /admin/system` |
+| `GET /api/train/hardware` | Live GPU utilization | Partial: `GET /admin/system` (VRAM used, no GPU utilization) |
+| `GET /api/train/hardware/visible` | Live utilization of visible GPUs | Partial: same |
+| `POST /api/settings/igpu-carveout-notice/dismiss` | Dismiss integrated-GPU memory advice | n/a |
+
+#### Auth (16 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET /api/auth/identity` | Prove this is the real local server | Partial: the discovery file plus a `/health` and bearer probe (`gateway-api-discovery`) |
+| `GET /api/auth/status` | First-boot auth state | n/a (one bearer key) |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/refresh`, `POST /api/auth/desktop-initial-password`, `POST /api/auth/change-password` | Password sessions (5 routes) | n/a (one bearer key) |
+| `POST /api/auth/desktop-login` | Exchange the desktop secret for tokens | Partial: `GET /auth?key=` cookie handoff |
+| `POST`, `GET /api/auth/api-keys` and `DELETE /api/auth/api-keys/{key_id}` | Create, list, and revoke API keys | None (one shared key in `[server].api_key`) |
+| `GET /api/liveness` | Liveness | Same: `GET /health` |
+| `GET /api/health` | Liveness plus capability bits | Same: `GET /health` (no capability bits) |
+| `GET`, `PUT /api/settings/keyless-api-access` | Keyless access scope | Partial: `[server].trust_loopback` via `PUT /admin/config` plus restart |
+| `PUT /api/accounts/{account_id}/model-access` | Per-account model allowlist | n/a (single user) |
+
+#### Other model settings (14 routes)
+
+| Studio route | Purpose | Gateway |
+|---|---|---|
+| `GET`, `PUT`, `DELETE /api/settings/hugging-face-token` | Hugging Face token | Partial: `HF_TOKEN` in `gateway.env` via `GET` and `PUT /admin/env` plus restart |
+| `PUT /api/settings/hugging-face-token/migrate` | Re-wrap the stored token | n/a |
+| `GET`, `PUT /api/settings/hub` | Custom Hugging Face endpoint | None |
+| `PUT /api/settings/hub/source` | Switch the hub to ModelScope | None |
+| `POST /api/settings/hub/source-notice` | Claim a one-time notice | n/a |
+| `GET`, `PUT`, `DELETE /api/settings/embedding-model` | Default embedding model | Partial: an embedding `[[local_model]]` via `PUT /admin/config` |
+| `GET /api/settings/embedding-model/resolve` | Embedding backend and download plan | None |
+| `POST /api/settings/embedding-model/unload` | Unload the embedding model | None |
+| `PUT /api/settings/embedding-model/device` | Embedding model device | None |
+
+## 6. Configuring Gateway through routes, and API docs for harness models
+
+The goal: every part of Gateway can be read and changed through HTTP routes, and those routes are documented well enough that a model in the Runvil harness can carry out instructions like "add Qwen3 8B at Q4 and make it the default chat model", "add my OpenAI key", or "delete the models I have not used".
+
+### 6.1 What works today
+
+- **The bones are right.** Configuration already goes through routes with a staged change set:
+  - `PUT /admin/config` validates the document and stages it as `gateway.toml.next`.
+  - `GET /admin/config-dirty` and `GET /admin/config-pending` show what is staged.
+  - `POST /admin/config-apply` promotes it; `POST /admin/config-revert` discards it.
+  - Secrets come back as `"***"`, and sending `"***"` keeps the stored value.
+
+  This stage, review, apply flow is the plan-then-apply pattern that vendor guidance recommends for agents.
+- **Every config file section is reachable** through that one route: `[server]`, `[local]`, `[[dominion]]`, `[[endpoint]]`, `[[model]]`, `[[local_model]]`, `[[stt_model]]`, `[[profile]]`, `[tools.web_search]`, and `[stt]`. The profile selection has its own route, and secrets go through `PUT /admin/env`.
+
+### 6.2 What stands in the way
+
+**API shape**
+
+- **Whole-document writes only.** An agent must read the full config, edit it, and send it all back; anything it omits is deleted. There is no per-resource route and no PATCH.
+- **No revision check.** The UI and an agent can overwrite each other's edits; the last writer wins.
+- **No validate-only mode and no structured diff.** `config-dirty` names changed sections, not fields.
+- **Unstructured errors.** Validation failures come back as one flattened string, and only the first failure is reported.
+- **Lossy round trip.** A `${VAR}` in a non-secret field comes back resolved and is written back as a literal, and the first save drops every comment and the hand ordering.
+- **Plaintext secrets.** `GET /admin/env` returns every value in plaintext.
+
+**Coverage gaps**
+
+- **Not reachable by any route:**
+  - CLI flags: config path, `--profile`, tray, supervision, preferred port.
+  - `RUST_LOG`, the log location, and log retention.
+  - The cloud sheet URL, which is set only through the environment.
+  - Compile-time limits such as timeouts and size caps.
+- **Restart.** Boot-owned settings need a restart: `[server]`, `[[profile]]`, `[[local_model]]`, `[[stt_model]]`, `[stt]`, `gateway.env`, and the profile selection. But `POST /admin/restart` only works under a hidden `--supervised` launch that nothing performs. Workshop restarts its sidecar by shutting it down and relaunching it.
+- **Misreported live changes.** `[local]` and local `[[dominion]]` edits are reported as applied live but only take effect after a restart.
+- **Orphaned cache files** can be listed but not deleted.
+- **Runtime actions** from sections 3 and 4 (load, unload, download now, per-model logs) have no routes.
+
+**Auth**
+
+- **Keyless admin access.** `trust_loopback`, on by default, lets any keyless loopback caller use the whole admin surface, including plaintext secrets and process control.
+- **One shared key.** There are no read-only or scoped tokens, and no record of who changed what.
+- **LAN reach.** `switch-profile` and the queue routes accept LAN callers who present the bearer key.
+
+**Docs**
+
+- **No machine-readable description.** There is no OpenAPI document and no JSON Schema for the config. Admin request and response types are private to each handler, config bodies are untyped JSON, and the route registry is internal and not served.
+- **Best field reference today:** `gateway.local.example.toml`, which a test keeps valid. `crates/gateway/README.md` already states the intent: a spec generated from source, with CI comparing the two.
+- **The user docs have drifted** in several places: how apply behaves for boot-owned sections, a `[workshop]` section the loader now rejects, status fields that do not exist, and the auth tier of `/admin/chat-templates`.
+
+**Harness side**
+
+- **Harness models get tools only from Packs.** Workshop installs three:
+  - `std`: only the read-only file tools work.
+  - `web`: fetch refuses loopback, plain http, and ports other than 80 and 443, and only sends GET.
+  - `mcp`: lists and calls tools on configured MCP servers.
+
+  There is no shell tool yet.
+- **So no harness model can reach Gateway's admin routes today.** The Workshop server can, but its config-panel proxy forwards all of `/admin/` except `GET /admin/progress`. That includes `GET /admin/env` and `POST /admin/reveal`, which is too broad to hand a model.
+- **No approval step for tool calls.** Workshop's Ask mode covers file writes only.
+
+### 6.3 Prior art
+
+- **Studio's MCP server** has 23 hand-written FastMCP tools at `/mcp`, off until the owner enables them, authenticated with one API key.
+  - Eight are about models: `studio_status`, `list_models`, `load_model`, `unload_model`, `plan_load`, `download_model`, `get_job`, `cancel`.
+  - Safety comes from read-only and destructive hints, per-tool switches, caller profiles that hide tools, and preview or validate-only modes such as `plan_load`.
+  - Descriptions run 900 to 1,400 characters, with examples, side effects, and timeouts. Errors start with a tag such as `[gpu_busy retry_after=12]`, followed by a hint.
+  - No tool writes persistent settings or configures providers. It is AGPL, so it is a pattern to learn from, not code to reuse.
+- **[LiteLLM's LiteAdmin MCP](https://github.com/BerriAI/liteadmin-mcp/tree/main)** administers a gateway through 65 reviewed operations taken from the gateway's own OpenAPI, with a read-only switch, a tool allowlist, and a rule to keep provider keys out of chat.
+- **[Cloudflare's Code Mode](https://blog.cloudflare.com/code-mode-mcp/)** covers about 2,500 endpoints with two tools: search the spec, and run code.
+- **Vendor guidance on tool sets:**
+  - Keep the active set small: under 20 tools ([OpenAI](https://developers.openai.com/api/docs/guides/function-calling)), 10 to 20 (Google), and Anthropic says selection degrades past 30 to 50.
+  - Write descriptions of at least 3 to 4 sentences, including when not to use the tool. In Anthropic's testing, example inputs raised accuracy on complex parameters from 72% to 90% ([advanced tool use](https://www.anthropic.com/research/advanced-tool-use)).
+  - Auto-generating MCP tools from OpenAPI is discouraged for production, including by the FastMCP author.
+- **MCP itself:**
+  - [Spec 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/changelog) is stateless and lets a server ask for confirmation by returning an input-required result.
+  - Tool annotations (`readOnlyHint`, `destructiveHint`) are untrusted hints, but real clients act on them.
+  - The official Rust SDK, [rmcp](https://github.com/modelcontextprotocol/rust-sdk/) 3.9.0, mounts on axum with `nest_service`. It checks the Host header by default and leaves Origin checks off until configured.
+- **Patterns for safe changes:**
+  - Validate-only on every write ([AIP-163](https://google.aip.dev/163), Kubernetes server-side dry run).
+  - Apply guarded by a revision (ETag and `If-Match`).
+  - RFC 9457 problem details with a pointer to each failing field.
+  - Long-running operations the client can poll ([AIP-151](https://google.aip.dev/151)).
+  - Write-only secrets.
+
+  The Idempotency-Key header is still an IETF draft.
+- **Rust tooling:**
+  - utoipa 6 with utoipa-axum 0.3 supports axum 0.8 and OpenAPI 3.1. It uses doc comments as descriptions and supports write-only fields and `x-` extensions.
+  - aide's stable release pins an older schemars than rmcp uses.
+  - A committed spec snapshot plus [oasdiff](https://www.oasdiff.com/docs/github-action) in CI catches breaking changes.
+  - For offline human docs, only `utoipa-swagger-ui` vendors its assets; Scalar and Redoc load from CDNs unless self-hosted.
+- **llms.txt** is rarely fetched unless an agent is pointed at it: 97% of files got no requests in May 2026 ([Ahrefs](https://ahrefs.com/blog/llmstxt-study/)). Task recipes reach models more reliably through MCP resources and the tool descriptions themselves.
+
+### 6.4 Proposed design
+
+Three layers, built in this order.
+
+**Layer 1: a complete, resource-oriented admin API.** This becomes the source of truth, and the config UI and agents both use it.
+
+- **Per-resource routes.** Every collection (`endpoints`, `models`, `local-models`, `stt-models`, `profiles`, `dominions`) and every singleton section (`server`, `local`, `stt`, `tools/web-search`) gets list, get, create or replace by id, JSON Merge Patch, and delete. Keep the whole-document `GET` and `PUT /admin/config` for backup, import, and export.
+- **Writes only stage.** Every write stages into the existing change set instead of applying, so stage, review, apply stays the safety net. `?dry_run=true` on every write validates and returns the resulting diff without staging anything.
+- **A change-set resource.**
+  - `GET /admin/changes` returns a field-level diff: before and after values, secrets redacted, and a restart flag per change.
+  - Every read returns the config revision as an ETag, and every write and apply requires `If-Match`, so the UI and an agent cannot silently overwrite each other.
+  - Revert stays as it is.
+- **Write-only secrets.** Secrets can be set and cleared but never read back. Plaintext `GET /admin/env` is either dropped or kept for the local UI only.
+- **Structured errors.** RFC 9457 problem details that list every failure, each with a JSON pointer to the field and a hint on how to fix it.
+- **Close the coverage gaps:**
+  - A restart that works without `--supervised`, or Workshop launching Gateway supervised.
+  - Orphan deletion.
+  - Download and provision jobs with ids and progress.
+  - Runtime load and unload, and per-model log tails.
+  - The cloud sheet URL and log level as config.
+  - A capability route that reports build features and versions.
+- **Fix what is broken:** the restart misreport for `[local]` and local dominions, and the `${VAR}` round-trip loss. Keep comments by writing with a format-preserving TOML editor.
+- **Enforce coverage with tests.** Every config field in the schema must be writable through some route, and the config UI may call only routes that appear in the published spec.
+
+**Layer 2: machine-readable docs generated from code.**
+
+- **Config JSON Schema.** Derive `JsonSchema` on the `gateway-config` types (schemars is already a workspace dependency). Publish the schema at a route and as a committed file, using the same bless-and-CI pattern as `sheet.schema.json`.
+- **OpenAPI 3.1 document.** Move the admin request and response types into `gateway-api-types` and generate the document from the handlers. Serve it at `/openapi.json`, commit it, and diff it in CI with oasdiff. `crates/gateway/README.md` already says it wants exactly this.
+- **Operations written for model readers:**
+  - a snake_case `operationId`;
+  - three to five sentences, including when not to use the operation;
+  - an example request;
+  - extensions that mark restart-required and destructive operations.
+- **Human docs.** Serve a docs page from the config UI with vendored assets, and publish the same reference in runvil-docs.
+
+**Layer 3: an agent layer for harness models.**
+
+- **A small, task-shaped tool set** of about 10 to 15 tools, hand-written on top of Layer 1 rather than one tool per route. For example:
+  - `gateway_status`, `list_models`, `search_hub_models`
+  - `plan_add_local_model`, which returns quant options with fit plus the staged diff
+  - `add_remote_model`, which uses the cloud catalog
+  - `set_secret`, `update_model`, `remove_model`, `set_profile`
+  - `review_changes`, `apply_changes`, `revert_changes`, `job_status`
+- **Stage-only writes.** Every mutating tool only stages. `apply_changes` is separate, marked destructive, and requires the revision the user reviewed. It asks the user to confirm, either through an MCP input-required result or a harness approval step.
+- **Two ways in:**
+  - A Gateway `/mcp` endpoint (rmcp on axum, loopback only, with Host and Origin checks) for any MCP client, including the harness's existing `mcp` Pack.
+  - A Workshop `gateway` Pack that keeps the key inside the Workshop server and uses a tight route allowlist. It also avoids the port-change and reconnect problems the `mcp` Pack has when Gateway restarts.
+- **Task recipes** such as "add a local model", "add a cloud provider", "free disk space", and "switch profile", shipped as MCP resources and inside the tool descriptions, plus an `llms.txt` for coding agents.
+- **Scoped access.** Add scoped, revocable tokens (read-only, configure, admin), limit keyless loopback trust to read-only routes, and keep an audit log that records whether the UI or an agent made each change.
+
+### 6.5 Effort
+
+| Piece | Effort guess |
+|---|---|
+| Layer 1: per-resource routes with merge patch, dry run, change-set diff, revisions, problem details, write-only secrets | 3 to 5 weeks |
+| Layer 1: coverage gaps (restart, orphan deletion, jobs, capabilities, misreport and round-trip fixes) | 2 to 4 weeks, partly shared with section 4 |
+| Layer 2: config JSON Schema, OpenAPI generation, CI snapshot, docs page | 2 to 3 weeks |
+| Layer 3: tool set, MCP endpoint, Workshop Pack, recipes, scoped tokens, confirmed apply | 3 to 5 weeks |
+
+Total: about 2.5 to 4 months for one developer (low-medium confidence). Layer 1 also makes the section 4 UI work cheaper, because the downloads panel, runtime control, and provider tests become thin clients of documented routes.
+
+## 7. Child servers already speak the protocols
 
 | Server | Anthropic `/v1/messages` + count_tokens | OpenAI `/v1/responses` | Notes |
 |---|---|---|---|
@@ -168,11 +634,11 @@ Total: roughly 2 to 4 months of UI work for one developer on top of the backend 
 
 This is why pass-through is cheap: Gateway rewrites the model name, enforces its own auth, and relays the stream, the same pattern it already uses for chat completions.
 
-## 6. Safetensors serving
+## 8. Safetensors serving
 
 What cannot move to Rust is Studio's own transformers-based worker. That does not rule out safetensors: engines that serve safetensors can run as child processes, exactly like llama-server.
 
-### 6.1 Is there a "Rust PyTorch"?
+### 8.1 Is there a "Rust PyTorch"?
 
 No. The closest projects:
 
@@ -185,7 +651,7 @@ No. The closest projects:
 
 The building blocks are already Rust: the `safetensors` library itself (now under the PyTorch Foundation), `tokenizers`, `hf-hub`, and `minijinja` for chat templates. The missing piece is always per-architecture model code. Config-driven generic decoders exist for Llama-shaped models but break on new blocks (MLA, hybrid linear attention, new MoE routers).
 
-### 6.2 Rust-native engines
+### 8.2 Rust-native engines
 
 **mistral.rs** ([repo](https://github.com/EricLBuehler/mistral.rs), MIT) is the only broad option:
 
@@ -205,7 +671,7 @@ Others:
 - **[TEI](https://github.com/huggingface/text-embeddings-inference)** covers embeddings and rerank with a real API key on every inference route; no Windows binaries.
 - **TGI** was archived on 2026-03-21. vllm.rs was renamed **xinfer** (no Windows build, no LoRA). candle-vllm, Crane, Kalosm, Ratchet, shimmy, lm.rs, and rustformers/llm are Linux-only, narrow, stale, or not servers.
 
-### 6.3 vLLM and SGLang as managed children
+### 8.3 vLLM and SGLang as managed children
 
 Studio already runs both as optional child servers (about 5.4k lines). What it takes:
 
@@ -219,20 +685,20 @@ Studio already runs both as optional child servers (about 5.4k lines). What it t
 - **SGLang security.** Six CERT-listed CVEs including an unauthenticated remote code execution in LoRA loading ([VU#281278](https://www.kb.cert.org/vuls/id/281278)); patch status unverified.
 - **Upside.** vLLM loads LoRA adapters at runtime, the natural way to serve many fine-tunes.
 
-### 6.4 Compiled runtimes (export once with Python, serve without it)
+### 8.4 Compiled runtimes (export once with Python, serve without it)
 
 - **[ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai)** is the strongest option on Windows across GPU vendors: continuous batching and paged attention on CUDA and WebGPU, multi-LoRA via converted adapters. Export needs Python (model builder, Olive); no official Rust bindings; DirectML is in maintenance mode.
 - **[OpenVINO GenAI](https://openvinotoolkit.github.io/openvino.genai/)** loads raw PEFT LoRA safetensors at runtime and has official Rust crates, but only accelerates Intel GPUs.
 - **TensorRT-LLM** dropped Windows. MLC-LLM, AOTInductor, and ExecuTorch are poor fits.
 
-### 6.5 Converting to GGUF instead
+### 8.5 Converting to GGUF instead
 
 - `convert_hf_to_gguf.py` and `convert_lora_to_gguf.py` need Python with CPU-only torch, once, at export time. Unsloth already exports GGUF.
 - llama-server loads LoRA adapters at startup only; scales can change globally or per request. Requests with different LoRA settings are not batched together.
 - The LoRA converter fails on adapters that include full embedding or output-layer weights, which some Unsloth recipes produce.
 - No maintained non-Python converter exists. Ollama v0.34.1 dropped its own: "GGUF model creation now requires using llama.cpp tooling for safetensor conversion and quantization" ([release](https://github.com/ollama/ollama/releases/tag/v0.34.1)).
 
-## 7. Existing practice
+## 9. Existing practice
 
 - **Desktop apps use llama.cpp everywhere plus MLX on Mac.** No mainstream app runs vLLM natively on Windows. Ollama serves safetensors only through its MLX engine.
 - **Unsloth Studio is the only product automating vLLM on Windows** (the private WSL2 distro above). Its follow-up fixes are a ready-made list of edge cases: GPU numbering differs between Windows and WSL, `wsl.exe` re-parses commands, Windows port-range exhaustion, ROCm-on-WSL memory caps.
@@ -244,20 +710,23 @@ Studio already runs both as optional child servers (about 5.4k lines). What it t
 - **Reusable parsers exist.** SMG publishes `tool-parser` and `reasoning-parser` (Apache-2.0, 1.10.1 on crates.io, updated 2026-11-03), and vLLM depends on them. Dynamo publishes `dynamo-parsers`, used by SGLang. These are a license-compatible source for Gateway's tool-call repair instead of Studio's AGPL code.
 - **Recurring pain points:** orphaned engine processes (especially on Windows), VRAM conflicts between engines (no project measures live VRAM across engine types), slow vLLM cold starts, and loopback engine traffic accidentally sent through a system proxy. Gateway already calls `.no_proxy()` on its local-child clients.
 
-## 8. Recommendations
+## 10. Recommendations
 
 In order:
 
 1. **Add pass-through routes** for `/v1/messages`, `/v1/messages/count_tokens`, `/v1/responses`, `/v1/completions`, and `/tokenize` to llama-server children, plus `x-api-key` auth (high confidence: llama-server b10082 already implements them, and this unlocks Claude Code and Codex on local models).
 2. **Serve Unsloth fine-tunes as GGUF through the existing llama-server path**, with LoRA settings in `[[local_model]]`, a LoRA section in the Local page, and conversion at export time (high confidence: no new engine, and it works on NVIDIA, AMD, and Intel GPUs on Windows).
-3. **Finish Gateway's two existing UI plans:** download during Apply with a live progress panel (bytes, speed, ETA, cancel), as the August plan describes, and the Restart to Apply button from the October plan (high confidence: both are already planned, the `provision_model` handler exists, and it fixes the most visible UI gap without bringing back the bugs the August plan removed).
-4. **Use SMG's `tool-parser` and `reasoning-parser` crates for tool-call repair** behind a Gateway-owned trait, pinned to exact versions (medium confidence: vLLM depends on them, but their fit for repairing llama-server output after the fact is untested).
-5. **Add runtime control:** expose load and unload, then a loaded-models panel with memory use, eject, and per-model log tails (medium confidence: relaxes the fixed-at-boot design, which is a product decision).
-6. **Improve Discover and the local library:** a KV-aware fit estimate from GGUF metadata, automatic mmproj and drafter companions, split GGUF support, partial-file cleanup, and a file picker for local GGUFs (medium confidence: the fit estimate needs more GGUF fields than Gateway reads today).
-7. **For direct safetensors serving, build a small Gateway-owned wrapper around mistral.rs** that embeds `mistralrs-server-core`'s router at a pinned git revision and adds Gateway's bearer key and CORS lock. Build it in CI per CUDA target for Windows and Linux plus Metal for macOS, and pin it like llama.cpp (medium confidence: open Windows build issues, a bus factor of one, and no paged attention on native Windows).
-8. **Offer vLLM and SGLang as a Linux-only opt-in**, run from a container pinned by digest, with an explicit exception to the runtime-compile rule (medium confidence: depends on whether that exception is acceptable). Defer the WSL2 route until users ask.
-9. **Treat automatic fitting at load time as a separate later project**, built on llama-server's `--fit` rather than copying Studio's heuristics (medium confidence: depends on how well `--fit` handles real user hardware).
-10. **Watch** Paddock (if it adds LoRA), Tracel's Burn engine (if it ships with Vulkan), and ONNX Runtime GenAI (if safetensors on AMD and Intel Windows GPUs becomes a requirement).
+3. **Make the admin API complete and resource-oriented** (section 6, layer 1): per-resource routes with merge patch, dry run on every write, a field-level change-set diff, revisions with `If-Match`, write-only secrets, RFC 9457 errors, and routes for everything that is CLI-only or missing today, with a test that every config field is writable by route (high confidence: this is the prerequisite for agent configuration, and the config UI's new features get cheaper on top of it).
+4. **Generate the config JSON Schema and an OpenAPI document from code** and check both in CI (section 6, layer 2) (high confidence: schemars is already in the workspace, and `crates/gateway/README.md` already states this intent).
+5. **Finish Gateway's two existing UI plans** as thin clients of the new routes: download during Apply with a live progress panel (bytes, speed, ETA, cancel), as the August plan describes, and the Restart to Apply button from the October plan (high confidence: both are already planned, the `provision_model` handler exists, and it fixes the most visible UI gap without bringing back the bugs the August plan removed).
+6. **Ship the agent layer** (section 6, layer 3): about 10 to 15 task-shaped tools over the new routes, stage-only writes with a separately confirmed apply, exposed as a Gateway `/mcp` endpoint and a Workshop `gateway` Pack, plus scoped tokens and an audit log (medium confidence: the harness has no tool-call approval step yet, and the confirmation design is open).
+7. **Use SMG's `tool-parser` and `reasoning-parser` crates for tool-call repair** behind a Gateway-owned trait, pinned to exact versions (medium confidence: vLLM depends on them, but their fit for repairing llama-server output after the fact is untested).
+8. **Add runtime control:** expose load and unload, then a loaded-models panel with memory use, eject, and per-model log tails (medium confidence: relaxes the fixed-at-boot design, which is a product decision).
+9. **Improve Discover and the local library:** a KV-aware fit estimate from GGUF metadata, automatic mmproj and drafter companions, split GGUF support, partial-file cleanup, and a file picker for local GGUFs (medium confidence: the fit estimate needs more GGUF fields than Gateway reads today).
+10. **For direct safetensors serving, build a small Gateway-owned wrapper around mistral.rs** that embeds `mistralrs-server-core`'s router at a pinned git revision and adds Gateway's bearer key and CORS lock. Build it in CI per CUDA target for Windows and Linux plus Metal for macOS, and pin it like llama.cpp (medium confidence: open Windows build issues, a bus factor of one, and no paged attention on native Windows).
+11. **Offer vLLM and SGLang as a Linux-only opt-in**, run from a container pinned by digest, with an explicit exception to the runtime-compile rule (medium confidence: depends on whether that exception is acceptable). Defer the WSL2 route until users ask.
+12. **Treat automatic fitting at load time as a separate later project**, built on llama-server's `--fit` rather than copying Studio's heuristics (medium confidence: depends on how well `--fit` handles real user hardware).
+13. **Watch** Paddock (if it adds LoRA), Tracel's Burn engine (if it ships with Vulkan), and ONNX Runtime GenAI (if safetensors on AMD and Intel Windows GPUs becomes a requirement).
 
 Do not attempt:
 
@@ -265,23 +734,25 @@ Do not attempt:
 - Translating Studio's frontend code. Rebuild the model management features it shows inside Gateway's config UI instead, and leave chat to Workshop (high confidence: the code is AGPL, about 100k lines for model management alone, and Gateway's config UI already has the structure).
 - Embedding Python or vLLM inside the Gateway process (high confidence: no precedent, and CUDA failures would take down Gateway).
 
-## 9. Effort summary
+## 11. Effort summary
 
 | Phase | Contents | Effort guess |
 |---|---|---|
 | 1 | Pass-through routes, GGUF LoRA with its UI, reasoning controls | 3 to 5 weeks |
-| 2 | Download during Apply with live progress, Restart to Apply, provider test connection and live model listing, Discover staging fixes | 4 to 6 weeks |
-| 3 | Tool-call repair via SMG crates, native Anthropic and Gemini upstreams | 4 to 8 weeks |
-| 4 | Runtime load and unload with a loaded-models panel, per-model logs, idle unload | 4 to 8 weeks |
-| 5 | Fit estimate, companions, split GGUF, local library and discovery improvements, broader hardware detection and its panel | 2 to 3 months |
-| 6 | mistral.rs wrapper child with CI builds for Windows, Linux, macOS | 4 to 6 weeks |
-| 7 | vLLM and SGLang Linux opt-in | 3 to 5 weeks |
+| 2 | Complete admin API (per-resource routes, merge patch, dry run, change-set diff, revisions, problem details, write-only secrets, coverage gaps), config JSON Schema and OpenAPI with CI snapshots | 7 to 12 weeks |
+| 3 | UI on the new routes: download during Apply with live progress, Restart to Apply, provider test connection and live model listing, Discover staging fixes | 3 to 5 weeks |
+| 4 | Agent layer: 10 to 15 tools, Gateway `/mcp` endpoint, Workshop `gateway` Pack, task recipes, scoped tokens, confirmed apply | 3 to 5 weeks |
+| 5 | Tool-call repair via SMG crates, native Anthropic and Gemini upstreams | 4 to 8 weeks |
+| 6 | Runtime load and unload with a loaded-models panel, per-model logs, idle unload | 4 to 8 weeks |
+| 7 | Fit estimate, companions, split GGUF, local library and discovery improvements, broader hardware detection and its panel | 2 to 3 months |
+| 8 | mistral.rs wrapper child with CI builds for Windows, Linux, macOS | 4 to 6 weeks |
+| 9 | vLLM and SGLang Linux opt-in | 3 to 5 weeks |
 | Later | Automatic fitting at load | 1 to 2 months for a basic version |
 | Optional | WSL2 route for vLLM on Windows | another 3 to 5 weeks |
 
-One developer, low-medium confidence. Phases 1 to 3 (about 3 to 5 months) cover most of what users see in Studio's serving and model management.
+One developer, low-medium confidence. Phases 1 to 4 (about 4 to 6 months) give a Gateway that serves Claude Code and Codex on local models, has a real downloads panel, and can be configured end to end by a harness model from user instructions.
 
-## 10. Licensing
+## 12. Licensing
 
 - Unsloth Studio (`studio/`, including all serving code, the frontend, and the Tauri shell) is AGPLv3. Only the core `unsloth/` library is Apache 2.0.
 - Runvil Gateway is BSL-1.0, copyright The C++ Alliance, Inc.
@@ -289,8 +760,12 @@ One developer, low-medium confidence. Phases 1 to 3 (about 3 to 5 months) cover 
 - Every framework and engine recommended here (mistral.rs, Candle, SMG crates, Dynamo crates, ort, minijinja, tokenizers) is MIT or Apache-2.0.
 - This is not legal advice; check with whoever handles licensing at The C++ Alliance before anyone works from Studio's source.
 
-## 11. Open questions
+## 13. Open questions
 
+- Whether per-resource writes should always stage into the change set, or apply immediately for sections that are already live-safe (remote models and endpoints).
+- Whether to generate OpenAPI with utoipa (its own schema model) or aide (schemars-based, but its stable release pins an older schemars than rmcp), given that the config JSON Schema and MCP tool schemas would come from schemars.
+- How confirmation for `apply_changes` should work in the harness, which has no tool-call approval step today.
+- Whether keyless loopback trust should remain for read-only routes once scoped tokens exist.
 - Whether downloading during Apply can stage files atomically enough to keep the August plan's no-orphans-on-revert guarantee when a user reverts mid-download.
 - Whether adopting models from the HF cache, Ollama, or LM Studio folders should hash each file on adoption (slow for large models) or record them as unpinned local paths.
 - Throughput and stability of a native Windows CUDA mistral.rs build without paged attention, compared with llama-server on the same GPU.
@@ -312,5 +787,9 @@ All produced 2026-11-09:
 - Packaging Python inference engines for desktop apps, and the convert-to-GGUF alternative
 - Rust front ends and Python engine cores (vLLM Rust frontend, SMG, Dynamo, TGI, PyO3)
 - Compiled LLM runtimes without Python at serve time (ORT GenAI, OpenVINO GenAI, TensorRT, MLC, AOTInductor, ExecuTorch)
+- Unsloth Studio backend HTTP route inventory for Runvil Gateway scope
+- Runvil Gateway HTTP route inventory, auth tiers, and configuration coverage via admin routes
+- Runvil harness tool surface and Unsloth Studio MCP prior art for configuring Gateway
+- Agent-configurable APIs and LLM-consumable API documentation practice (OpenAPI, MCP, safe-mutation patterns, Rust tooling)
 
-*2026-11-09 10:50 - Claude Opus 5.5*
+*2026-11-09 11:20 - Claude Opus 5.5*
