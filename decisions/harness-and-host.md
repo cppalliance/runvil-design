@@ -2,6 +2,7 @@
 
 - Scope: the `runvil` crate, `Host`, `RunSetup`, one Harness per run, the effect loop, inference brokers, Host services, the recorder and run events, the run inbox from the Host's side, stop and cancel
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
+- Update: the walk-through's sentence on filling the `PackRegistry` describes `runvil` at commit `b0693699d` (section 10)
 - Paths: code paths start at the `crates/` folder of the `runvil` repository
 
 ## Summary
@@ -14,7 +15,7 @@ Section 7 lists the planned work. Its largest item is replay: the recorder recei
 
 ## From a Host's setup to a recorded result
 
-At startup a Host creates a `PackRegistry`, calls each Plugin's `install` with it, and passes the registry to `Packs::new`. It builds one `Host` with three fields: `packs`, a `PromptFinder` in `prompts`, and a `Timer` in `timer`. The `run-prompt` example in the `runvil` crate runs one prompt this way, with only the built-in Packs.
+At startup a Host creates a `PackRegistry`, fills it through the `install` function of each Rust Plugin and through `insert_plugin_dir` for a directory of library Plugins, and passes the registry to `Packs::new`. It builds one `Host` with three fields: `packs`, a `PromptFinder` in `prompts`, and a `Timer` in `timer`. The `run-prompt` example in the `runvil` crate runs one prompt this way, with only the built-in Packs.
 
 For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` finds the source, parses it, and checks its `uses:` list against the installed Packs. The Host then calls `RunSetup::new` with a recorder and a broker, sets the fields this run needs, and calls `Harness::new`. It takes a `RunControl` from `Harness::control` and awaits `Harness::run`.
 
@@ -313,5 +314,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-11 the walk-through's sentence on filling the `PackRegistry` was brought to `runvil` at commit `b0693699d`, where a Host also loads library Plugins with `insert_plugin_dir`. The rest of the page still describes the commits above.
 
 *2026-11-10 16:41 - Claude Fable 5.2*

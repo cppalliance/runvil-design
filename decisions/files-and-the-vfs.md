@@ -2,6 +2,7 @@
 
 - Scope: the `store` Lua API, the virtual file system (VFS), real and virtual roots, what a run may read and write, file identities and conflicts, and persistence
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
+- Update: the sentence on the `std` Pack's answer to a conflict describes `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23` (section 11)
 - Paths: code paths start at the `crates/` folder of the `runvil` repository
 
 ## Summary
@@ -148,7 +149,7 @@ Scopes let the Harness write the input before a run and read the output after it
 
 The Engine forks an identity for each Pack tool call and passes its `Access`, rooted at `/`, in the `ToolCall` effect ([Tools and Packs](tools-and-packs.md)). When the Harness answers the call or the Engine aborts it, `ScopeHandle::end_access` joins the identity into the calling chain, and every later operation through that `Access` fails with `ScopeEnded`. The Engine ends the identity because a call that it aborted could otherwise still write.
 
-When an operation inside a tool call conflicts, the `Access` returns `VfsError::Conflict` to the Pack, which decides how to answer the call. In the `std` Pack, `refusal` in `plugin-std/src/refusal.rs` converts the error into a sentence that tells the model to call the tool again. The Engine resumes the chain with the Pack's answer. The Engine ends the run only for a conflict in a `store` call: `classify_vfs_failure` in `runvil-internal/runtime/src/execute/scheduler/apply.rs` applies the fatal rule only to answers of `Effect::Vfs`.
+When an operation inside a tool call conflicts, the `Access` returns `VfsError::Conflict` to the Pack, which decides how to answer the call. For the `std` Pack, a library Plugin, the loader passes the conflict on as a file error of the C contract, and `refusal` in `crates/plugin-std/src/refusal.rs` of the `runvil-plugin-std` repository converts it into a sentence that tells the model to call the tool again. The Engine resumes the chain with the Pack's answer. The Engine ends the run only for a conflict in a `store` call: `classify_vfs_failure` in `runvil-internal/runtime/src/execute/scheduler/apply.rs` applies the fatal rule only to answers of `Effect::Vfs`.
 
 ## 6. Errors
 
@@ -221,5 +222,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes the commits of the `Code:` bullet.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-11 the sentence on the `std` Pack's answer to a conflict, in the entry on conflicts inside a tool call, was brought to `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, where `std` is a library Plugin. The rest of the page still describes the commits of the `Code:` bullet.
 
 *2026-11-10 16:40 - Claude Fable 5.2*

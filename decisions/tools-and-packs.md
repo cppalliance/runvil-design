@@ -2,6 +2,7 @@
 
 - Scope: tools, Packs, Plugins, the Plugin C contract, and the Packs that ship with Runvil
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-plugin-api` at commit `63a2403`
+- Update: the text on library Plugins, the C contract, and the `std` Pack describes `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23` (section 13)
 - Paths: code paths start at the `crates/` folder of the `runvil` repository
 
 ## Summary
@@ -10,13 +11,13 @@ A Plugin installs Packs, a Pack installs tools, and a section's Lua offers tools
 
 A check of this page against the code found ten gaps, seven of them in the language guide, and left fourteen questions about reasons for the owner. Section 11 lists the gaps, and section 12 lists the questions. The largest gap is in the code: two trust rules overlap, and together they send MCP server text to a model without the untrusted envelope.
 
-Section 10 lists the planned work. Its largest item is Pack support in the C contract, which every shared-library Plugin needs before it can install a tool.
+Section 10 lists the planned work. Its largest item is file changes through the C contract, which the `std` tools Write, StrReplace, and Delete need.
 
 ## From a Plugin to a tool call
 
-A Plugin is a function that installs Packs. The three Plugins that ship with Runvil are Rust functions named `install`, one in each of `plugin-std`, `plugin-web`, and `plugin-mcp`. A C function that a shared library exports as `runvil_plugin` is also a Plugin. A Pack installs tools and an optional Lua prelude. The Pack `runvil/web` installs two tools, `web/search` and `web/fetch`.
+A Plugin is a function that installs Packs. Two of the three Plugins that ship with Runvil are Rust functions named `install`, one in each of `plugin-web` and `plugin-mcp`. The third, `std`, is a dynamic library that exports the C function `runvil_plugin`. A Pack installs tools and an optional Lua prelude. The Pack `runvil/web` installs two tools, `web/search` and `web/fetch`.
 
-At startup the Host creates a `PackRegistry` and calls each Plugin with it. The Plugin inserts each of its Packs together with a factory. When a run starts, the Harness asks each factory for that run's Pack instance, waits for the instance's `ready`, and reads its tool list.
+At startup the Host creates a `PackRegistry`, calls each `install` function with it, and has the Harness load the libraries of its Plugin directory into it. Each Pack enters the registry together with a factory. When a run starts, the Harness asks each factory for that run's Pack instance, waits for the instance's `ready`, and reads its tool list.
 
 A prompt lists the Packs it requires under `uses:`. Each section's Lua then offers tools to its model with `tools.offer`. At the section's first `models.loop` round, the Engine builds the tool list from those offers and sends the same list with every later round.
 
@@ -232,7 +233,7 @@ The `mcp` Pack reads the caller from its `ToolContext`. For a call the model mad
 
 ### A Plugin crate depends on `runvil-plugin`
 
-`runvil-plugin` defines everything a Pack author writes against: the `Pack` trait, `PackFactory`, `PackInfo`, `PackRegistry`, `ToolContext`, and `HostServices`. It re-exports the Engine and file-system types an author needs, so a Plugin author finds them here and depends on this crate only. The `## Invariants` section of the crate's docs is the rule list for Pack authors. A Host imports the same items from `runvil::plugin`.
+`runvil-plugin` defines everything a Pack author writes against: the `Pack` trait, `PackFactory`, `PackInfo`, `PackRegistry`, `ToolContext`, and `HostServices`. It re-exports the Engine and file-system types an author needs, so a Plugin author finds them here and depends on this crate only. The `## Invariants` section of the crate's docs is the rule list for Pack authors. A Host imports the same items from `runvil::plugin`. A library Plugin such as `std` is written against `runvil-plugin-sdk` instead (section 8).
 
 ### A Rust Plugin is a function named `install`
 
@@ -244,7 +245,7 @@ The Host owns the registry, and Plugins fill it. The owner's rule: "A host can o
 
 The Harness calls `PackFactory::new_pack(id)` once for each Pack in a run. The instance drops when the run ends, and its `Drop` does the cleanup. The factory owns the state that runs share, such as MCP connections and HTTP clients.
 
-A Rust Pack is per run because the C contract reserves the same design for C Plugins, with verbs that create and delete a per-run Pack (section 8).
+A Rust Pack is per run because the C contract has the same design for library Plugins, with verbs that create and delete a per-run Pack (section 8).
 
 ### `new_pack` returns at once, and `install` builds what the runs share
 
@@ -270,7 +271,7 @@ The owner's rule: "The tool can't keep the access. ... it has to give it up, aft
 
 ### File operations through the access are synchronous
 
-A tool reads and writes files through `cx.access()`, and each operation runs inside the call. The reason is that the Harness is independent of any particular async runtime, so each part of the context has to be independent of tokio. A long file job yields so that the Harness can cancel it. Grep yields to the executor after every 32 files or 2 MiB, so a stop or a cancel drops a long search promptly. The file API for C Plugins is still to be designed (section 8).
+A tool reads and writes files through `cx.access()`, and each operation runs inside the call. The reason is that the Harness is independent of any particular async runtime, so each part of the context has to be independent of tokio. A long file job yields so that the Harness can cancel it. Grep, in the `std` library, ends its step after every 32 files or directories, or after 2 MiB read, so a stop or a cancel drops a long search between two steps. A library Plugin's tool reads files through the three file functions of the contract, which the loader answers from the same access (section 8).
 
 ### The run's mode policy decides each file change
 
@@ -286,25 +287,27 @@ For a prompt that declares the Pack, the Engine runs the Pack's prelude in each 
 
 ## 8. The C contract
 
-### Contract 0.2 has two verbs: load and unload
+### Contract 0.4 has six verbs
 
-A shared library exports one function, `runvil_plugin`, and each call passes an `RvCall` struct that names a verb. Verbs 1 and 2 are load and unload, so a C Plugin loads, reports its name and version, and unloads. Numbers 3 to 8 are reserved for creating and deleting a per-run Pack, calling and cancelling a tool, installing a prelude, and rendering.
+A dynamic library exports one function, `runvil_plugin`, and each call passes an `RvCall` struct that names a verb. Verbs 1 and 2 load and unload the Plugin, and a load names the Plugin and inserts its Packs. Verbs 3 and 4 create and delete one run's instance of a Pack, and the instance lists its tools when it is created. Verb 5 runs one step of a tool call, and verb 6 frees the state of a call that the Host abandoned. Numbers 7 and 8 are reserved for later versions.
 
-The contract is this small on purpose. Its two verbs prove the loading mechanism before the full contract is designed. A single function means one exported symbol, and a new version of the contract adds verbs.
+A single function means one exported symbol, and a new version of the contract adds verbs. Contract 0.2 had the first two verbs, which proved the loading mechanism before the rest was designed. Version 0.3 added Packs and tool calls, and version 0.4 added the file functions.
 
 ### The contract has its own repository, and each 0.x version is a separate contract
 
-`runvil-plugin-api` contains the C header, the Rust mirror `runvil-plugin-sys`, and a safe SDK. While the major version is 0, a Plugin built for 0.2 loads in a Host that reports 0.2. The contract has a repository of its own so that a Plugin depends on that repository only.
+`runvil-plugin-api` contains the C header, the Rust mirror `runvil-plugin-sys`, and a safe SDK, `runvil-plugin-sdk`. While the major version is 0, a Plugin built for 0.4 loads only in a Host that reports 0.4. The Plugin reads the Host's version first in `RV_PLUGIN_LOAD` and answers any other version with `RV_ERR_UNSUPPORTED`. The contract has a repository of its own so that a Plugin depends on that repository only.
 
 ### Each callback belongs to one verb and takes a `ctx`
 
-The functions a Plugin may call back are fields of a verb's arguments struct. For a load, `RvLoadArgs` has `ctx`, `refuse`, and `describe_plugin`. Each function takes the `ctx` first and answers the open load on that load's thread. A callback belongs to one verb because each verb has its own lifetime and thread rules.
+The functions a Plugin may call back are fields of a verb's arguments struct. For a load, `RvLoadArgs` has `ctx`, `refuse`, `describe_plugin`, and `insert_pack`. `RvPackNewArgs` has `refuse` and `add_tool`, and `RvToolCallArgs` has `finish` and three file functions. Each function takes the `ctx` first and answers only while its call runs, on that call's thread. A callback belongs to one verb because each verb has its own lifetime and thread rules.
 
-A tool call through the contract is still to be built. It will start with one verb and report its result later, because a tool call that blocked would stall the Harness. File access for C Plugins is still to be designed.
+A tool call is a series of steps. The Host sends `RV_TOOL_CALL` once for each step, a step that returns `RV_PENDING` asks for another, and a step ends the call by calling `finish` once with its result. The call has steps because a step that blocked would stall its run, and the Host can abandon a call only between two steps. A step reads the run's files through `file_stat`, `file_list`, and `file_read`, so the run's policy applies to every read. Functions that change a file are still to come: contract 0.4 reads only.
 
 ### Library Plugins and linked Plugins receive the same calls
 
-The loader treats a Plugin from a shared library and a Plugin compiled into the Host the same way, so one path loads both kinds. A loaded Plugin is reference counted and unloads when its last holder drops. The loader reports a Plugin that fails to load in the `PluginReport` and continues with the next one.
+The loader has two functions: `insert_plugin_dir` loads every dynamic library in a directory, and `insert_plugin` loads a C entry point that is compiled into the Host. Each entry point gets the same calls, so one path loads both kinds. For each Pack that a Plugin inserted, the loader puts a factory in the registry. The factory sends `RV_PACK_NEW` for each run, the instance sends one `RV_TOOL_CALL` each time a call's future is polled, and its drop sends `RV_PACK_DELETE`. A library Pack has tools only: the contract carries a tool's name, wire name, description, and parameters, and the four `ToolInfo` flags, the prelude, and `render` stay with Rust Packs.
+
+A loaded Plugin is reference counted. The `PluginReport`, each of its Packs in the registry, and each Pack instance of a run hold it, so it unloads after its last Pack instance is deleted. `insert_plugin_dir` records a library that fails to load in the `PluginReport` and continues with the next one.
 
 Loading happens in the Harness, and the Engine receives data: the tool catalog, the roster of the run's Packs, and the prelude text. The reason is that the Engine is pure: tool calls are effects that the Harness performs, and a replay can feed recorded results back to the Engine without the Plugins present.
 
@@ -312,9 +315,9 @@ Loading happens in the Harness, and the Engine receives data: the tool catalog, 
 
 ### `std` copies Cursor's file tools
 
-`std` has seven tools. `std/read`, `std/dir`, and `std/grep` work. `std/write`, `std/replace`, `std/rm`, and `std/glob` answer a fixed text that says the implementation is pending. The model sees Cursor's names, such as `Read`, `Grep`, and `StrReplace`. Six descriptions and schemas are Cursor's and ListDir's is the crate's own, all stored as JSON files, with the edits listed in `plugin-std/schemas/EDITS.md`.
+`std` is a library Plugin. Its code is in the `runvil-plugin-std` repository, written against `runvil-plugin-sdk`, and Workshop loads its library from the Plugin directory ([Workshop: how the app is built](workshop-app.md)). The Pack has seven tools. `std/read`, `std/dir`, and `std/grep` work. `std/write`, `std/replace`, `std/rm`, and `std/glob` answer a fixed text that says the tool is missing from this build. The model sees Cursor's names, such as `Read`, `Grep`, and `StrReplace`. Six definitions are Cursor's with the edits that `crates/plugin-std/schemas/EDITS.md` in that repository lists, and ListDir's is the crate's own. All seven are JSON files.
 
-The Pack copies Cursor's text because the model was trained against that exact text, and a stored copy can be diffed against Cursor's. A stub answers as a success so that calls to the Pack exercise both success and failure from end to end. Walks skip `.git` and list the other dotfiles, because a model often needs to edit `.gitignore` and similar files. A shell belongs in a Pack of its own.
+The Pack copies Cursor's text because the model was trained against that exact text, and a stored copy can be diffed against Cursor's. A stub answers as a success so that calls to the Pack exercise both success and failure from end to end. Walks skip `.git` and list the other dotfiles, because a model often needs to edit `.gitignore` and similar files. A walk leaves out a name that contains a control character and counts it, because a line feed in a name would forge a line of the answer. A shell belongs in a Pack of its own.
 
 ### `web` provides search and fetch together
 
@@ -364,11 +367,10 @@ The Pack uses `rmcp`'s own HTTP client, which refuses redirects, so the client s
 
 Each of these items is still to be built.
 
-- **Packs through the C contract.** A callback with which a C Plugin inserts a Pack during load, named `insert_pack` in a note in the loader, and then the verbs for per-run Packs, tool calls, cancel, preludes, and render. Every shared-library Plugin needs this work, bashkit included. A C Plugin loads, reports its name and version, and unloads.
-- **File access for C Plugins.** The API through which a C Plugin's tool reads and writes the run's files, which is still to be designed. A Rust Pack uses the synchronous access of section 7.
-- **The `std` tools that are stubs.** Write, StrReplace, Delete, and Glob. Each answers a fixed text that says the implementation is pending.
+- **File changes through the C contract.** Functions with which a library Plugin's tool writes and deletes the run's files. Contract 0.4 has three file functions, which stat, list, and read. A Rust Pack changes files through the synchronous access of section 7.
+- **The `std` tools that are stubs.** Write, StrReplace, Delete, and Glob. Each answers a fixed text that says the tool is missing from this build. The first three wait for the file changes above.
 - **Approval by a person.** The step that asks the operator to approve a file change. The file system returns `VfsError::ApprovalRequired`, and the tool returns the reason to the model.
-- **Ignore files.** Applying `.gitignore`, so that Grep skips a folder such as `target/` and spends its budget of 100,000 files elsewhere. Walks skip `.git` only.
+- **Ignore files.** Applying `.gitignore`, so that Grep skips a folder such as `target/` and spends its budget of 100,000 files elsewhere. Walks skip `.git` and names that contain a control character.
 - **A shell Pack.** A separate Pack for shell commands, most likely built on bashkit. Bashkit requires a `'static` file system, so an adapter would send each file request to the running call. `std` has file tools only.
 - **Subagent tools.** The tools of `runvil/subagents`, and the wrapping of text that one model writes for another. The Pack only reserves its name (section 9).
 - **MCP in the Dynamic Set.** The `mcp` Pack rendering its servers' tools into the Dynamic Set, which retires its own two tools. Local servers and OAuth are still to be built as well. The Pack offers its own two tools, for remote servers.
@@ -430,12 +432,13 @@ Each question asks for the reason behind a part of the design.
 
 **The C contract**
 
-14. Why are status codes 1 to 3 reserved for Lua?
+14. Why do verbs 7 and 8 and status codes 1 to 3 stay reserved after the header dropped the uses that it named for them?
 
 ## 13. Method and limits
 
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-plugin-api` at commit `63a2403`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-11 the text on library Plugins, the C contract, and the `std` Pack was brought to `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`. Between the two `runvil` commits, `std` became a library Plugin in a repository of its own, and the contract went from 0.2 to 0.4. The update covers the summary, the walk-through, three entries of section 7, section 8, the `std` entry of section 9, three items of section 10, and question 14. The rest of the page still describes the commits above.
 
 *2026-11-10 16:46 - Claude Fable 5.2*

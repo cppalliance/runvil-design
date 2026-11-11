@@ -2,6 +2,7 @@
 
 - Scope: the desktop app, the Workshop server and its API, the wire protocol, the Workshop crates, stored state, the workspace document, running prompts through the Harness, calling the Gateway, and the UI's three TypeScript packages
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`
+- Update: the tiers of section 3 and the text on Plugins describe `runvil` at commit `b0693699d` (section 12)
 - Paths: code paths start at the `crates/workshop/` folder of `runvil` unless they begin with `crates/`, `.cursor/`, or a repository name
 
 ## Summary
@@ -82,11 +83,12 @@ The build script runs the bundler so that a plain `cargo build` updates the exec
 
 ## 3. The Workshop crates and the registry
 
-### Twelve of Workshop's fourteen Rust crates form four tiers, and each dependency points to a lower tier
+### Thirteen of Workshop's fifteen Rust crates form four tiers, and each dependency points to a lower tier
 
 `cargo test -p build-xtask` reads the tiers from `crates/build-xtask/src/tidy.rs` and fails when a crate depends on its own tier or a higher one.
 
 - Vocabulary: `workshop-protocol` (wire frames), `workshop-support` (atomic writes, backoff, deadlines, config, `RetainedBus`), `workshop-registry`, and `workshop-gateway-discovery` (the reader of the Gateway's discovery file).
+- Library Plugins, a second table of the lowest tier: `workshop-plugin-std` (the dynamic library of the `std` Plugin). Its crate depends only on crates outside the Workshop family, and `workshop-server` alone may depend on it.
 - Services: `workshop-gateway` (Gateway client, binding, heartbeat, progress), `workshop-menu` (the Model menu and model catalog), and `workshop-status` (the status bus).
 - Features: `workshop-agents` (conversations), `workshop-run-log` (the run log), `workshop-user-state` (`ui-state.json`), and `workshop-workspace` (granted folders and the `.rvwork` file).
 - Server: `workshop-server` (composition root, routes, and the two sockets).
@@ -161,7 +163,7 @@ The conversation code is in Workshop because Workshop is the only chat Host, and
 
 ### The server builds one `Host` at startup and one `RunSetup` for each run
 
-`AgentSessions::new` builds the `Host` that every run shares: its Packs, a prompt finder over the agents folder, and a tokio timer. `with_plugins` calls the `install` function of three Plugins: `plugin_web`, `plugin_mcp` with the servers from the file that `[agents] mcp` names, and `plugin_std` ([Tools and Packs](tools-and-packs.md)). For each run, `setup_for` builds a `RunSetup` with the conversation's recorder, a `RunBroker`, `has_user: true`, and an empty in-memory file system from `run_vfs`. `with_host_state` then copies the Model menu's selected model and the workspace's granted folders into the setup, and the prompt reads the model and the first folder through `ui()`. A grant or a revoke after that applies to the next conversation.
+`AgentSessions::new` builds the `Host` that every run shares: its Packs, a prompt finder over the agents folder, and a tokio timer. `with_plugins` calls the `install` function of two Plugins: `plugin_web`, and `plugin_mcp` with the servers from the file that `[agents] mcp` names. It then loads each dynamic library in the directory that `[agents] plugins` names, through `insert_plugin_dir`, and the `std` Plugin is one of those libraries ([Tools and Packs](tools-and-packs.md)). The desktop app fills an unset `[agents] plugins` with the `plugins` directory of its own installation, and `runvil-workshop --plugins` lists what that directory loads. When the registry lacks `runvil/std`, the server emits a `tracing` warning, and `Host::parse` refuses a prompt that requires `std`. For each run, `setup_for` builds a `RunSetup` with the conversation's recorder, a `RunBroker`, `has_user: true`, and an empty in-memory file system from `run_vfs`. `with_host_state` then copies the Model menu's selected model and the workspace's granted folders into the setup, and the prompt reads the model and the first folder through `ui()`. A grant or a revoke after that applies to the next conversation.
 
 To a run, the granted folders are `ui()` data only, so a grant or a revoke leaves the run's file access unchanged. A `ui()` that changes during a run would need a new channel from the Host into the run.
 
@@ -337,7 +339,7 @@ Each of these items is still to be built.
 - **Remote access to the server.** A server that accepts clients from other machines. `spawn` refuses a bind address outside loopback. The work also closes the gap between the path check and the file operation (section 7).
 - **A lock for file writes.** A lock that makes the writes to one file run one at a time. A file write that outlasts its route deadline continues after the 408 and can replace a newer save.
 - **`POST /admin/restart` for a profile switch.** A profile switch that restarts the Gateway through that route. The Gateway has the route, and Workshop's switch posts `/shutdown`.
-- **Plugins from a workspace.** Library Plugins that the server loads from the `plugins` folder beside a workspace file. The work waits for Pack support in the C contract, and the server installs the three Plugins of section 5.
+- **Plugins from a workspace.** Library Plugins that the server loads from the `plugins` folder beside a workspace file. The server loads the library Plugins of one directory, which `[agents] plugins` names and the desktop app sets to the `plugins` directory of its installation (section 5).
 - **A log subscriber.** A `tracing` subscriber that writes the app's log lines. The Workshop crates call `tracing::warn!`, and the app lacks a subscriber, so the process discards those lines.
 
 ## 10. Known gaps
@@ -397,5 +399,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-11 the tiers of section 3, the `with_plugins` text of section 5, and the planned item on Plugins were brought to `runvil` at commit `b0693699d`. Between the two commits, `std` became a library Plugin that the server loads from a Plugin directory, and Workshop gained the crate `workshop-plugin-std`. The rest of the page still describes the commits above.
 
 *2026-11-10 16:42 - Claude Fable 5.2*

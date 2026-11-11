@@ -2,11 +2,12 @@
 
 - Scope: crate names and families, which crate may depend on which, the two facades and the check of their public surface, structural checks, lint rules and rulebooks, the toolchain, CI, releases, and installers
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-plugin-api` at `63a2403`
+- Update: the crate counts, the families, the family matrix, the Workshop tier tables, and the git dependencies describe `runvil` at commit `b0693699d` (section 13)
 - Paths: code paths start at the root of the `runvil` repository, and a path in another repository starts with that repository's name
 
 ## Summary
 
-The `runvil` workspace has 35 Rust crates in six families, and a crate's name prefix sets its family. Two crates of re-exports are the facades: `runvil-engine` for the Engine, and `runvil` for the Harness, the one crate a Host depends on. The crate `build-xtask` contains the structural checks: tests that read manifests and source files and fail on a dependency that the family rules refuse, on a facade that defines an item, and on banned attributes. Every crate inherits one lint table. `ci.yml` runs ten jobs behind one required job, and two workflows build the Workshop installers. Sections 1 to 9 describe these parts.
+The `runvil` workspace has 34 Rust crates in five families, and a crate's name prefix sets its family. Two crates of re-exports are the facades: `runvil-engine` for the Engine, and `runvil` for the Harness, the one crate a Host depends on. The crate `build-xtask` contains the structural checks: tests that read manifests and source files and fail on a dependency that the family rules refuse, on a facade that defines an item, and on banned attributes. Every crate inherits one lint table. `ci.yml` runs ten jobs behind one required job, and two workflows build the Workshop installers. Sections 1 to 9 describe these parts.
 
 A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 11 lists the gaps, and section 12 lists the questions. The larger gap is in the toolchain: `rust-toolchain.toml` pins Rust 1.99, and `nightly.yml` and `workshop-installer-smoke.yml` compile with the newest stable release.
 
@@ -14,7 +15,7 @@ Section 10 lists the planned work. Its largest item is platform code signing for
 
 ## From a new crate to a release build
 
-A developer who adds a Workshop crate runs `cargo xtask new-crate` with a name that starts with `workshop-`. The scaffolder in `build-xtask` writes three files under `crates/workshop/`: a `Cargo.toml` with `[lints] workspace = true`, a `src/lib.rs` with an `## Invariants` section, and `tests/it/main.rs`. The developer adds the crate's path to `members` in the root `Cargo.toml`, and adds the package to one of the four tier tables in `crates/build-xtask/src/tidy.rs` (section 2).
+A developer who adds a Workshop crate runs `cargo xtask new-crate` with a name that starts with `workshop-`. The scaffolder in `build-xtask` writes three files under `crates/workshop/`: a `Cargo.toml` with `[lints] workspace = true`, a `src/lib.rs` with an `## Invariants` section, and `tests/it/main.rs`. The developer adds the crate's path to `members` in the root `Cargo.toml`, and adds the package to one of the five tier tables in `crates/build-xtask/src/tidy.rs` (section 2).
 
 `cargo test -p build-xtask` then runs every structural check, each in a test of its own. `family` classifies the package by its prefix, and `product_boundary_violations` tests each of its dependencies against the rules between families. Before a push, `.githooks/pre-push` runs a scan of rulebook wording, clippy with `CARGO_BUILD_WARNINGS=deny`, and `cargo deny`.
 
@@ -26,7 +27,7 @@ The merge to `master` starts `nightly.yml`, which builds Workshop on five runner
 
 ### A crate's name prefix sets its family
 
-`family` in `crates/build-xtask/src/product.rs` maps a package name to a family. The prefix `runvil-` means Engine, and the exact name `runvil` and the prefix `harness-` mean Harness. The prefixes `workshop-`, `plugin-`, `shared-`, and `build-` name the other four, and the desktop app's package `workshop` is a Workshop crate. Any other name is `Unaffiliated`.
+`family` in `crates/build-xtask/src/product.rs` maps a package name to a family. The prefix `runvil-` means Engine, and the exact name `runvil` and the prefix `harness-` mean Harness. The prefixes `workshop-`, `plugin-`, and `build-` name the other three, and the desktop app's package `workshop` is a Workshop crate. Any other name is `Unaffiliated`.
 
 The owner's goal: "You can immediately tell which crate belongs to which deliverable." A rename and the edit of `family` belong in one change. A crate whose new name `family` fails to recognize is `Unaffiliated`, and the checks then skip its family's rules and still pass.
 
@@ -36,7 +37,7 @@ A Host writes against `runvil`, the Harness facade, which re-exports the Harness
 
 ### Each family's private crates are in a container directory
 
-A container is a directory under `crates/` that lacks a `Cargo.toml` of its own. `crates/runvil-internal/` contains the six private Engine crates, `crates/harness-internal/` three Harness crates, and `crates/workshop/` the 14 Workshop crates. A container crate's directory drops the family prefix, so `crates/runvil-internal/lua` is the package `runvil-lua`. The root `Cargo.toml` excludes the containers and lists each container crate in `members`.
+A container is a directory under `crates/` that lacks a `Cargo.toml` of its own. `crates/runvil-internal/` contains the six private Engine crates, `crates/harness-internal/` three Harness crates, and `crates/workshop/` the 15 Workshop crates. A container crate's directory drops the family prefix, so `crates/runvil-internal/lua` is the package `runvil-lua`. The root `Cargo.toml` excludes the containers and lists each container crate in `members`.
 
 The containers exist so that a maintainer or a coding agent who browses `crates/` can tell from the tree which crates are public API and which are internal machinery.
 
@@ -64,9 +65,8 @@ Every manifest sets `publish = false`. The owner's reason: "someone is already s
 
 1. An Engine crate on a Workshop or Harness crate.
 2. A Workshop crate on an Engine crate.
-3. A Harness crate on a Workshop, `shared-*`, `build-*`, or unaffiliated crate.
-4. A `shared-*` crate on a product crate.
-5. A Plugin crate on a workspace crate other than `runvil-plugin` or a `shared-*` crate.
+3. A Harness crate on a Workshop, `build-*`, or unaffiliated crate.
+4. A Plugin crate on a workspace crate other than `runvil-plugin`.
 
 The check is a test of `build-xtask`, so cargo itself enforces the structure of the workspace.
 
@@ -80,21 +80,21 @@ For the Engine family, the goal of the rule is zero leakage of its private crate
 
 ### Outside its family, a Harness crate names `runvil-engine` and `runvil-plugin`
 
-The matrix reports a Harness crate that depends on a Workshop crate, a `shared-*` crate, a `build-*` crate, or an unaffiliated crate. The check exempts one dependency: `harness-gateway-client` depends on `plugin-web`, whose `SearchProvider` trait it implements.
+The matrix reports a Harness crate that depends on a Workshop crate, a `build-*` crate, or an unaffiliated crate. The check exempts one dependency: `harness-gateway-client` depends on `plugin-web`, whose `SearchProvider` trait it implements.
 
 The rule exists so that the Harness can be built, published, or moved out of the workspace by itself, and so that its documentation tree needs only what the docs site contains. A Harness build script that wants `build-ui` therefore needs an explicit exception.
 
 ### Workshop crates form four tiers below one desktop boundary
 
-`crates/build-xtask/src/tidy.rs` lists each Workshop server crate in one of four tiers: vocabulary, services, features, and server. [Workshop: how the app is built](workshop-app.md) describes them. A crate depends on crates of lower tiers, and a new `workshop-*` crate joins a tier table before `workshop-server` may depend on it. The desktop app, package `workshop`, depends on one Workshop crate, `workshop-server-api`, which depends only on `workshop-server`.
+`crates/build-xtask/src/tidy.rs` lists each Workshop server crate in one of five tables over four tiers: vocabulary and library Plugins, services, features, and server. [Workshop: how the app is built](workshop-app.md) describes them. A crate depends on crates of lower tiers, and a new `workshop-*` crate joins a tier table before `workshop-server` may depend on it. The library Plugin crate, `workshop-plugin-std`, depends only on crates outside the Workshop family, and `workshop-server` alone may depend on it. The desktop app, package `workshop`, depends on one Workshop crate, `workshop-server-api`, which depends only on `workshop-server`.
 
 The matrix also reports a Workshop crate that depends on an Engine crate, so Workshop imports Engine types from `runvil`.
 
 ### Plugin crates depend on `runvil-plugin`, and one Harness crate names a Plugin crate
 
-A `plugin-*` crate may depend on `runvil-plugin`, on `shared-*` crates, and on libraries from outside the workspace. The matrix also reports an Engine or Harness crate that depends on a Plugin crate, dev-dependencies included, with `harness-gateway-client` as the exception.
+A `plugin-*` crate may depend on `runvil-plugin` and on libraries from outside the workspace. The matrix also reports an Engine or Harness crate that depends on a Plugin crate, dev-dependencies included, with `harness-gateway-client` as the exception.
 
-These checks place every `plugin-*` crate below the Harness: `runvil-plugin`, which defines the contract, is the only Engine or Harness crate that a Plugin crate may depend on. [Tools and Packs](tools-and-packs.md) covers `runvil-plugin` and the C contract crate `runvil-plugin-sys`, this workspace's one git dependency.
+These checks place every `plugin-*` crate below the Harness: `runvil-plugin`, which defines the contract, is the only Engine or Harness crate that a Plugin crate may depend on. [Tools and Packs](tools-and-packs.md) covers `runvil-plugin` and the C contract crate `runvil-plugin-sys`. The workspace has three git dependencies, each pinned by commit: `runvil-plugin-sys` and `runvil-plugin-sdk` from `runvil-plugin-api`, and the `std` Plugin from `runvil-plugin-std`.
 
 ## 3. Bans on dependencies and features
 
@@ -369,5 +369,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-plugin-api` at `63a2403`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-11 the crate count in the summary, the list of families and the count of Workshop crates in section 1, and the family matrix, the Workshop tier tables, and the git dependencies in section 2 were brought to `runvil` at commit `b0693699d`. Between the two commits, `std` became a library Plugin with the Workshop crate `workshop-plugin-std`, commit `074a1e7ff` removed `shared-error-source`, the last `shared-*` crate, and `b0693699d` removed the `shared-*` family from the matrix. The rest of the page still describes `runvil` at `fa9936f64`.
 
 *2026-11-10 16:47 - Claude Fable 5.2*
