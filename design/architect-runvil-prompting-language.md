@@ -349,7 +349,7 @@ Store is run-scoped bulk state shared by all tasks. Every operation is lineariza
 
 `markdown` parses any Markdown text into plain Lua tables, the way `json.decode` does for JSON, and it is in every prompt with no declaration. Every value is a string, number, boolean, or table, no table has methods, and each table is either a list or a record, so a parse result passes `json.encode`, can be stored in `var`, and can be a `tasks.fanout` collection. Every function is pure: nothing is run or substituted, no file is read, and no call performs an effect or suspends. [Section Paths, the `markdown` Namespace, and the `prompt` Reads](2026-11-11-1-markdown-and-prompt-reads.md) holds the full parsing rules, the grammar of paths and selectors, and the error messages.
 
-A parsed document is a list of blocks. A block is a record with a `kind`, the 1-based `line` it starts on, and the fields of its kind:
+A parsed document is a list of blocks. A block is a record with a `kind`, the 1-based `line` it starts on, the `source` it was read from, and the fields of its kind:
 
 | `kind` | Fields | What it is |
 |---|---|---|
@@ -360,7 +360,9 @@ A parsed document is a list of blocks. A block is a record with a `kind`, the 1-
 | `list` | `ordered`, `items` | A bullet or numbered list, as strings with the markers removed. |
 | `rule` | none | A thematic break. |
 
-A path over parsed text is a section path from the top of the list it is given: `/Guide/Setup`, with `//title` for any depth and `title[n]` for the `n`th match. A selector names a kind of block, such as `"list"`, and `"fence markdown"` narrows `fence` to one language. An index after a selector picks among several matches, and `1` is the first and `-1` the last.
+`source` is the block's lines exactly as written, each with its line ending, and the blank lines after them. A section's `source` is its heading's, and blank lines at the very top of the text are in the first block's. Every character of the text is therefore in the `source` of exactly one block, and the sources in file order are the text, without its byte order mark and with `\n` for every line ending. Text that holds nothing but blank lines has no block and parses to an empty list. The other fields are a reading of `source`: a list's numbers and markers, a heading's markup, and a frontmatter's comments are in `source` alone.
+
+A path over parsed text is a section path from the top of the list it is given: `/Guide/Setup`, with `//title` for any depth and `title[n]` for the `n`th match. A selector names a kind of block, such as `"list"`, and `"fence markdown"` narrows `fence` to one language. The selector `"*"` matches every block. An index after a selector picks among several matches, and `1` is the first and `-1` the last.
 
 ### `markdown.parse(text)`
 
@@ -380,11 +382,11 @@ A path over parsed text is a section path from the top of the list it is given: 
 
 ### `markdown.select(blocks, selector)`
 
-**Effect:** Collects every block matching `selector` at any depth, in file order, with a section before its members. **Return:** A new list that holds the matching block tables themselves, empty when nothing matches. **Failure:** A `blocks` that is not a list of blocks, or a malformed selector, raises. **Example:** `local fences = markdown.select(md, "fence lua")`
+**Effect:** Collects every block matching `selector` at any depth, in file order, with a section before its members. With `"*"` that is every block, the document as one flat list. **Return:** A new list that holds the matching block tables themselves, empty when nothing matches. **Failure:** A `blocks` that is not a list of blocks, or a malformed selector, raises. **Example:** `local fences = markdown.select(md, "fence lua")`
 
 ### `markdown.render(blocks)`
 
-**Effect:** Writes a list of blocks back as Markdown, each block in one fixed style, joined by one blank line. **Return:** A string, empty for an empty list. **Failure:** A value that is not a list of blocks, or a block that cannot be written, raises and names the block. **Example:** `local text = markdown.render(setup.blocks)`
+**Effect:** Writes the `source` of every block of `blocks`, at any depth and in file order, a section's before those of the blocks under it. It reads no other field but the `kind` and `blocks` that say what comes next, so an edit of `source` is written and an edit of any other field is not. It adds a line ending of its own in two cases, neither of which occurs between two blocks of one parse: before a block when the text so far does not end with one, and a blank line between two prose blocks that have none between them. **Return:** A string, empty for an empty list. For the blocks of one parse it is the text they were read from. **Failure:** A value that is not a list of blocks, or a block whose `source` is not a string, raises and names the block. **Example:** `local text = markdown.render(setup.blocks)`
 
 ## Compaction
 
@@ -436,7 +438,7 @@ Fall-through visits siblings in source order and carries `var`, but no implicit 
 
 **Implementation status:** Active.
 
-**Effect:** Resolves `path` as above, parses that section's own raw Markdown by the block rules of [`markdown.parse`](#markdownparsetext), and picks one block matching `selector`: the only match when there is no `n`, and the `n`th match when there is. **Return:** A block table built for the call, whose `line` counts lines of the prompt file. **Failure:** Everything `prompt.section(path)` raises for, plus a malformed selector, no matching block, fewer than `n` matches, more than one match when no `n` is given, an index with no selector, an index that is zero or not an integer, and the kinds `section` and `frontmatter`, which a section's own content never holds. **Example:** `local topics = prompt.section("Topics", "list").items`
+**Effect:** Resolves `path` as above, parses that section's own raw Markdown by the block rules of [`markdown.parse`](#markdownparsetext), and picks one block matching `selector`: the only match when there is no `n`, and the `n`th match when there is. **Return:** A block table built for the call, whose `line` counts lines of the prompt file and whose `source` is the block's lines of the section's Markdown. **Failure:** Everything `prompt.section(path)` raises for, plus a malformed selector, no matching block, fewer than `n` matches, more than one match when no `n` is given, an index with no selector, an index that is zero or not an integer, and the kinds `section` and `frontmatter`, which a section's own content never holds. **Example:** `local topics = prompt.section("Topics", "list").items`
 
 ### `prompt.section_or(path)` and `prompt.section_or(path, selector, n?)`
 
