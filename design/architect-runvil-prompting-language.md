@@ -10,7 +10,7 @@ The host supplies transport, model-tool continuation, confinement, events, cance
 
 ## Current implementation scope
 
-The active language work renames heading-based `execute` to synchronous `call` and `tool_call` to `tools.call`, adds pending Markdown capture with thematic-break reset and lazy `prose`, removes `reply`, and retains plain message arrays with optional `messages.new()` builders.
+The active language work renames section-based `execute` to synchronous `call` and `tool_call` to `tools.call`, adds pending Markdown capture with thematic-break reset and lazy `prose`, removes `reply`, and retains plain message arrays with optional `messages.new()` builders.
 
 The active model runtime retains `models.infer`, adds Rust-backed `models.loop`, implements the minimum compactor invocation surface with `compactors.fail` as the only policy, validates provider-neutral messages and correlated model-tool exchanges, and reads model and tool selection at call time. All host operations are namespace functions; handles are pure inspectable values with no methods, so there is exactly one way to invoke anything.
 
@@ -28,30 +28,30 @@ Constructs described below are labeled active (changed by this plan), existing (
 6. [Models](#models)
 7. [Tools](#tools)
 8. [Store](#store)
-9. [Compaction](#compaction)
-10. [Control flow](#control-flow)
-11. [Host APIs](#host-apis)
-12. [Events and persistence](#events-and-persistence)
-13. [Errors and limits](#errors-and-limits)
-14. [Recipes](#recipes)
+9. [Markdown](#markdown)
+10. [Compaction](#compaction)
+11. [Control flow](#control-flow)
+12. [Host APIs](#host-apis)
+13. [Events and persistence](#events-and-persistence)
+14. [Errors and limits](#errors-and-limits)
+15. [Recipes](#recipes)
 
 ## Alphabetical construct index
 
 - A: `args`
-- C: `call(heading, input?)`, `call_async(heading, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
+- C: `call(path, input?)`, `call_async(path, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
 - D: `description`
 - E: events, deferred `execute(path, input?)`, deferred `execute_async(path, input?)`
 - F: `tasks.fanout(worker, collection)`, `tasks.fanout(model, worker, collection)`, frontmatter
-- H: heading references
 - I: `include`, incarnation, inherited Lua, `input`
-- J: `jump(heading)`
-- L: lifecycle, list sections, `local_include`, `log(message)`, `lua`, `lua inherit`
-- M: deferred `markdown` namespace, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
+- J: `jump(path)`
+- L: lifecycle, `local_include`, `log(message)`, `lua`, `lua inherit`
+- M: `markdown.parse`, `markdown.render`, `markdown.section`, `markdown.section_or`, `markdown.select`, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
 - N: `name`
 - O: `output`
-- P: deferred `pfanout`, `prompt.list(heading)`, `prompt.section(heading)`, `runvil: 0`, `prose`, provider projection
+- P: deferred `pfanout`, `prompt.section(path)`, `prompt.section_or(path)`, `runvil: 0`, `prose`, provider projection
 - R: `require(path)`, `return`
-- S: sections, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
+- S: section paths, sections, selectors, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
 - T: task handles, `tasks`, `tasks.await_all`, `tasks.fanout`, thematic break, `tools.add`, `tools["add_local"]`, `tools.always`, `tools.bind`, `tools.call`, `tools.calls`
 - U: `ui()`, `untrusted(text)`, `user_input()`
 - V: `var`
@@ -84,7 +84,7 @@ Optional `input` and `output` declarations contain `path` and `description`. Opt
 
 **Sections.** Exactly one non-empty H1 follows the frontmatter. Text before it is inert preface. H2 through H6 headings form the section tree, levels cannot be skipped, and sibling names must be unique.
 
-Fall-through follows source order. The H1 preamble resolves tool bindings and may return a scalar to finish the run. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there over the whole top-level slice.
+Fall-through follows source order. The H1 preamble resolves tool bindings and may return a scalar to finish the run. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there, where a relative path names a top-level section.
 
 **Pending prose and thematic breaks.** Each section heading starts an empty pending Markdown buffer. Markdown appends to that buffer.
 
@@ -117,7 +117,7 @@ second = prose
 
 Missing, null, malformed, unavailable, or non-JSON values fail at the first read site and may be caught with `pcall`. Bare `{{ var }}`, bare `{{ sys }}`, and recursive `{{ prose }}` are invalid. Assignment to `prose` always fails. Empty output memoizes as the empty string.
 
-**Deferred `markdown` namespace.** A future `markdown` table will give Lua direct access to the Markdown parser (for example `markdown.parse(text)`), following the same namespace convention as `models` and `tools`: namespace functions over plain values, no methods. It is a documented deferred target contract - no parser exposure, tests, or migration in this plan. Heading-resolved reads live in the `prompt` table (`prompt.section` and `prompt.list`), because they resolve a heading over the caller's visible set; `markdown` stays for parsing arbitrary text.
+**The `markdown` namespace.** The `markdown` table gives Lua the Markdown parser over any text, following the same namespace convention as `models` and `tools`: namespace functions over plain values, no methods. [Markdown](#markdown) lists its functions. Reads of the running prompt live in the `prompt` table (`prompt.section` and `prompt.section_or`), because they resolve a section path over the prompt's own section tree; `markdown` parses arbitrary text.
 
 ## Modules and prompt execution
 
@@ -135,7 +135,7 @@ Missing, null, malformed, unavailable, or non-JSON values fail at the first read
 
 **Implementation status.** This is a documented deferred target contract. The current implementation plan must not add path-based `execute`, `execute_async`, their tests, or their prompt migrations.
 
-**Migration order.** After the public `call` and `execute` contracts freeze, rename the current heading-based `execute` operation to `call` as the first child-composition behavior change and preserve its synchronous behavior. Verify that no heading-form `execute` remains and reserve `execute` for this deferred contract; integrate asynchronous section-child behavior only after the common task runtime exists.
+**Migration order.** After the public `call` and `execute` contracts freeze, rename the current section-based `execute` operation to `call` as the first child-composition behavior change and preserve its synchronous behavior. Verify that no section-form `execute` remains and reserve `execute` for this deferred contract; integrate asynchronous section-child behavior only after the common task runtime exists.
 
 ### `execute_async(path, input?)`
 
@@ -343,6 +343,49 @@ Store is run-scoped bulk state shared by all tasks. Every operation is lineariza
 
 **Effect:** Checks one virtual path. **Return:** A boolean. **Failure:** Invalid path or backend failure raises a store error. **Example:** `local ready = store.exists("ready.txt")`
 
+## Markdown
+
+**Implementation status:** Active.
+
+`markdown` parses any Markdown text into plain Lua tables, the way `json.decode` does for JSON, and it is in every prompt with no declaration. Every value is a string, number, boolean, or table, no table has methods, and each table is either a list or a record, so a parse result passes `json.encode`, can be stored in `var`, and can be a `tasks.fanout` collection. Every function is pure: nothing is run or substituted, no file is read, and no call performs an effect or suspends. [Section Paths, the `markdown` Namespace, and the `prompt` Reads](2026-11-11-1-markdown-and-prompt-reads.md) holds the full parsing rules, the grammar of paths and selectors, and the error messages.
+
+A parsed document is a list of blocks. A block is a record with a `kind`, the 1-based `line` it starts on, and the fields of its kind:
+
+| `kind` | Fields | What it is |
+|---|---|---|
+| `frontmatter` | `data` | The YAML mapping that opens the text, as JSON-shaped tables. It is only ever the first block. |
+| `section` | `level`, `title`, `blocks` | A heading and everything under it, subsections included. |
+| `prose` | `text` | A run of Markdown that is no other kind. |
+| `fence` | `lang`, `info`, `text` | A fenced code block: its info string, the first word of it, and its body. |
+| `list` | `ordered`, `items` | A bullet or numbered list, as strings with the markers removed. |
+| `rule` | none | A thematic break. |
+
+A path over parsed text is a section path from the top of the list it is given: `/Guide/Setup`, with `//title` for any depth and `title[n]` for the `n`th match. A selector names a kind of block, such as `"list"`, and `"fence markdown"` narrows `fence` to one language. An index after a selector picks among several matches, and `1` is the first and `-1` the last.
+
+### `markdown.parse(text)`
+
+**Effect:** Parses Markdown text into blocks, as CommonMark with no extensions, the reading the prompt parser uses. Parsing does not fail on content. **Return:** A list of blocks, empty for empty text. **Failure:** A non-string argument, text that is not UTF-8, or text longer than 8,388,608 bytes raises. **Example:** `local md = markdown.parse(store.read("notes.md"))`
+
+### `markdown.section(blocks, path)`
+
+**Effect:** Finds the one section that `path` names, starting from `blocks`: the value `markdown.parse` returned, any section's `blocks`, or a list the author built. **Return:** The section table itself, not a copy. **Failure:** A `blocks` that is not a list of blocks, a malformed path, a path that names no section, or a path that matches more than one section raises. **Example:** `local setup = markdown.section(md, "/Guide/Setup")`
+
+### `markdown.section(blocks, path, selector, n?)`
+
+**Effect:** Finds the section as above, then picks one block matching `selector` among that section's own `blocks`: the only match when there is no `n`, and the `n`th match when there is. **Return:** The block table itself. **Failure:** Everything the two-argument form raises for, plus a malformed selector, no matching block, fewer than `n` matches, more than one match when no `n` is given, an index with no selector, and an index that is zero or not an integer. **Example:** `local body = markdown.section(md, "/Guide/Templates", "fence markdown").text`
+
+### `markdown.section_or(blocks, path)` and `markdown.section_or(blocks, path, selector, n?)`
+
+**Effect:** The same lookup as `markdown.section`, in both forms. **Return:** What `markdown.section` returns, or nil when the section or the block is not there. **Failure:** Everything else `markdown.section` raises for. **Example:** `local abstract = markdown.section_or(paper, "//Abstract")`
+
+### `markdown.select(blocks, selector)`
+
+**Effect:** Collects every block matching `selector` at any depth, in file order, with a section before its members. **Return:** A new list that holds the matching block tables themselves, empty when nothing matches. **Failure:** A `blocks` that is not a list of blocks, or a malformed selector, raises. **Example:** `local fences = markdown.select(md, "fence lua")`
+
+### `markdown.render(blocks)`
+
+**Effect:** Writes a list of blocks back as Markdown, each block in one fixed style, joined by one blank line. **Return:** A string, empty for an empty list. **Failure:** A value that is not a list of blocks, or a block that cannot be written, raises and names the block. **Example:** `local text = markdown.render(setup.blocks)`
+
 ## Compaction
 
 **Implementation status.** Only the minimum compactor invocation surface and `compactors.fail` are active: on precheck or provider overflow the loop invokes the selected compactor with the reason, and `compactors.fail` always raises typed context exhaustion. Custom compactor callbacks, the budget record, replacement validation, measurable-progress checks, in-place history replacement, `compactors.summarize`, pinning helpers, other shipped policies, rich compaction events, and compaction persistence are deferred target contracts, described below for the future framework.
@@ -381,31 +424,37 @@ A compactor may call tool-free `models.infer` with or without an explicit handle
 
 ## Control flow
 
-Fall-through visits siblings in source order and carries `var`, but no implicit text result. Thematic breaks only clear pending prose and never affect control flow. A heading reference is one or more `#` characters, required whitespace, and exact heading text. The visible set is the current section's siblings except itself plus its direct children. Resolution never searches farther.
+Fall-through visits siblings in source order and carries `var`, but no implicit text result. Thematic breaks only clear pending prose and never affect control flow. A section is named by a section path: titles separated by `/`, each matched exactly. A relative path names a neighbor of the section its code is written in, `name` for a direct child and `../name` for a sibling, and a path from the top, such as `/Library/Template`, names any section. The visible set is the current section's siblings except itself plus its direct children, which is what the two relative forms name. `call`, `call_async`, `jump`, and `tasks.fanout` take only the relative forms, so they never reach farther. The `prompt` reads take either kind.
 
-### `prompt.section(heading)`
-
-**Implementation status:** Active.
-
-**Effect:** Reads a visible section's own raw Markdown: the text after its heading line up to the next heading of any level, leading blank lines and trailing whitespace trimmed, never run or substituted. **Return:** A string, empty for an empty section, or nil when no visible section has that heading. **Failure:** A non-string target, malformed reference, or ambiguous reference raises a Lua error. **Example:** `local rules = prompt.section("## Rules")`
-
-### `prompt.list(heading)`
+### `prompt.section(path)`
 
 **Implementation status:** Active.
 
-**Effect:** Reads a visible list section and strips item markers. **Return:** An ordered array of strings, or nil when no visible section has that heading. **Failure:** A non-string target, malformed or ambiguous reference, non-list target, or malformed list raises a parse or Lua error. **Example:** `local topics = prompt.list("### Topics")`
+**Effect:** Reads a section's own raw Markdown: the text after its heading line up to the next heading of any level, leading blank lines and trailing whitespace trimmed, never run or substituted. The path is relative or from the top, so a read can name any section. **Return:** A string, empty for an empty section. **Failure:** A non-string or malformed path, or a path that names no section, raises a Lua error. **Example:** `local rules = prompt.section("/Rules")`
 
-### `call(heading, input?)`
+### `prompt.section(path, selector, n?)`
 
-**Implementation status:** Active. Rename the current heading-based `execute` operation to `call` as the first behavior change and preserve its synchronous execution semantics.
+**Implementation status:** Active.
 
-**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally sets `args` to the input, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** Missing or ambiguous target, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("## Worker", "new input")`
+**Effect:** Resolves `path` as above, parses that section's own raw Markdown by the block rules of [`markdown.parse`](#markdownparsetext), and picks one block matching `selector`: the only match when there is no `n`, and the `n`th match when there is. **Return:** A block table built for the call, whose `line` counts lines of the prompt file. **Failure:** Everything `prompt.section(path)` raises for, plus a malformed selector, no matching block, fewer than `n` matches, more than one match when no `n` is given, an index with no selector, an index that is zero or not an integer, and the kinds `section` and `frontmatter`, which a section's own content never holds. **Example:** `local topics = prompt.section("Topics", "list").items`
 
-### `call_async(heading, input?)`
+### `prompt.section_or(path)` and `prompt.section_or(path, selector, n?)`
+
+**Implementation status:** Active.
+
+**Effect:** The same read as `prompt.section`, in both forms. **Return:** What `prompt.section` returns, or nil when the section or the block is not there. **Failure:** Everything else `prompt.section` raises for. **Example:** `local extras = prompt.section_or("Extras") or ""`
+
+### `call(path, input?)`
+
+**Implementation status:** Active. Rename the current section-based `execute` operation to `call` as the first behavior change and preserve its synchronous execution semantics.
+
+**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally sets `args` to the input, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** A malformed path, a path from the top, a path that names no section, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("Worker", "new input")`
+
+### `call_async(path, input?)`
 
 **Implementation status:** Deferred and inert in the current plan.
 
-**Effect:** Eagerly creates and enqueues one visible section task, then returns without awaiting it. The executor controls when queued work becomes running. It optionally replaces `args`, clones `var`, creates a fresh section entry initialized from lexical `lua inherit` ancestry and frozen assets, and isolates child clipboard writes. Every child inherits parent cancellation, deadline, confinement, and run services. **Return:** An opaque durable Task handle. **Failure:** Invalid or ambiguous heading, depth over eight, invalid input, or exhausted live-task quota raises before a handle exists. Failures after creation settle the returned task. **Example:** `local research = call_async("## Research", { topic = "allocators" })`
+**Effect:** Eagerly creates and enqueues one visible section task, then returns without awaiting it. The executor controls when queued work becomes running. It optionally replaces `args`, clones `var`, creates a fresh section entry initialized from lexical `lua inherit` ancestry and frozen assets, and isolates child clipboard writes. Every child inherits parent cancellation, deadline, confinement, and run services. **Return:** An opaque durable Task handle. **Failure:** A malformed path, a path that names no section, depth over eight, invalid input, or exhausted live-task quota raises before a handle exists. Failures after creation settle the returned task. **Example:** `local research = call_async("../Research", { topic = "allocators" })`
 
 ### `tasks`
 
@@ -439,25 +488,25 @@ Model-visible subagent tools use this same runtime through a fixed section targe
 
 **Implementation status:** Active.
 
-**Effect:** Runs the section `worker`, a heading string such as `"### Worker"`, once per member of `collection`, each run as its own task. Each arm sees its member as `item` and its 1-based position as `sys.index`, and starts on a copy of the calling chain's current model. The collection is any Lua table: its array members first, then its hash pairs sorted by key as `{ key, value }`. **Return:** The arms' results in member order, as read-only tables with `text`, `ok`, `item`, and `exhausted` fields; `tostring` of a result is its `text`. An arm that exhausts its tool loop leaves a stub result and the rest continue. **Failure:** A non-table collection raises an error that points at `prompt.list(heading)`, and an empty collection raises. Any other arm failure cancels the live arms and re-raises. Recursion is capped at 8. **Example:** `local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })`
+**Effect:** Runs the section `worker`, a relative section path such as `"Worker"`, once per member of `collection`, each run as its own task. Each arm sees its member as `item` and its 1-based position as `sys.index`, and starts on a copy of the calling chain's current model. The collection is any Lua table: its array members first, then its hash pairs sorted by key as `{ key, value }`. **Return:** The arms' results in member order, as read-only tables with `text`, `ok`, `item`, and `exhausted` fields; `tostring` of a result is its `text`. An arm that exhausts its tool loop leaves a stub result and the rest continue. **Failure:** A non-table collection raises an error that names the read that gives the items of a list, `prompt.section(path, "list").items`, and an empty collection raises. Any other arm failure cancels the live arms and re-raises. Recursion is capped at 8. **Example:** `local reviews = tasks.fanout("Critic", { "accuracy", "clarity" })`
 
 ### `tasks.fanout(model, worker, collection)`
 
 **Implementation status:** Active.
 
-**Effect:** Runs the same fanout with a model handle first, and every arm runs on that model. The calling chain's own model is not switched: it is set to the handle only while the arms are spawned and is put back before the first wait, and also when a spawn fails part-way, so the chain ends on the model it had before the call. Inside an arm, `models.use` changes only that arm and the tasks it starts, and `models.use("default")` selects the `default` role, not the model the fanout was given. **Return:** The same results as the two-argument form. **Failure:** A first argument that is not a model handle raises `tasks.fanout: the first argument must be a model handle, got <type>`, and any argument count other than two or three raises `tasks.fanout takes (worker, collection) or (model, worker, collection)`. The two-argument failures apply as well. **Example:** `local reviews = tasks.fanout(models.get("fast"), "### Critic", { "accuracy", "clarity" })`
+**Effect:** Runs the same fanout with a model handle first, and every arm runs on that model. The calling chain's own model is not switched: it is set to the handle only while the arms are spawned and is put back before the first wait, and also when a spawn fails part-way, so the chain ends on the model it had before the call. Inside an arm, `models.use` changes only that arm and the tasks it starts, and `models.use("default")` selects the `default` role, not the model the fanout was given. **Return:** The same results as the two-argument form. **Failure:** A first argument that is not a model handle raises `tasks.fanout: the first argument must be a model handle, got <type>`, and any argument count other than two or three raises `tasks.fanout takes (worker, collection) or (model, worker, collection)`. The two-argument failures apply as well. **Example:** `local reviews = tasks.fanout(models.get("fast"), "Critic", { "accuracy", "clarity" })`
 
-Saving the current model, running a two-argument fanout, and restoring it also works: `local prev = models.current(); models.use("creative"); local drafts = tasks.fanout("### Worker", items); models.use(prev)`.
+Saving the current model, running a two-argument fanout, and restoring it also works: `local prev = models.current(); models.use("creative"); local drafts = tasks.fanout("Worker", items); models.use(prev)`.
 
 ### Deferred `pfanout(section, inputs)`
 
 **Target contract:** The protected variant creates the same ordered section tasks, waits for every task through Rust-backed `tasks.await_all` all-settled mode, and returns input-ordered Outcomes without cancelling siblings because one failed. Invalid arguments or inability to create the batch still raise. The `p` follows Lua's protected-call naming convention.
 
-### `jump(heading)`
+### `jump(path)`
 
 **Implementation status:** Existing behavior, unchanged by this plan; the `lua inherit` initialization mentioned below is deferred.
 
-**Effect:** Terminates the current frame and transfers its walk with `var` into a fresh target VM initialized from the target's lexical `lua inherit` ancestry and frozen assets. No implicit text result is transferred. A direct-child transfer walks that child level before the parent level resumes. **Return:** Never returns to the caller. **Failure:** A malformed, missing, or ambiguous visible target raises a Lua error. **Example:** `jump("## Next")`
+**Effect:** Terminates the current frame and transfers its walk with `var` into a fresh target VM initialized from the target's lexical `lua inherit` ancestry and frozen assets. No implicit text result is transferred. A direct-child transfer walks that child level before the parent level resumes. **Return:** Never returns to the caller. **Failure:** A malformed path, a path from the top, or a path that names no section raises a Lua error. **Example:** `jump("../Next")`
 
 ## Host APIs
 
@@ -497,7 +546,7 @@ The active scope defaults to 24 models.loop iterations, model response size 16 M
 
 Active input waits preserve their section VM and follow host wait, failure, and cancellation policy. Deferred limits cover running and live child tasks, child depth, task execution time, replay work, child recursion, and required-module or executed-prompt depth and bytes. Running-capacity saturation, queued-task admission, reconnect lifetime, and cold-session policy remain inert until their owning contracts are implemented.
 
-Failure families are parse, version, binding, completion, tool, store, Lua, quota, substitution, context, module, execution, incarnation, cancelled, and internal. Parse errors distinguish frontmatter, structure, fence, list, and Lua failures. Invalid source, unsafe paths, malformed messages, incarnation drift, and compactor corruption fail without blind retry; marked transport and service failures may be retried only by the Rust models.loop policy.
+Failure families are parse, version, binding, completion, tool, store, Lua, quota, substitution, context, module, execution, incarnation, cancelled, and internal. Parse errors distinguish frontmatter, structure, fence, and Lua failures. Invalid source, unsafe paths, malformed messages, incarnation drift, and compactor corruption fail without blind retry; marked transport and service failures may be retried only by the Rust models.loop policy.
 
 `pcall` can catch recoverable active host and tool errors. A recoverable model-issued tool interruption becomes a correlated result only when the conversation can validly continue. Deferred task cancellation later closes the child-creation gate, propagates down the task tree, drains descendants, and handles uncertain remote cessation.
 
@@ -525,7 +574,7 @@ var.draft = models.infer(prose)
 ```
 ## Review
 ```lua
-local reviews = tasks.fanout("### Critic", { "accuracy", "clarity" })
+local reviews = tasks.fanout("Critic", { "accuracy", "clarity" })
 return reviews[1].text .. "\n" .. reviews[2].text
 ```
 ### Critic
