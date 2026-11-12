@@ -2,7 +2,7 @@
 
 - Scope: the desktop app, the Workshop server and its API, the wire protocol, the Workshop crates, stored state, the workspace document, running prompts through the Harness, calling the Gateway, and the UI's three TypeScript packages
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`
-- Update: the tiers of section 3 and the text on Plugins describe `runvil` at commit `b0693699d` (section 12)
+- Update: the tiers and the dependency checks of section 3 describe `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, and the text on Plugins describes `runvil` at `b0693699d` (section 12)
 - Paths: code paths start at the `crates/workshop/` folder of `runvil` unless they begin with `crates/`, `.cursor/`, or a repository name
 
 ## Summary
@@ -83,12 +83,12 @@ The build script runs the bundler so that a plain `cargo build` updates the exec
 
 ## 3. The Workshop crates and the registry
 
-### Thirteen of Workshop's fifteen Rust crates form four tiers, and each dependency points to a lower tier
+### Fourteen of Workshop's sixteen Rust crates form four tiers, and each dependency points to a lower tier
 
 `cargo test -p build-xtask` reads the tiers from `crates/build-xtask/src/tidy.rs` and fails when a crate depends on its own tier or a higher one.
 
 - Vocabulary: `workshop-protocol` (wire frames), `workshop-support` (atomic writes, backoff, deadlines, config, `RetainedBus`), `workshop-registry`, and `workshop-gateway-discovery` (the reader of the Gateway's discovery file).
-- Library Plugins, a second table of the lowest tier: `workshop-plugin-std` (the dynamic library of the `std` Plugin). Its crate depends only on crates outside the Workshop family, and `workshop-server` alone may depend on it.
+- Library Plugins, a second table of the lowest tier: `workshop-plugin-std` (the dynamic library of the `std` Plugin) and `workshop-plugin-bashkit` (the dynamic library of the bashkit Plugin). Each of the two crates depends only on crates outside the Workshop family, and `workshop-server` alone may depend on them.
 - Services: `workshop-gateway` (Gateway client, binding, heartbeat, progress), `workshop-menu` (the Model menu and model catalog), and `workshop-status` (the status bus).
 - Features: `workshop-agents` (conversations), `workshop-run-log` (the run log), `workshop-user-state` (`ui-state.json`), and `workshop-workspace` (granted folders and the `.rvwork` file).
 - Server: `workshop-server` (composition root, routes, and the two sockets).
@@ -109,7 +109,7 @@ In `workshop-gateway`, `workshop-workspace`, and `workshop-server`, every produc
 
 ### `workshop-server-api` is the desktop app's one Workshop dependency, and Workshop crates import the Engine through `runvil`
 
-`workshop-server-api` is a list of re-exports: the config types, `spawn`, `ServerHandle`, `GatewayUpdater`, and the `discovery` module. The check in `crates/build-xtask/src/product.rs` fails when the desktop app names another Workshop crate, and when a Workshop crate depends on an Engine crate. `workshop-agents`, `workshop-run-log`, and `workshop-server` import the Engine, the Harness, and the Plugin contract from `runvil` ([The Harness and the Host API](harness-and-host.md)).
+`workshop-server-api` is a list of re-exports: the config types, `spawn`, `ServerHandle`, `GatewayUpdater`, and the `discovery` module. The check in `crates/build-xtask/src/product.rs` fails when the desktop app names another Workshop crate. The Engine and the Harness are in the `runvil-harness` repository, and the root `Cargo.toml` pins four of its crates by commit: `runvil`, `harness-gateway-client`, `plugin-web`, and `plugin-mcp`. The check in `crates/build-xtask/src/harness_pin.rs` fails when a crate here takes any other crate of that repository, so an Engine crate stays out of every Workshop manifest ([Crates, build, and CI](crates-build-and-ci.md)). `workshop-agents`, `workshop-run-log`, and `workshop-server` import the Engine, the Harness, and the Plugin contract from `runvil` ([The Harness and the Host API](harness-and-host.md)).
 
 ## 4. The two sockets and the wire protocol
 
@@ -400,5 +400,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the tiers of section 3, the `with_plugins` text of section 5, and the planned item on Plugins were brought to `runvil` at commit `b0693699d`. Between the two commits, `std` became a library Plugin that the server loads from a Plugin directory, and Workshop gained the crate `workshop-plugin-std`. The rest of the page still describes the commits above.
+- **Update.** On 2026-11-12 the two entries of section 3 on tiers and on dependencies were brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness`, and pinned four of them by commit, and `df857f4b1` added the check `harness_pin`. Earlier commits added the crate `workshop-plugin-bashkit`. The text of section 5 on Plugins still describes `b0693699d`: at `df857f4b1` the Plugin directory also has the library of the bashkit Plugin, and the server has a switch, committed as off, that mounts the `C:` drive read-only in every run.
 
 *2026-11-10 16:42 - Claude Fable 5.2*

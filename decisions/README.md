@@ -3,7 +3,8 @@
 This folder has fifteen pages, one for each part of Runvil's design. A page says what the part is, what it does, and why it is built that way. Every page describes the code as it is at the commits listed below. The pages are for developers who are new to the code, and the developer who will own a part reads its page first.
 
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, `runvil-docs` at `cfd69a4`, `runvil-cloud-providers` at `1817cc4`, `runvil-plugin-api` at `63a2403`, and `runvil-plugin-bashkit` at `6a2e36d`
-- Size: 543 entries in about 76,500 words
+- Repositories: the Engine and the Harness moved to the `runvil-harness` repository after that commit of `runvil`. The text on repositories, crates, dependency rules, and CI describes `runvil` at `df857f4b1` and `runvil-harness` at `7324299` (see Limits)
+- Size: 544 entries in about 80,000 words
 
 ## The pages
 
@@ -20,7 +21,7 @@ This folder has fifteen pages, one for each part of Runvil's design. A page says
 | [Speech](speech.md) | Speech to text, text to speech, voice in Workshop | 39 | 7 | 6 |
 | [Workshop: how the app is built](workshop-app.md) | The desktop shell, the server, the protocol, state, the workspace document | 48 | 11 | 9 |
 | [Workshop: what the user sees](workshop-ui.md) | Windows, menus, the agent window, the chat box, the look | 32 | 8 | 7 |
-| [Crates, build, and CI](crates-build-and-ci.md) | Crate families, dependency rules, structural checks, the toolchain, CI, releases | 48 | 2 | 9 |
+| [Crates, build, and CI](crates-build-and-ci.md) | The two workspaces, crate families, dependency rules, structural checks, the toolchain, CI, releases | 49 | 2 | 9 |
 | [Testing and debugging](testing-and-debugging.md) | Test support, scripted models, rules for test code, logs and traces | 21 | 4 | 5 |
 | [Guides and docs](guides-and-docs.md) | The language guide, the docs site, crate docs | 15 | 5 | 3 |
 | [Prompts that ship](shipped-prompts.md) | The sample prompts and the built-in chat prompt | 7 | 2 | 4 |
@@ -72,7 +73,14 @@ The pages list 86 gaps and ask 123 questions. These ten gaps matter most.
 
 - **Behavior is read from the code.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Error rate.** The reviewers corrected about 9% of the claims they checked. For a sentence outside those checks, the evidence is one session's reading of the code.
-- **Currency.** The pages describe the commits listed at the top. `runvil` has 27 later commits. The first 13 port the cross-platform installer work, move the custom lints to a repository of their own, move `Timestamp` to the root of both crates of re-exports, and change the type of `RunMeta::started_at`. The entries on installers and lints in [Crates, build, and CI](crates-build-and-ci.md) describe the code before those commits. The next 12 make `std` a library Plugin that Workshop loads from a Plugin directory, through contract 0.4 of `runvil-plugin-api`, and adjust the installer tests. The last 2 remove the `shared-error-source` crate and the `shared-*` family.
-- **Update.** On 2026-11-11 the text on Plugins, crates, and dependency rules that the last 14 of those commits changed was brought to `runvil` at `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`. The update is on five pages: [Tools and Packs](tools-and-packs.md), [Workshop: how the app is built](workshop-app.md), [Crates, build, and CI](crates-build-and-ci.md), [The Harness and the Host API](harness-and-host.md), and [Files and the VFS](files-and-the-vfs.md). Each of those pages lists its updated parts in its last section. The entries on installers and lints still describe the code before all 27 commits.
+- **Currency.** The pages describe the commits listed at the top. `runvil` has 43 later commits, in five groups.
+  1. The first 13 port the cross-platform installer work, move the custom lints to a repository of their own, move `Timestamp` to the root of both crates of re-exports, and change the type of `RunMeta::started_at`.
+  2. The next 12 make `std` a library Plugin that Workshop loads from a Plugin directory, through contract 0.4 of `runvil-plugin-api`, and adjust the installer tests.
+  3. The next 2 remove the `shared-error-source` crate and the `shared-*` family.
+  4. The next 14 add the Engine crate `runvil-markdown` and the `markdown` global, name every section by a section path, change the reads of the `prompt` global, build and ship the library of the bashkit Plugin with Workshop, require the `bash` Pack in the built-in chat, and add a switch that mounts the `C:` drive in every run.
+  5. The last 2 remove the Engine, Harness, and Plugin crates from `runvil`, pin four of them by commit from the `runvil-harness` repository, which has those crates with their history, and add a check of that pin.
+- **Update of 2026-11-11.** The text on Plugins, crates, and dependency rules that groups 2 and 3 changed was brought to `runvil` at `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`. The update is on five pages: [Tools and Packs](tools-and-packs.md), [Workshop: how the app is built](workshop-app.md), [Crates, build, and CI](crates-build-and-ci.md), [The Harness and the Host API](harness-and-host.md), and [Files and the VFS](files-and-the-vfs.md).
+- **Update of 2026-11-12.** The text that group 5 changed was brought to `runvil` at `df857f4b1` and `runvil-harness` at `7324299`. [Crates, build, and CI](crates-build-and-ci.md) has most of it: the two workspaces, their crates, the dependency rules, the place of each structural check, and the CI jobs, with one new entry on the pin. [Workshop: how the app is built](workshop-app.md), [Guides and docs](guides-and-docs.md), and [Prompts that ship](shipped-prompts.md) have the sentences that the move changed. Eight pages have a new Paths bullet, because the code they describe is in `runvil-harness`: [The prompt language](prompt-language.md), [Model calls and conversations](models-and-conversations.md), [Tasks and fanout](tasks-and-fanout.md), [Files and the VFS](files-and-the-vfs.md), [The Engine](engine.md), [The Harness and the Host API](harness-and-host.md), [Tools and Packs](tools-and-packs.md), and [Testing and debugging](testing-and-debugging.md). Each page lists its updated parts in its last section.
+- **Still to update.** Two groups of text describe older code. The entries on installers, releases, and lints in [Crates, build, and CI](crates-build-and-ci.md) describe the code before all 43 commits, and gap 8 above names two workflows that `runvil` has since replaced with `installers.yml`. The text that group 4 changed, apart from the crate counts and the tier tables, also describes the code before those commits: sections, `jump` targets, and the `prompt` reads in [The prompt language](prompt-language.md), the `bash` Pack in [Tools and Packs](tools-and-packs.md), the Packs of the chat prompt in [Prompts that ship](shipped-prompts.md), and the Plugin directory and the `C:` drive switch in [Workshop: how the app is built](workshop-app.md).
 
 *2026-11-10 16:53 - Claude Fable 5.2*

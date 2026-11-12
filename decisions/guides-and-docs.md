@@ -2,6 +2,7 @@
 
 - Scope: the language guide, the Gateway guide, the docs site and its build, crate docs, the wording rules, and where each kind of document is stored
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
+- Update: the text on the source of the API references, the two copies of the wording test, and the paths of Engine and Harness files describe `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 8)
 - Paths: code paths start at the root of `runvil`, and a path in another repository starts with that repository's name
 
 ## Summary
@@ -80,7 +81,7 @@ Each link ends in a file name, as in `language/index.html`, because a browser th
 
 ### The site has five API references and two books, each in its own folder
 
-`RUSTDOC_SITES` lists five crates: `runvil-engine`, `runvil`, `harness-gateway-client`, `plugin-web`, and `plugin-mcp`. Rustdoc documents each with its default features, so that each published reference shows its crate as the crate's dependents see it. Each API reference and each book has its own folder under `target/site/`, with its own navigation and search.
+`RUSTDOC_SITES` lists five crates: `runvil-engine`, `runvil`, `harness-gateway-client`, `plugin-web`, and `plugin-mcp`. The five are crates of `runvil-harness`, and the site command documents each at the commit that the root `Cargo.toml` of `runvil` pins ([Crates, build, and CI](crates-build-and-ci.md)). A change to their doc comments therefore reaches the site when `runvil` moves that pin. Rustdoc documents each with its default features, so that each published reference shows its crate as the crate's dependents see it. Each API reference and each book has its own folder under `target/site/`, with its own navigation and search.
 
 The folders are separate so that each product has documentation of its own. Together they are one site, because GitHub Pages publishes one site for each repository.
 
@@ -100,15 +101,15 @@ The nightly run exists for the chapters: they are in `runvil-docs`, and the work
 
 ### A doc comment contains prose, and examples are tests or example programs
 
-The structural check in `no_doctests.rs` fails any doc comment with a code block that rustdoc would compile, and any doc attribute that reads its text from a file with `include_str!`. Runnable examples are ordinary tests and two programs, `greeter.rs` in `runvil-engine` and `run-prompt.rs` in `runvil`.
+The structural check in `no_doctests.rs`, which the `build-xtask` crate of each workspace has, fails any doc comment with a code block that rustdoc would compile, and any doc attribute that reads its text from a file with `include_str!`. Runnable examples are ordinary tests and two programs in `runvil-harness`, `greeter.rs` in `runvil-engine` and `run-prompt.rs` in `runvil`.
 
 The project's checks leave out doctest steps, which would add about 67 seconds to every local run. The test runs would therefore skip a doctest that an agent writes, and the structural check exists to fail it.
 
 ### `AGENTS.md` defines seven terms, and a Node test checks the rulebooks for four of them
 
-The root `AGENTS.md` defines Engine, Harness, Host, Pack, Plugin, Static Set, and Dynamic Set. The test `crates/workshop/ui/test/docs-claims.mjs` reads every rulebook: each `AGENTS.md`, each `.cursor/rules` file, and each crate doc with an `## Invariants` section. It fails on a lowercase "host", "engine", "harness", or "plugin" outside a short list of allowed phrases, and on text in an Engine crate that names the Host.
+The root `AGENTS.md` of each repository defines Engine, Harness, Host, Pack, Plugin, Static Set, and Dynamic Set. Each repository has a copy of the test, `crates/workshop/ui/test/docs-claims.mjs` in `runvil` and `runvil-harness/tools/docs-claims.mjs`. The test reads every rulebook of its repository: each `AGENTS.md`, each `.cursor/rules` file, and each crate doc with an `## Invariants` section. It fails on a lowercase "host", "engine", "harness", or "plugin" outside a short list of allowed phrases. The copy in `runvil-harness` also fails on text in an Engine crate that names the Host.
 
-The test exists so that every rulebook uses the four terms one way, and only the root `AGENTS.md` defines them. The pre-push hook runs the test.
+The test exists so that every rulebook uses the four terms one way, and only the root `AGENTS.md` defines them. The pre-push hook of each repository runs the test.
 
 ## 5. Planned work
 
@@ -116,7 +117,7 @@ Each of these items is still to be built.
 
 - **The Workshop guide.** A guide for a person who uses Workshop. The `workshop` book has one placeholder chapter, titled "Coming Soon".
 - **A check of guide examples.** A scheduled job in `runvil-docs` that parses every prompt example with the Engine's parser. The site workflow publishes each chapter as committed, with its examples unparsed.
-- **A check of names in prose.** A check that fails when a comment or a README names an item that the code lacks. READMEs name code items: `crates/harness-internal/runner/README.md` names `Host` and `send`.
+- **A check of names in prose.** A check that fails when a comment or a README names an item that the code lacks. READMEs name code items: `runvil-harness/crates/harness-internal/runner/README.md` names `Host` and `send`.
 
 ## 6. Known gaps
 
@@ -146,5 +147,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-gateway` at commit `9369a7d`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-12 the text that the move of the Engine and the Harness changed was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history, and the code that builds the site stays in `runvil`. The update covers the entry on the five API references, the two entries of section 4, and the path in the third planned item. The rest of the page still describes the commits above.
 
 *2026-11-10 16:37 - Claude Fable 5.2*

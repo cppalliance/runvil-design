@@ -2,11 +2,12 @@
 
 - Scope: the sample prompts in `prompts` and Workshop's built-in chat prompt
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Paths: code paths start at the root of the `runvil` repository
+- Update: the place of the sample prompts and the Paths bullet describe `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 7)
+- Paths: code paths start at the root of the `runvil` repository, except the `prompts` folder and the Engine and Harness crates, which are in the `runvil-harness` repository at the same paths
 
 ## Summary
 
-Runvil ships six prompts. Five are sample files in the `prompts` folder: four small examples and `research-person.md`, which researches a person on the web. The sixth is `chat.md`, the built-in chat agent, which Workshop compiles into its binary and launches when an agent panel opens. Its one section is a loop: it reads the operator's next message, runs model rounds and tool calls until the model answers, and summarizes older turns when a turn overflows the model's context window. Section 1 describes the samples, and sections 2 and 3 describe the chat prompt.
+Runvil ships six prompts. Five are sample files in the `prompts` folder of `runvil-harness`, the repository of the Engine and the Harness: four small examples and `research-person.md`, which researches a person on the web. The sixth is `chat.md`, the built-in chat agent, which Workshop compiles into its binary and launches when an agent panel opens. Its one section is a loop: it reads the operator's next message, runs model rounds and tool calls until the model answers, and summarizes older turns when a turn overflows the model's context window. Section 1 describes the samples, and sections 2 and 3 describe the chat prompt.
 
 A check of this page against the code found two gaps and left four questions about reasons for the owner. Section 5 lists the gaps, and section 6 lists the questions. In the larger gap, the prose of `chat.md` describes a system message about a mounted language guide, while the Lua line that adds that message is a comment and the mount is switched off.
 
@@ -26,7 +27,7 @@ The run enters the prompt's one section, `## Conversation`. Its Lua block offers
 
 The samples are `hello.md`, `echo.md`, `greet.md`, `analyst-example.md`, and `research-person.md`, and the language guide's first chapter says what each one shows.
 
-The test `every_shipped_prompt_parses_offline` in `runvil-runtime` parses each `.md` file under `prompts`, so a language change that breaks a sample fails the test run. [The prompt language](prompt-language.md) covers the forms the samples use.
+The test `every_shipped_prompt_parses_offline` in `runvil-runtime` parses each `.md` file under `prompts`, so a language change that breaks a sample fails the test run. The folder is in `runvil-harness`, with the test that reads it. [The prompt language](prompt-language.md) covers the forms the samples use.
 
 ### `research-person.md` runs at most 20 rounds, and the model decides when to stop
 
@@ -40,7 +41,7 @@ The round limit is in the front matter because the budget belongs with the promp
 
 `discovery.rs` embeds the text of `chat.md` with `include_str!`, and a `chat.md` in the configured agents folder replaces the embedded text. Workshop embeds the prompt so that a fresh install always has a working chat.
 
-The chat gate tests in `workshop-server` launch the embedded text, and the Engine test file `models_loop-author-shapes.rs` contains a copy of the prompt's `compact` function (section 3). A change to one copy requires the same change to the other. [Workshop: how the app is built](workshop-app.md) covers discovery and launch.
+The chat gate tests in `workshop-server` launch the embedded text, and the Engine test file `models_loop-author-shapes.rs` contains a copy of the prompt's `compact` function (section 3). A change to one copy requires the same change to the other, and the two copies are in two repositories: the prompt in `runvil`, and the test in `runvil-harness`. [Workshop: how the app is built](workshop-app.md) covers discovery and launch.
 
 ### The chat prompt offers `std`, `web`, and the extras in its one section
 
@@ -74,7 +75,7 @@ The summary request contains at most 1,500 bytes of each record, cut on a charac
 
 Each of these items is still to be built.
 
-- **Prompts as tools.** A Pack that turns a folder of prompts into tools, and with it the publishing of prompts over the Model Context Protocol (MCP). Workshop runs prompts, and the example `crates/runvil/examples/run-prompt.rs` shows how a Host runs one prompt through a `Harness`. The `mcp` Pack is an MCP client ([Tools and Packs](tools-and-packs.md)).
+- **Prompts as tools.** A Pack that turns a folder of prompts into tools, and with it the publishing of prompts over the Model Context Protocol (MCP). Workshop runs prompts, and the example `crates/runvil/examples/run-prompt.rs` of `runvil-harness` shows how a Host runs one prompt through a `Harness`. The `mcp` Pack is an MCP client ([Tools and Packs](tools-and-packs.md)).
 - **A quiet recovery from overflow.** A change to what the operator sees when the compactor recovers a turn. The operator sees a `Model turn failed` frame before the reply of each such turn.
 
 ## 5. Known gaps
@@ -103,5 +104,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
+- **Update.** On 2026-11-12 the Paths bullet and the text on where the sample prompts are were brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the `prompts` folder and the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths. The update covers one sentence each in the summary, the entry on the five samples, the entry on the embedded chat prompt, and the first planned item. The rest of the page still describes the commits above. At `runvil` commit `5bc561c14`, the chat prompt also requires and offers the `bash` Pack, and the text on the chat prompt's Packs is still to be brought to that commit.
 
 *2026-11-10 16:41 - Claude Fable 5.2*
