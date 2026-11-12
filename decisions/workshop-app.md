@@ -2,7 +2,7 @@
 
 - Scope: the desktop app, the Workshop server and its API, the wire protocol, the Workshop crates, stored state, the workspace document, running prompts through the Harness, calling the Gateway, and the UI's three TypeScript packages
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`
-- Update: the tiers and the dependency checks of section 3 describe `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, and the text on Plugins describes `runvil` at `b0693699d` (section 12)
+- Update: the tiers and the dependency checks of section 3 describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, and the text on Plugins describes `runvil` at `b0693699d` (section 12)
 - Paths: code paths start at the `crates/workshop/` folder of `runvil` unless they begin with `crates/`, `.cursor/`, or a repository name
 
 ## Summary
@@ -400,6 +400,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the tiers of section 3, the `with_plugins` text of section 5, and the planned item on Plugins were brought to `runvil` at commit `b0693699d`. Between the two commits, `std` became a library Plugin that the server loads from a Plugin directory, and Workshop gained the crate `workshop-plugin-std`. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-12 the two entries of section 3 on tiers and on dependencies were brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness`, and pinned four of them by commit, and `df857f4b1` added the check `harness_pin`. Earlier commits added the crate `workshop-plugin-bashkit`. The text of section 5 on Plugins still describes `b0693699d`: at `df857f4b1` the Plugin directory also has the library of the bashkit Plugin, and the server has a switch, committed as off, that mounts the `C:` drive read-only in every run.
+- **Update.** On 2026-11-12 the two entries of section 3 on tiers and on dependencies were brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness`, and pinned four of them by commit, and `df857f4b1` added the check `harness_pin`. Earlier commits added the crate `workshop-plugin-bashkit`. The text of section 5 on Plugins still describes `b0693699d`: at `48a4dbc08` the Plugin directory also has the library of the bashkit Plugin, and the server has a switch, committed as off, that mounts the `C:` drive read-only in every run.
 
 *2026-11-10 16:42 - Claude Fable 5.2*

@@ -2,7 +2,7 @@
 
 - Scope: how a prompt calls a model and what a conversation is: the `models` API, model roles, the model loop, replies, limits on a round, messages, compaction, and the client that sends a model request
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
-- Update: the Paths bullet names the repositories as of `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 11)
+- Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -349,6 +349,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The Workshop crates stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
+- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The Workshop crates stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
 
 *2026-11-10 16:39 - Claude Fable 5.2*

@@ -2,7 +2,7 @@
 
 - Scope: the `store` Lua API, the virtual file system (VFS), real and virtual roots, what a run may read and write, file identities and conflicts, and persistence
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Update: the sentence on the `std` Pack's answer to a conflict describes `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 11)
+- Update: the sentence on the `std` Pack's answer to a conflict describes `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -223,6 +223,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the sentence on the `std` Pack's answer to a conflict, in the entry on conflicts inside a tool call, was brought to `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, where `std` is a library Plugin. The rest of the page still describes the commits of the `Code:` bullet.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 
 *2026-11-10 16:40 - Claude Fable 5.2*
