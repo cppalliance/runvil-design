@@ -2,7 +2,7 @@
 
 - Scope: the Engine as a library: parsing a prompt, the run state machine, effects and their answers, run limits, the one error type, the public surface, and the internal crates
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Update: the Paths bullet names the repositories as of `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 12)
+- Update: the Paths bullet names the repositories as of `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 12)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -325,6 +325,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 
 *2026-11-10 16:37 - Claude Fable 5.2*

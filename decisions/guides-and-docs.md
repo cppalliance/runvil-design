@@ -2,7 +2,7 @@
 
 - Scope: the language guide, the Gateway guide, the docs site and its build, crate docs, the wording rules, and where each kind of document is stored
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
-- Update: the text on the source of the API references, the two copies of the wording test, and the paths of Engine and Harness files describe `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 8)
+- Update: the text on the source of the API references, the two copies of the wording test, and the paths of Engine and Harness files describe `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 8)
 - Paths: code paths start at the root of `runvil`, and a path in another repository starts with that repository's name
 
 ## Summary
@@ -147,6 +147,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-gateway` at commit `9369a7d`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Update.** On 2026-11-12 the text that the move of the Engine and the Harness changed was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history, and the code that builds the site stays in `runvil`. The update covers the entry on the five API references, the two entries of section 4, and the path in the third planned item. The rest of the page still describes the commits above.
+- **Update.** On 2026-11-12 the text that the move of the Engine and the Harness changed was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history, and the code that builds the site stays in `runvil`. The update covers the entry on the five API references, the two entries of section 4, and the path in the third planned item. The rest of the page still describes the commits above.
 
 *2026-11-10 16:37 - Claude Fable 5.2*

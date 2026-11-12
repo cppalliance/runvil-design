@@ -2,7 +2,7 @@
 
 - Scope: the sample prompts in `prompts` and Workshop's built-in chat prompt
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Update: the place of the sample prompts and the Paths bullet describe `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 7)
+- Update: the place of the sample prompts and the Paths bullet describe `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 7)
 - Paths: code paths start at the root of the `runvil` repository, except the `prompts` folder and the Engine and Harness crates, which are in the `runvil-harness` repository at the same paths
 
 ## Summary
@@ -104,6 +104,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Update.** On 2026-11-12 the Paths bullet and the text on where the sample prompts are were brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the `prompts` folder and the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths. The update covers one sentence each in the summary, the entry on the five samples, the entry on the embedded chat prompt, and the first planned item. The rest of the page still describes the commits above. At `runvil` commit `5bc561c14`, the chat prompt also requires and offers the `bash` Pack, and the text on the chat prompt's Packs is still to be brought to that commit.
+- **Update.** On 2026-11-12 the Paths bullet and the text on where the sample prompts are were brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the `prompts` folder and the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths. The update covers one sentence each in the summary, the entry on the five samples, the entry on the embedded chat prompt, and the first planned item. The rest of the page still describes the commits above. At `runvil` commit `5bc561c14`, the chat prompt also requires and offers the `bash` Pack, and the text on the chat prompt's Packs is still to be brought to that commit.
 
 *2026-11-10 16:41 - Claude Fable 5.2*

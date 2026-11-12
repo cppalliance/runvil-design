@@ -2,7 +2,7 @@
 
 - Scope: test harnesses and test support, fixtures, scripted models, the facade suites, the rules for test code, logs and traces, and dev tools
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-docs` at `cfd69a4`
-- Update: the Paths bullet names the repositories as of `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 10)
+- Update: the Paths bullet names the repositories as of `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 10)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, a path that begins with `workshop/` starts at the `crates/` folder of `runvil`, and a `tools/` path starts at the root of its repository
 
 ## Summary
@@ -196,6 +196,6 @@ Each question asks for the reason behind a part of the design.
 - **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-docs` at `cfd69a4`.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. Their tests, test support, and benches moved with them, and the CI of `runvil-harness` runs them on Linux and on Windows. The Workshop crates and their tests stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
+- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. Their tests, test support, and benches moved with them, and the CI of `runvil-harness` runs them on Linux and on Windows. The Workshop crates and their tests stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
 
 *2026-11-10 16:47 - Claude Fable 5.2*

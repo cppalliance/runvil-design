@@ -2,7 +2,7 @@
 
 - Scope: tools, Packs, Plugins, the Plugin C contract, and the Packs that ship with Runvil
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-plugin-api` at commit `63a2403`
-- Update: the text on library Plugins, the C contract, and the `std` Pack describes `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `df857f4b1` and `runvil-harness` at `7324299`, after the Engine and the Harness moved (section 13)
+- Update: the text on library Plugins, the C contract, and the `std` Pack describes `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `df857f4b1` and `runvil-harness` at `cc51d45`, after the Engine and the Harness moved (section 13)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -440,6 +440,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the text on library Plugins, the C contract, and the `std` Pack was brought to `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`. Between the two `runvil` commits, `std` became a library Plugin in a repository of its own, and the contract went from 0.2 to 0.4. The update covers the summary, the walk-through, three entries of section 7, section 8, the `std` entry of section 9, three items of section 10, and question 14. The rest of the page still describes the commits above.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `7324299`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The two Rust Plugins, `plugin-web` and `plugin-mcp`, are among them, and Workshop takes both from that repository as git dependencies at a pinned commit ([Crates, build, and CI](crates-build-and-ci.md)). The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `df857f4b1` and `runvil-harness` at `cc51d45`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The two Rust Plugins, `plugin-web` and `plugin-mcp`, are among them, and Workshop takes both from that repository as git dependencies at a pinned commit ([Crates, build, and CI](crates-build-and-ci.md)). The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 
 *2026-11-10 16:46 - Claude Fable 5.2*
