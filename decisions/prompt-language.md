@@ -3,7 +3,7 @@
 - Scope: the prompt file as its author writes it: front matter, sections, Lua blocks and prose, the order sections run in, `jump`, `call`, and `require`, arguments, substitution, the Lua globals, and the limits and errors an author meets
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
-- Update: the entries on `return` in sections 3 and 4 state the rule of the change that follows `5bca6f9` in `runvil-harness`: a `return` always ends its chain (section 11)
+- Update: the entries on `return` in sections 3 and 4, and the entry on `call` in section 3, state the rules of the two changes that follow `5bca6f9` in `runvil-harness`: a `return` always ends its chain, and `call` returns nil for a chain that ends with no text (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -142,11 +142,13 @@ When a section jumps to one of its direct children, the Engine walks the childre
 
 The rules are identical at every level: the Engine's section semantics are independent of the heading level. A detour that ran only the one child and then returned would apply different fall-through rules at the H3 level than at the H2 level.
 
-### `call` runs a contained chain and returns its final text
+### `call` runs a contained chain and returns its final text, or nil for a chain with none
 
-`call(heading, input)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block executes a `return` or the last section at its level ends, and `call` returns the chain's result as a string, which is the empty string for a chain that ends with no text.
+`call(heading, input)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block executes a `return` or the last section at its level ends. `call` returns the chain's final text as a string, and it returns nil for a chain that ends with no text.
 
 A `call` works like a call of a different prompt whose sections happen to be in the same file. The caller inherits only the chain's answer, because the tokens that the chain spent would otherwise bloat the caller.
+
+`call` returns nil for a chain with no text because the chain gave it nothing, and the empty string would read as a reply. The caller tests the value or gives it a fallback with `or`, and a chain can still return the empty string on purpose. With nil, `return call(...)` also hands on what the called chain did: it ends the caller's chain with no text, where the empty string would end it with a text that no block returned. A caller that joins the value to a string with `..` gets a Lua error for nil, at the line of the join. A task and a fanout arm that end with no text report the empty string, because their text is one field of a result that also says whether they succeeded ([Tasks and fanout](tasks-and-fanout.md)).
 
 ### A call's input replaces `args`, and the called chain starts with a copy of `var`
 
@@ -345,7 +347,7 @@ Each question asks for the reason behind a part of the design.
 1. Why does Lua name a section with its `#` markers?
 2. Why does the walk skip child sections?
 3. Why does a called chain, a task, or a fanout arm work on a copy of `var`, and why does the Engine discard its writes?
-4. Why does a main walk that runs past its last section return the text `done`, while a called chain returns the empty string?
+4. Why does a main walk that ends with no text return the text `done`, while a called chain returns nil and a task returns the empty string?
 5. Why may a section alternate any number of Lua blocks and prose blocks?
 6. Why may a prompt have an H1 and lack sections?
 7. Why is the number of `jump` calls unlimited, while nesting and the rounds of `models.loop` each have a cap?
@@ -366,5 +368,6 @@ Each question asks for the reason behind a part of the design.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The `prompts/` folder of the walk-through moved with them. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 - **Return rule.** On 2026-11-13 the entries on `return` in sections 3 and 4 were brought to the change that follows `5bca6f9` in `runvil-harness`, whose plan is `plan/2026-11-13-1-return-ends-the-chain.plan.md` there. Before it, a block that returned nil or no value let the next block run, and `require` took the first block value other than nil. That session ran the build and its tests. The rest of the page still describes the code at the commits above.
+- **`call` with no text.** On 2026-11-13 the entry on `call` in section 3 and question 4 of section 10 were brought to the second change that follows `5bca6f9` in `runvil-harness`: `call` returns nil for a chain that ends with no text, where it returned the empty string. That session ran the build and its tests too.
 
 *2026-11-10 16:47 - Claude Fable 5.2*
