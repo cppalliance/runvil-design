@@ -3,7 +3,8 @@
 - Scope: the `runvil` crate, `Host`, `RunSetup`, one Harness per run, the effect loop, inference brokers, Host services, the recorder and run events, the run inbox from the Host's side, stop and cancel
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the walk-through's sentence on filling the `PackRegistry` describes `runvil` at commit `b0693699d`, and the Paths bullet names the repositories as of `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 10)
-- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
+- Update: the text on how a Host installs Plugins, on `runvil::plugin`, on `ready`, on `HostServices`, and two planned items describe `runvil-harness` at commit `18361d02`, `runvil-workshop` at `f386801b`, and `runvil-plugin-api` at `03a9fa3` (section 10)
+- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil-workshop`
 
 ## Summary
 
@@ -15,7 +16,7 @@ Section 7 lists the planned work. Its largest item is replay: the recorder recei
 
 ## From a Host's setup to a recorded result
 
-At startup a Host creates a `PackRegistry`, fills it through the `install` function of each Rust Plugin and through `insert_plugin_dir` for a directory of library Plugins, and passes the registry to `Packs::new`. It builds one `Host` with three fields: `packs`, a `PromptFinder` in `prompts`, and a `Timer` in `timer`. The `run-prompt` example in the `runvil` crate runs one prompt this way, with only the built-in Packs.
+At startup a Host creates a `PackRegistry` and fills it. `insert_plugin_dir` loads each library Plugin of a directory, `insert_plugin` loads a Plugin that is compiled into the Host, and both kinds follow the C contract. Two Plugins, `plugin-web` and `plugin-mcp`, enter through a second API: each is a Rust function named `install`, which the Host calls with the registry, a configuration value, and the Host's services. The move of the two onto the C contract is planned work (section 7). The Host then passes the registry to `Packs::new`. It builds one `Host` with three fields: `packs`, a `PromptFinder` in `prompts`, and a `Timer` in `timer`. The `run-prompt` example in the `runvil` crate runs one prompt this way, with only the built-in Packs.
 
 For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` finds the source, parses it, and checks its `uses:` list against the installed Packs. The Host then calls `RunSetup::new` with a recorder and a broker, sets the fields this run needs, and calls `Harness::new`. It takes a `RunControl` from `Harness::control` and awaits `Harness::run`.
 
@@ -39,7 +40,7 @@ A prompt file names a model by a role, such as `strong`, and a set of tools by a
 
 ### A Host depends on one crate, `runvil`
 
-`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Plugin contract. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, the rest of the Harness is in `runvil::harness`, and the Plugin contract is in `runvil::plugin`. The crate has 122 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
+`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Rust Plugin API. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, and the rest of the Harness is in `runvil::harness`, which includes the loader of the C contract: `insert_plugin`, `insert_plugin_dir`, `Plugin`, `PluginReport`, and `PluginSource`. `runvil::plugin` has the Rust Plugin API of the crate `runvil-plugin`, such as `PackRegistry`, `Pack`, and `HostServices`. The types of the C contract are in `runvil-plugin-sys`, outside `runvil`. The crate has 122 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
 
 The owner's goal: "I want the outside world to only see one runvil crate, not runvil-*."
 
@@ -71,7 +72,7 @@ A Host's own parts may still need a runtime: the docs of `GatewayBroker` state t
 
 ### `Host::parse` parses the prompt before a run exists, and a parse failure returns to the caller unrecorded
 
-`Host::parse(name)` calls `Prompt::parse` with the Host's `PromptFinder`, then checks the prompt's `uses:` list against the installed Packs. It returns the parse error unchanged, or a `RequirementsUnmet` error that names each declared Pack that the Host lacks or that a Plugin inserted as unavailable. The recorder's first call for a run is `begin_run`, inside `Harness::run`.
+`Host::parse(name)` calls `Prompt::parse` with the Host's `PromptFinder`, then checks the prompt's `uses:` list against the installed Packs. It returns the parse error unchanged, or a `RequirementsUnmet` error that names each declared Pack that the Host lacks or that a Plugin inserted as unavailable. Only a Rust `install` inserts a Pack as unavailable. The loader drops every Pack of a contract Plugin whose load fails, so `Host::parse` reports each of them with the text `is not installed`, and the reason is in the `PluginReport` that `insert_plugin_dir` returned. The recorder's first call for a run is `begin_run`, inside `Harness::run`.
 
 ### `RunSetup::new` takes the recorder and the broker, and every other field has a default
 
@@ -101,7 +102,7 @@ The Harness delivers a failed prompt as a result that says why the prompt failed
 
 ### The Harness waits for each Pack's `ready`, and a run that fails its start checks ends at the first step
 
-Before the first step the Harness creates the run's Pack instances and awaits every instance's `ready` together, until all resolve or the Host cancels the run. Each Pack bounds its own `ready`, because a timeout in the Harness would be a policy that belongs to each Pack.
+Before the first step the Harness creates the run's Pack instances and awaits every instance's `ready` together, until all resolve or the Host cancels the run. Each Pack bounds its own `ready`, because a timeout in the Harness would be a policy that belongs to each Pack. `ready` is a method of the Rust trait `Pack`, and its default resolves at once. The C contract omits a readiness call, so a Pack of a contract Plugin is ready when `RV_PACK_NEW` returns, and the Packs that ship keep the default.
 
 The first `Run::step` checks the run's requirements. For a shortfall, such as a Pack whose factory refused this run, it returns `Step::Done` with a `RequirementsUnmet` error that lists every gap. When the cancel flag is set, the step ends the run with the canceled error. A cancel that ends the wait early leaves a Pack that is still starting with zero tools, and the check would otherwise end a canceled run as refused. [The Engine](engine.md) lists the checks.
 
@@ -161,9 +162,9 @@ The owner's rule: "the engine, the harness would not know anything about streami
 
 The timer is a required field of `Host`. As an entry of `HostServices` it could be missing, and a missing timer would show only at a timed wait inside a run.
 
-### The Host fills one `HostServices` map, and each Plugin's `install` reads it
+### The Host fills one `HostServices` map, and the `install` of each Rust Plugin reads it
 
-`HostServices` is a map from a two-segment id, such as `runvil/tokio-runtime`, to a typed object. The Host fills one map at startup and passes it to each Plugin's `install`, and a Pack factory stores what its instances need. The recorder, the broker, and the timer are required values outside the map.
+`HostServices` is a map from a two-segment id, such as `runvil/tokio-runtime`, to a typed object. The Host fills one map at startup and passes it to the `install` function of each Rust Plugin, and a Pack factory stores what its instances need. The C contract lacks Host services: a contract Plugin receives the contract's version and the functions of its load call, so the bashkit Plugin owns a tokio runtime of its own. Services for contract Plugins are planned work (section 7). The recorder, the broker, and the timer are required values outside the map.
 
 A `ServiceKey` binds each id to the type of its object, so a Host provides only an object of that type under the key. [Tools and Packs](tools-and-packs.md) covers a Pack's side.
 
@@ -259,7 +260,8 @@ Each of these items is still to be built.
 - **Request limits for a Host.** `GatewayBroker::new` always uses a receive timeout of 120 seconds and a reply cap of 16 MiB.
 - **An offload for blocking file work.** A hook, supplied by the Host, that runs file operations off the thread that polls the run. The loop runs each file operation inline on that thread.
 - **A step hook.** Pack code that rewrites an effect or its answer between `Run::step` and the performers. The loop starts each effect as `Run::step` returned it and resumes the run with each answer as its performer returned it.
-- **More Host services.** Secrets, a schedule, a model client for Packs, and the parent environment of a sub-run. The Plugins in the repository read two services: `runvil/tokio-runtime`, the Host's runtime handle, and `runvil/search-provider`, the search provider for the `web` Pack.
+- **More Host services.** Secrets, a schedule, a model client for Packs, the parent environment of a sub-run, and a way for a contract Plugin to read a service. The two Rust Plugins read two services: `plugin-web` and `plugin-mcp` read `runvil/tokio-runtime`, the Host's runtime handle, and `plugin-web` reads `runvil/search-provider`, the search provider for the `web` Pack. A contract Plugin reads none.
+- **One Plugin API.** `web` and `mcp` as Plugins that follow the C contract, which a Host inserts with `insert_plugin`, and with them contract functions for configuration, Host services, an unavailable Pack with its reason, the origin of a call, and a wait on outside work. The two Plugins are Rust functions named `install`, and `insert_plugin` has tests as its only callers ([Tools and Packs](tools-and-packs.md)).
 - **Approvals.** An approval as an effect of its own, with the dialog in the Host. The effect kinds are `Chat`, `Render`, `ToolCall`, `Vfs`, and `Timer`. When the file system's `Policy` returns `Ask` for an operation, the file system refuses it with `VfsError::ApprovalRequired`.
 - **Requirement gaps before a run.** A call that returns every gap as data before a run exists. `Host::parse` reports missing Packs, and every other gap ends a run with a `RequirementsUnmet` error.
 
@@ -316,5 +318,6 @@ Each question asks for the reason behind a part of the design.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the walk-through's sentence on filling the `PackRegistry` was brought to `runvil` at commit `b0693699d`, where a Host also loads library Plugins with `insert_plugin_dir`. The rest of the page still describes the commits above.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. Workshop, the Host in `runvil`, takes the `runvil` crate from that repository as a git dependency at a pinned commit ([Crates, build, and CI](crates-build-and-ci.md)). The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Update.** On 2026-11-13 the text on Plugins and Host services was brought to `runvil-harness` at commit `18361d02`, `runvil-workshop` at `f386801b`, and `runvil-plugin-api` at `03a9fa3`. Workshop moved to the `runvil-workshop` repository after the commits of the Move note. The update covers the first paragraph of the walk-through, the entry on the one crate in section 1, the entries on `Host::parse` and on `ready` in section 2, the entry on `HostServices` in section 4, two items of section 7, and the Paths bullet. It states that `web` and `mcp` enter a Host through the Rust `install` API and that one Plugin API is planned work. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
 
 *2026-11-10 16:41 - Claude Fable 5.2*

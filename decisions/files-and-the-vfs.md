@@ -4,7 +4,8 @@
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the sentence on the `std` Pack's answer to a conflict describes `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Update: the first entry of section 1 states the rule of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
-- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
+- Update: the text on how a tool call reaches files, on the Packs through which a model reads them, on Workshop's demo mounts, and three planned items describe `runvil-harness` at commit `18361d02`, `runvil-workshop` at `f386801b`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980` (section 11)
+- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil-workshop`
 
 ## Summary
 
@@ -28,7 +29,7 @@ A later section of the same walk calls `store.read('notes.md')`, which runs the 
 
 ### Every Lua block has a `store` table over the run's shared files
 
-The Engine installs a `store` table in the Lua VM of every section entry. The preamble, the Lua before a prompt's first heading, is a section entry like the others ([The prompt language](prompt-language.md)). The table's functions read and write the store, a set of text files that all the sections and tasks of one run share. A model uses the same files through the `std` Pack ([Tools and Packs](tools-and-packs.md)).
+The Engine installs a `store` table in the Lua VM of every section entry. The preamble, the Lua before a prompt's first heading, is a section entry like the others ([The prompt language](prompt-language.md)). The table's functions read and write the store, a set of text files that all the sections and tasks of one run share. A model reads the same files through the `std` Pack and the `bash` Pack ([Tools and Packs](tools-and-packs.md)). Both are library Plugins, and the C contract gives a tool call three file functions, which stat, list, and read. Functions that write and delete a file are planned work (section 8).
 
 The owner's reason: "Store is always present, its a core feature of the Runvil language because its the way to move data between sections and handle fanout."
 
@@ -108,7 +109,7 @@ The five operations act on the link itself because a `remove` that followed the 
 
 An `Access` asks the handle's `Policy` about every operation, reads included, before it checks claims. `Policy::check` returns `Allow`, `Deny(String)`, or `Ask(String)`. The file system turns `Deny` into `PermissionDenied` and `Ask` into `ApprovalRequired`. The default policy is `AllowAll`.
 
-The model reads the `Deny` text, and a person would read the `Ask` text. One policy for a handle is enough, because a Host that needs a richer system can combine its rules inside a single `Policy` object.
+The model reads the `Deny` text, and a person would read the `Ask` text. A tool of a library Plugin receives both answers as one file error of the C contract, of kind `RV_FILE_ERROR_DENIED`, with the policy's text. One policy for a handle is enough, because a Host that needs a richer system can combine its rules inside a single `Policy` object.
 
 ### `ModePolicy` allows or refuses changes by mode: `Ask`, `Plan`, or `Agent`
 
@@ -148,9 +149,9 @@ Scopes let the Harness write the input before a run and read the output after it
 
 ### A tool call works under its own identity, which the Engine ends with the call
 
-The Engine forks an identity for each Pack tool call and passes its `Access`, rooted at `/`, in the `ToolCall` effect ([Tools and Packs](tools-and-packs.md)). When the Harness answers the call or the Engine aborts it, `ScopeHandle::end_access` joins the identity into the calling chain, and every later operation through that `Access` fails with `ScopeEnded`. The Engine ends the identity because a call that it aborted could otherwise still write.
+The Engine forks an identity for each Pack tool call and passes its `Access`, rooted at `/`, in the `ToolCall` effect ([Tools and Packs](tools-and-packs.md)). A Rust Pack calls the `Access` itself. For a Pack that follows the C contract, the loader keeps the `Access` and answers the contract's three file functions from it: `file_stat`, `file_list`, and `file_read`. Contract 0.4 reads only, so the tools of `std` and `bash` read files, and the two Packs that ship through the Rust API, `web` and `mcp`, leave the `Access` unused. When the Harness answers the call or the Engine aborts it, `ScopeHandle::end_access` joins the identity into the calling chain, and every later operation through that `Access` fails with `ScopeEnded`. The Engine ends the identity because a call that it aborted could otherwise still write.
 
-When an operation inside a tool call conflicts, the `Access` returns `VfsError::Conflict` to the Pack, which decides how to answer the call. For the `std` Pack, a library Plugin, the loader passes the conflict on as a file error of the C contract, and `refusal` in `crates/plugin-std/src/refusal.rs` of the `runvil-plugin-std` repository converts it into a sentence that tells the model to call the tool again. The Engine resumes the chain with the Pack's answer. The Engine ends the run only for a conflict in a `store` call: `classify_vfs_failure` in `runvil-internal/runtime/src/execute/scheduler/apply.rs` applies the fatal rule only to answers of `Effect::Vfs`.
+When an operation inside a tool call conflicts, the `Access` returns `VfsError::Conflict` to the Pack, which decides how to answer the call. For the `std` Pack, a library Plugin, the loader passes the conflict on as a file error of the C contract, and `refusal` in `crates/plugin-std/src/refusal.rs` of the `runvil-plugin-std` repository converts it into a sentence that tells the model to call the tool again. In the shell of the `bash` Pack the same file error fails the command that read the file, and the model reads the reason in the command's output. The Engine resumes the chain with the Pack's answer. The Engine ends the run only for a conflict in a `store` call: `classify_vfs_failure` in `runvil-internal/runtime/src/execute/scheduler/apply.rs` applies the fatal rule only to answers of `Effect::Vfs`.
 
 ## 6. Errors
 
@@ -183,8 +184,9 @@ Resume is Lua in the prompt: a section tests `store.exists(path)` and skips work
 Each of these items is still to be built.
 
 - **The store as a tool.** The `store` functions would become calls of a tool, which would remove the `Vfs` effect and the direct closures. Each `store` call is one `Vfs` effect, or a direct closure during prelude install (section 7).
-- **An async VFS.** The backend traits would become async, which would work well with Turso and with Bashkit. The step follows the store tool and precedes a shell. Every method of `Vfs` and `VfsAccess` is a blocking call (section 2).
-- **A real directory in Workshop.** Workshop would mount a real directory into each run's file system, and the choice of the directory is a product decision. Workshop builds `VfsRef::default()` for each run. Its code has one real mount, a read-only demo of the language guide, and its constant `ENABLED` is `false`.
+- **An async VFS.** The backend traits would become async, which would work well with Turso and with Bashkit. The step follows the store tool. Every method of `Vfs` and `VfsAccess` is a blocking call (section 2). The shell of the `bash` Pack ships on the blocking calls: its file system sends each read to the tool call that runs the script.
+- **File changes for a Plugin's tools.** Functions of the C contract with which a tool writes, deletes, and renames a run's files. Contract 0.4 has three file functions, which stat, list, and read, so the Write, StrReplace, and Delete tools of `std` are stubs, and the shell of `bash` refuses each change. `Access` has the operations, and a Rust Pack can call them ([Tools and Packs](tools-and-packs.md)).
+- **A real directory in Workshop.** Workshop would mount a real directory into each run's file system, and the choice of the directory is a product decision. Workshop builds `VfsRef::default()` for each run. Its code has two real mounts, each read-only and each behind a constant that is `false`: `ENABLED` mounts a demo of the language guide, and `C_DRIVE` mounts the `C:` drive at `/c`, so that the shell and the file tools can be tried on real files.
 - **A database mount.** A mount would show an agent's run database as files, once the VFS is async. The backends that ship are `MemoryBackend` and `RealBackend`.
 - **Replay.** Replay would read a run's records back into a run. The Harness records each `Vfs` effect and its answer.
 - **Glob across mounts.** A glob would also search the backends mounted below the mount that matches its pattern. A glob runs inside that one mount and skips a backend mounted below it.
@@ -226,5 +228,6 @@ Each question asks for the reason behind a part of the design.
 - **Update.** On 2026-11-11 the sentence on the `std` Pack's answer to a conflict, in the entry on conflicts inside a tool call, was brought to `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, where `std` is a library Plugin. The rest of the page still describes the commits of the `Code:` bullet.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 - **Every heading is a section.** On 2026-11-13 the first entry of section 1 was brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once outside every section, as the H1 pass, in a VM of their own that had the `store` table too. That session ran the build and its tests.
+- **Update.** On 2026-11-13 the text on file access by tools was brought to `runvil-harness` at commit `18361d02`, `runvil-workshop` at `f386801b`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980`. Between the commits, Workshop moved to the `runvil-workshop` repository, and the bashkit Plugin with its `bash` Pack began to ship. The update covers the first entry of section 1, the policy entry of section 4, the entry on a tool call's identity in section 5, three items of section 8, and the Paths bullet. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
 
 *2026-11-10 16:40 - Claude Fable 5.2*

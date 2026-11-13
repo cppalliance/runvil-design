@@ -3,7 +3,8 @@
 - Scope: test harnesses and test support, fixtures, scripted models, the facade suites, the rules for test code, logs and traces, and dev tools
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-docs` at `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 10)
-- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, a path that begins with `workshop/` starts at the `crates/` folder of `runvil`, and a `tools/` path starts at the root of its repository
+- Update: the entry on Plugin tests in section 4 describes `runvil-harness` at commit `18361d02`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980` (section 10)
+- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, a path that begins with `workshop/` starts at the `crates/` folder of `runvil-workshop`, and a `tools/` path starts at the root of its repository
 
 ## Summary
 
@@ -109,11 +110,13 @@ Fourteen prompt files under `runvil-internal/runtime/tests/prompts/`, in the fol
 
 The fixtures exist because the inline tests leave a gap: a complete document, written the way an author writes one.
 
-### A Plugin crate tests its tools through `TestCall`, and the loader's tests load a fixture library
+### A Plugin crate tests its tools without a Harness, and the loader's tests load a fixture library
 
-The `test-support` feature of `runvil-plugin` exports `testing::TestCall`, which owns a tool id, an access to a fresh in-memory file system, and an origin, and lends a `ToolContext`. It exists because the dependency rules refuse a Plugin crate that names the facade or the file-system crate.
+The `test-support` feature of `runvil-plugin` exports `testing::TestCall`, which owns a tool id, an access to a fresh in-memory file system, and an origin, and lends a `ToolContext`. The two Rust Plugins, `plugin-web` and `plugin-mcp`, use it. It exists because the dependency rules refuse a `plugin-*` crate that names the facade or the file-system crate.
 
-The loader's end-to-end tests load `harness-test-plugin`, a dynamic library with a private copy of the C types. The private copy proves that a library Plugin depends on zero Runvil crates.
+A Plugin that follows the C contract tests through `runvil_plugin_sdk::testing`, which the SDK's own `test-support` feature exports. It is a fake Host: `load` sends `RV_PLUGIN_LOAD` to the Plugin's entry point, `Loaded::new_pack` sends `RV_PACK_NEW`, `PackRun::call` runs one tool call to its end, and `Files` is the file tree that the call reads. The fake Host checks each call that the Plugin makes back the way the loader does, so a Plugin that passes there loads in the Harness. The `std` Plugin and the bashkit Plugin test their tools this way.
+
+The loader's end-to-end tests load `harness-test-plugin`, a dynamic library with a private copy of the C types. The private copy proves that a library Plugin depends on zero Runvil crates. The loader's unit tests insert entry points that are compiled into the test binary, through `insert_plugin`. They are the function's only callers, because each Plugin that ships on the C contract is a library.
 
 ## 5. Gateway, speech, and Workshop tests
 
@@ -197,5 +200,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. Their tests, test support, and benches moved with them, and the CI of `runvil-harness` runs them on Linux and on Windows. The Workshop crates and their tests stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
+- **Update.** On 2026-11-13 the entry on how a Plugin crate tests its tools, in section 4, and the Paths bullet were brought to `runvil-harness` at commit `18361d02`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980`. The update adds the SDK's fake Host, through which a contract Plugin tests, and the loader's unit tests of `insert_plugin`. Workshop's crates are in the repository `runvil-workshop`. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
 
 *2026-11-10 16:47 - Claude Fable 5.2*
