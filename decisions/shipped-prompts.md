@@ -3,6 +3,7 @@
 - Scope: the sample prompts in `prompts` and Workshop's built-in chat prompt
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the place of the sample prompts and the Paths bullet describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 7)
+- Update: the sentence on where the chat prompt makes its offers, in section 2, names the preamble, as of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 7)
 - Paths: code paths start at the root of the `runvil` repository, except the `prompts` folder and the Engine and Harness crates, which are in the `runvil-harness` repository at the same paths
 
 ## Summary
@@ -47,7 +48,7 @@ The chat gate tests in `workshop-server` launch the embedded text, and the Engin
 
 The front matter declares `user`, `std`, and `web`. The Lua block in `## Conversation` offers `std`, then `web`, then `tools.packs.extras()`, the run's Packs that the prompt leaves undeclared. In Workshop those are `mcp` and `subagents`. The tool list of `subagents` is empty, so the third offer adds the two tools of the `mcp` Pack to the chat model's tool list.
 
-The model loop runs in that section, so the block makes the offers there: an offer in the Lua under the prompt's title, the H1, would leave the loop's tool list unchanged. The third offer exists so that the tools of a new Pack among the extras appear in the chat model's tool list without a change to the prompt.
+The model loop runs in that section, so the block makes the offers there: an offer in the preamble, the Lua before a prompt's first heading, would leave the loop's tool list unchanged. The third offer exists so that the tools of a new Pack among the extras appear in the chat model's tool list without a change to the prompt.
 
 ### The chat prompt requires a person and a context window of 32,768 tokens
 
@@ -105,5 +106,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-12 the Paths bullet and the text on where the sample prompts are were brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the `prompts` folder and the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths. The update covers one sentence each in the summary, the entry on the five samples, the entry on the embedded chat prompt, and the first planned item. The rest of the page still describes the commits above. At `runvil` commit `5bc561c14`, the chat prompt also requires and offers the `bash` Pack, and the text on the chat prompt's Packs is still to be brought to that commit.
+- **Preamble.** On 2026-11-13 the sentence on where the chat prompt makes its offers, in the entry on the chat prompt's Packs, was brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, a prompt had exactly one H1 as its title, and the Lua blocks under it ran once before the first section. The five sample prompts have no title line at that change, and the text on them names no title, so it is unchanged. The sentences on the paragraph under the title of `chat.md` still describe the file at the Engine commit that Workshop pins, where it has its title. That session ran the build and its tests.
 
 *2026-11-10 16:41 - Claude Fable 5.2*

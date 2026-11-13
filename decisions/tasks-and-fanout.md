@@ -3,6 +3,7 @@
 - Scope: concurrent work inside a run: tasks, fanout, the scheduler's order, limits, determinism, and a task's inbox
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 10)
+- Update: the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 10)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -45,7 +46,7 @@ They are methods of `Scheduler` because the owners depend on each other through 
 
 ### The chain that spawns a task owns it
 
-A task belongs to the chain that spawned it. A `jump` or a fall-through to the next section leaves the task running, and the tasks of the H1 pass, which runs the Lua under the prompt's title, become the main walk's. Only the owner may wait on, send to, or cancel the task, and any other chain receives a `task_not_owned` error. A chain may also call `tasks.status` and `tasks.note` for the task it runs inside, whose id is `sys.taskid`.
+A task belongs to the chain that spawned it. A `jump` or a fall-through to the next section leaves the task running. The preamble is the Lua before a prompt's first heading ([The prompt language](prompt-language.md)). It and the sections after it are entries of the main walk, so a task that the preamble spawns belongs to the main walk, and a later section can wait on it. Only the owner may wait on, send to, or cancel the task, and any other chain receives a `task_not_owned` error. A chain may also call `tasks.status` and `tasks.note` for the task it runs inside, whose id is `sys.taskid`.
 
 A task is bound to the lifetime of `var`, the table that the sections of one chain share. Authors know that rule from `var`, and it matches `ChainArena`, the scheduler's record of chains, exactly.
 
@@ -149,7 +150,7 @@ Because of this rule, replay is a job for the Harness: the Engine is determinist
 
 ### Chain ids, task ids, and `sys.id` are dot-separated paths
 
-A chain's id is its parent's id followed by a number from the parent's own child counter. The main walk is `0`, its first child is `0.0`, and a task's id is the id of its chain. `sys.id` is the chain's id followed by the chain's entry counter, so the first walked section reads `0.1`. Each counter belongs to one chain, so the ids are the same in every run, whatever order the chains finish in.
+A chain's id is its parent's id followed by a number from the parent's own child counter. The main walk is `0`, its first child is `0.0`, and a task's id is the id of its chain. `sys.id` is the chain's id followed by a number from the chain's entry counter, which also starts at 0, so the first section that the main walk enters reads `0.0`. Each counter belongs to one chain, so the ids are the same in every run, whatever order the chains finish in.
 
 An id is a path of numbers, and paths can name any number of arms. The number of a fanout's arms is unbounded, so a packing of the numbers into one fixed-width integer would have an overflow rule to document and test.
 
@@ -163,7 +164,7 @@ The result is one rule: after a join, a chain can read what the task wrote. A wa
 
 ### Every task has an inbox, and `tasks.receive()` reads it
 
-An inbox is a queue of text messages, oldest first. The Engine has one for the main chain, which is the H1 pass and the main walk, and one for each task. `tasks.receive()` returns the oldest message, or suspends the chain until a message is queued. A `call` child reads the inbox of the task it runs inside. A chain inside `models.loop` reads its messages before its next model request ([Model calls and conversations](models-and-conversations.md)).
+An inbox is a queue of text messages, oldest first. The Engine has one for the main chain, which is the main walk, and one for each task. `tasks.receive()` returns the oldest message, or suspends the chain until a message is queued. A `call` child reads the inbox of the task it runs inside. A chain inside `models.loop` reads its messages before its next model request ([Model calls and conversations](models-and-conversations.md)).
 
 The inbox functions are members of `tasks` for two reasons: `tasks.send` is there, and `tasks.note` is a member that also acts on the caller's own task.
 
@@ -225,5 +226,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Every heading is a section.** On 2026-11-13 the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass, which handed its tasks to the main walk and shared the main chain's inbox with it. The pass had entry `0.0`, so the first section of the main walk read `0.1`. That session ran the build and its tests.
 
 *2026-11-10 16:38 - Claude Fable 5.2*

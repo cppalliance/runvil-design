@@ -3,6 +3,7 @@
 - Scope: the `store` Lua API, the virtual file system (VFS), real and virtual roots, what a run may read and write, file identities and conflicts, and persistence
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the sentence on the `std` Pack's answer to a conflict describes `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
+- Update: the first entry of section 1 states the rule of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -27,7 +28,7 @@ A later section of the same walk calls `store.read('notes.md')`, which runs the 
 
 ### Every Lua block has a `store` table over the run's shared files
 
-The Engine installs a `store` table in the Lua VM of every section entry and of the H1 pass, which runs the blocks under the prompt's title. Its functions read and write the store, a set of text files that all the sections and tasks of one run share. A model uses the same files through the `std` Pack ([Tools and Packs](tools-and-packs.md)).
+The Engine installs a `store` table in the Lua VM of every section entry. The preamble, the Lua before a prompt's first heading, is a section entry like the others ([The prompt language](prompt-language.md)). The table's functions read and write the store, a set of text files that all the sections and tasks of one run share. A model uses the same files through the `std` Pack ([Tools and Packs](tools-and-packs.md)).
 
 The owner's reason: "Store is always present, its a core feature of the Runvil language because its the way to move data between sections and handle fanout."
 
@@ -224,5 +225,6 @@ Each question asks for the reason behind a part of the design.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Update.** On 2026-11-11 the sentence on the `std` Pack's answer to a conflict, in the entry on conflicts inside a tool call, was brought to `runvil` at commit `b0693699d` and `runvil-plugin-std` at `782ad23`, where `std` is a library Plugin. The rest of the page still describes the commits of the `Code:` bullet.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Every heading is a section.** On 2026-11-13 the first entry of section 1 was brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once outside every section, as the H1 pass, in a VM of their own that had the `store` table too. That session ran the build and its tests.
 
 *2026-11-10 16:40 - Claude Fable 5.2*

@@ -10,11 +10,11 @@ This folder has fifteen pages, one for each part of Runvil's design. A page says
 
 | Page | What it covers | Entries | Gaps | Questions |
 |---|---|---|---|---|
-| [The prompt language](prompt-language.md) | The prompt file, sections, Lua blocks, the Lua globals, arguments, substitution, `jump` and `call` | 47 | 2 | 10 |
+| [The prompt language](prompt-language.md) | The prompt file, sections, Lua blocks, the Lua globals, arguments, substitution, `jump` and `call` | 47 | 2 | 9 |
 | [Model calls and conversations](models-and-conversations.md) | The `models` API, the model loop, roles, replies, messages, compaction | 45 | 5 | 10 |
 | [Tasks and fanout](tasks-and-fanout.md) | Concurrent work in a run, the scheduler's order, determinism, inboxes | 26 | 2 | 5 |
 | [Files and the VFS](files-and-the-vfs.md) | The `store` API, the virtual file system, policies, conflicts | 24 | 3 | 8 |
-| [The Engine](engine.md) | Parsing, the run state machine, effects, limits, the one error type, the public surface | 40 | 3 | 10 |
+| [The Engine](engine.md) | Parsing, the run state machine, effects, limits, the one error type, the public surface | 40 | 3 | 9 |
 | [The Harness and the Host API](harness-and-host.md) | The `runvil` crate, `Host`, `RunSetup`, performing effects, the recorder, the run inbox, stop and cancel | 39 | 7 | 13 |
 | [Tools and Packs](tools-and-packs.md) | Tools, Packs, Plugins, the C contract, the shipped Packs | 60 | 10 | 14 |
 | [The Gateway](gateway.md) | The Gateway's API, configuration, local models, providers, profiles, boot | 52 | 15 | 10 |
@@ -49,7 +49,7 @@ Every page has the same parts in the same order.
 
 ## The gaps that matter most
 
-The pages list 86 gaps and ask 123 questions. These ten gaps matter most.
+The pages list 86 gaps and ask 121 questions. These ten gaps matter most.
 
 1. **MCP server text marked trusted.** An adhoc tool that wraps `mcp/get_dynamic_tools` returns the servers' text to the model outside the untrusted envelope and marked trusted, because two trust rules overlap. The evidence is a reading of the code and two tests, and a test with the real `mcp` Pack would confirm it. ([Tools and Packs](tools-and-packs.md))
 2. **A language guide that documents fields the code lacks.** The guide documents `sys.execution`, a run's name, and `prompt_hash`. The code lacks all three, and a section that reads `sys.execution` raises an error. ([The prompt language](prompt-language.md), [The Harness and the Host API](harness-and-host.md))

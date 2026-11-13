@@ -3,13 +3,14 @@
 - Scope: the Engine as a library: parsing a prompt, the run state machine, effects and their answers, run limits, the one error type, the public surface, and the internal crates
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 12)
+- Update: the entry on how a run ends in section 3, the entry on section entries in section 5, and the questions of section 11 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 12)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
 
 The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 107 names a caller uses. Sections 1 to 8 describe these parts.
 
-A check of this page against the code found three gaps and left ten questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
+A check of this page against the code found three gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
 
 Section 9 lists the planned work. Its largest item is child prompts: a Lua `execute()` call that runs another prompt by name.
 
@@ -113,7 +114,7 @@ The two polls follow one rule: the Engine honors a cancel while a block runs and
 
 `Step::Done` has three fields: `result`, `events`, and `unread`. `result` is a `Result<String, Error>`: `Ok` is the run's final text, a canceled run ends with the error whose code is `canceled`, and any other error is a failure. `unread` lists the messages still in the main chain's inbox.
 
-A prompt declines its task by returning its reason from Lua, so the run completes and `result` is `Ok` with that text. A prompt refuses to start in a different way: a block under its H1 title raises a Lua error, and the run ends with the code `requirements_unmet` ([The prompt language](prompt-language.md)).
+A prompt declines its task by returning its reason from Lua, so the run completes and `result` is `Ok` with that text. A prompt that fails a check of its own, such as an `assert` on its input, raises a Lua error, and the run ends with the code `lua_runtime`, whichever section raised it ([The prompt language](prompt-language.md)). The code `requirements_unmet` belongs to the start checks alone.
 
 ### A run where every chain waits ends as `stalled` or as `internal`
 
@@ -147,9 +148,11 @@ Lua says `store`, and the names below the Lua layer say `Vfs`, because every one
 
 ### The scheduler builds one `SectionContext` with a fresh Lua VM for each section entry
 
-A chain is the scheduler's record of one sequence of sections: the H1 pass, which runs the blocks under the title once, the main walk, a `call` child, or a task ([Tasks and fanout](tasks-and-fanout.md)). Each time a chain enters a section, the scheduler builds a `SectionContext`, which the code calls a frame. The frame owns a new `SectionVm`, a sandboxed Lua state that runs every block of the section, and the frame's `Drop` destroys it. The next section's VM starts with the Engine globals and the chain's `var`.
+A chain is the scheduler's record of one sequence of sections: the main walk, a `call` child, or a task ([Tasks and fanout](tasks-and-fanout.md)). The main walk is the run's one root chain, and it starts at the first top-level section, which is the preamble when the prompt has one ([The prompt language](prompt-language.md)). Each time a chain enters a section, the scheduler builds a `SectionContext`, which the code calls a frame. The frame owns a new `SectionVm`, a sandboxed Lua state that runs every block of the section, and the frame's `Drop` destroys it. The next section's VM starts with the Engine globals and the chain's `var`.
 
 The rule is one `SectionContext` for each section entry, whichever way the chain entered the section: by falling through from the section before, by `jump`, or by `call`. One VM shared across sections would create hidden globals that depend on the path the run took, uncloneable state, and inconsistent section inputs.
+
+One function, `enter_section`, builds the frame for every entry, the preamble's included. The owner's reason: "What's most important is the code in the engine, that it's uniform." A second function for the start of a prompt would repeat most of the first. The owner's rule: "I don't want to have two different functions that do similar things for the whole section, and then only encode the differences for the H1."
 
 ### Section VM setup runs in one fixed order, with the limits first
 
@@ -303,22 +306,21 @@ Each question asks for the reason behind a part of the design.
 
 **The run**
 
-1. Why do the blocks under the H1 title run once for a whole run?
-2. Why does `Run::new` always succeed, while the first `step` makes the start checks?
-3. Why is the cancel a flag in `RunParams`, where `Run` could have a method for it?
-4. Why does a prompt that declines its task complete, while an unmet requirement ends the run with an error?
+1. Why does `Run::new` always succeed, while the first `step` makes the start checks?
+2. Why is the cancel a flag in `RunParams`, where `Run` could have a method for it?
+3. Why does a prompt that declines its task complete, while an unmet requirement ends the run with an error?
 
 **Lua and limits**
 
-5. Why does each Lua block run as its own coroutine, when one coroutine could run a whole section?
-6. Why is `models.loop` the one suspending call whose rules run in Rust?
-7. Why is the call depth cap 8, and why is `call_depth_exceeded` in the Lua family of codes?
-8. Why are the defaults 8 concurrent tasks, 64 MiB of Lua memory, and 1024 log events, and why does the cancel hook fire every 10,000 instructions?
+4. Why does each Lua block run as its own coroutine, when one coroutine could run a whole section?
+5. Why is `models.loop` the one suspending call whose rules run in Rust?
+6. Why is the call depth cap 8, and why is `call_depth_exceeded` in the Lua family of codes?
+7. Why are the defaults 8 concurrent tasks, 64 MiB of Lua memory, and 1024 log events, and why does the cancel hook fire every 10,000 instructions?
 
 **Errors and the surface**
 
-9. Why do all Engine and Harness crates report failures as one `Error` type?
-10. Why are `Error`, `ErrorCode`, and `ErrorFact` closed, when a new code then breaks the build of a Host whose `match` on `ErrorCode` names every variant?
+8. Why do all Engine and Harness crates report failures as one `Error` type?
+9. Why are `Error`, `ErrorCode`, and `ErrorFact` closed, when a new code then breaks the build of a Host whose `match` on `ErrorCode` names every variant?
 
 ## 12. Method and limits
 
@@ -326,5 +328,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Every heading is a section.** On 2026-11-13 the entry on how a run ends in section 3, the entry on section entries in section 5, and the questions of section 11 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, a prompt had exactly one H1 as its title, and the Lua blocks under it ran once in a chain of their own, the H1 pass, before the main walk. A Lua error in that pass ended the run with the code `requirements_unmet`. Section 11 had a first question on why those blocks ran once, and the questions after it each moved up one number. That session ran the build and its tests.
 
 *2026-11-10 16:37 - Claude Fable 5.2*

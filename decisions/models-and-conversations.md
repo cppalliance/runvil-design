@@ -3,6 +3,7 @@
 - Scope: how a prompt calls a model and what a conversation is: the `models` API, model roles, the model loop, replies, limits on a round, messages, compaction, and the client that sends a model request
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
+- Update: the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -57,13 +58,13 @@ The Harness passes only `default` because `RunSetup` has one `selected_model`. S
 
 ### A chain owns its current model, and `models.use` switches it for the rest of the chain
 
-A chain is the scheduler's record of one sequence of section entries ([The Engine](engine.md)): the H1 pass, which runs the Lua blocks under the prompt's title, the main walk through the sections, a `call` child, or a task. A round that names a handle runs on that handle, and every other round runs on the chain's current model. `models.use('strong')` switches the chain for the current section and for every section it enters afterward, and `models.current()` returns a handle for the current model.
+A chain is the scheduler's record of one sequence of section entries ([The Engine](engine.md)): the main walk through the sections, a `call` child, or a task. A round that names a handle runs on that handle, and every other round runs on the chain's current model. `models.use('strong')` switches the chain for the current section and for every section it enters afterward, and `models.current()` returns a handle for the current model.
 
 The chain owns the selection so that one model choice applies across sections and in fanout arms. The lasting switch can raise a run's cost by accident, so an author who wants one expensive step saves `models.current()` first and passes that handle back to `models.use`.
 
 ### A child chain starts on a copy of its parent's current model, taken at dispatch
 
-A `call` child, a `tasks.spawn` task, and each fanout arm copy the parent chain's current model when the Engine dispatches the call or the spawn. A later `models.use` in the child changes only the child. The H1 pass starts on the `default` role, and the main walk starts on the model that the H1 pass ended on.
+A `call` child, a `tasks.spawn` task, and each fanout arm copy the parent chain's current model when the Engine dispatches the call or the spawn. A later `models.use` in the child changes only the child. The main walk starts on the `default` role. The preamble, the Lua before a prompt's first heading, is the first section of that walk ([The prompt language](prompt-language.md)), so a `models.use` there is still in effect in the sections after it.
 
 The Engine copies at dispatch because a spawned task can wait in a queue before it starts, and a copy taken at the task's start would include a later switch in the parent. [Tasks and fanout](tasks-and-fanout.md) describes the model-first form of `tasks.fanout`.
 
@@ -157,7 +158,7 @@ Rust owns the list so that the Engine sees every append and every compaction. A 
 
 ### Every section entry starts with an empty conversation
 
-Each entry into a section builds a fresh VM, so `messages` starts empty in a section that the walk enters, a `jump` target, a `call` child, a task, a fanout arm, and the H1 pass. A library loaded with `require` uses the list of the section that loaded it. A prompt passes data between sections through `var` and the store ([The prompt language](prompt-language.md)).
+Each entry into a section builds a fresh VM, so `messages` starts empty in a section that the walk enters, a `jump` target, a `call` child, a task, and a fanout arm. The preamble is a section entry too, so the section after it starts with an empty list. A library loaded with `require` uses the list of the section that loaded it. A prompt passes data between sections through `var` and the store ([The prompt language](prompt-language.md)).
 
 The owner's rule: "the whole point of Runvil is that sections clear the history! if someone wants history preserved, they stay in the section".
 
@@ -350,5 +351,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The Workshop crates stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
+- **Every heading is a section.** On 2026-11-13 the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass. The pass started on the `default` role, and the main walk started on the model that the pass ended on. Gap 1 of section 9 still names the H1 prose of Workshop's `chat.md`, which has its title at the Engine commit that Workshop pins. That session ran the build and its tests.
 
 *2026-11-10 16:39 - Claude Fable 5.2*

@@ -4,21 +4,22 @@
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Update: the entries on `return` in sections 3 and 4, and the entry on `call` in section 3, state the rules of the two changes that follow `5bca6f9` in `runvil-harness`: a `return` always ends its chain, and `call` returns nil for a chain that ends with no text (section 11)
+- Update: the summary, the walk-through, and entries in sections 1, 2, 3, 5, and 6, among them the entries on the prompt file, on headings, on the preamble, and on `argv`, state the rules of the two changes that follow `8de43c2f` in `runvil-harness`: every heading starts a section, the code before the first heading is the preamble, and `argv` is read-only in every section (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
 
-A prompt is one Markdown file. Its front matter names the prompt and declares its arguments and requirements, its one H1 is the title, and each heading of level 2 to 6 starts a section, which is a list of prose blocks and Lua blocks. The Engine runs the Lua blocks under the H1 once, then runs the top-level sections in file order, each in a fresh Lua VM. A Lua block moves the run to another section with `jump` or `call`, loads shared code with `require`, and sends prose to a model with a call such as `models.infer`. The Engine passes the table `var` from each section to the next. Sections 1 to 7 describe these parts.
+A prompt is one Markdown file. Its front matter names the prompt and declares its arguments and requirements, and each heading in its body starts a section, which is a list of prose blocks and Lua blocks. Lua before the first heading is the preamble, which is the first section. The Engine runs the top-level sections in file order, each in a fresh Lua VM. A Lua block moves the run to another section with `jump` or `call`, loads shared code with `require`, and sends prose to a model with a call such as `models.infer`. The Engine passes the table `var` from each section to the next. Sections 1 to 7 describe these parts.
 
-A check of this page against the code found two gaps and left ten questions about reasons for the owner. Section 9 lists the gaps, and section 10 lists the questions. The larger gap is `sys.execution`: chapter 5 of the language guide lists it among the fields of every section entry, and a section that reads it raises an error.
+A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 9 lists the gaps, and section 10 lists the questions. The larger gap is `sys.execution`: chapter 5 of the language guide lists it among the fields of every section entry, and a section that reads it raises an error.
 
 Section 8 lists the planned work. Its largest item is a call from one prompt file into another: `call` starts a chain only in the sections of the running prompt.
 
 ## From a prompt file to its final text
 
-The shipped prompt `greet.md`, in the repository's `prompts/` folder, has three front matter keys, an H1, and one section named `Main`. `Main` has a Lua block, one line of prose with the placeholder `{{ var.greeting }}`, and a second Lua block. `Prompt::parse` checks the keys, finds the H1, builds the section tree, and compiles both Lua blocks.
+The shipped prompt `greet.md`, in the repository's `prompts/` folder, has three front matter keys, a paragraph that describes the prompt, and one section named `Main`. `Main` has a Lua block, one line of prose with the placeholder `{{ var.greeting }}`, and a second Lua block. `Prompt::parse` checks the keys, builds the section tree, and compiles both Lua blocks.
 
-A caller starts a run with one argument string, for example `Ada`. The run's first step reads `runvil: 0` and accepts the prompt. The text under the H1 is only prose, so the first code that runs is in `Main`. The Engine's scheduler enters `Main` and builds a fresh Lua VM, where `args` is `Ada`, `argv.prose` is also `Ada` because the prompt omits the `args:` key, and `var` is an empty table.
+A caller starts a run with one argument string, for example `Ada`. The run's first step reads `runvil: 0` and accepts the prompt. The paragraph above the `Main` heading has no Lua block, so it is commentary, and the first code that runs is in `Main`. The Engine's scheduler enters `Main` and builds a fresh Lua VM, where `args` is `Ada`, `argv.prose` is also `Ada` because the prompt omits the `args:` key, and `var` is an empty table.
 
 The first block runs `var.greeting = "Hello, " .. args .. "!"`. The prose line becomes the pending prose of the second block. When that block reads `prose`, the Engine replaces the placeholder with the value of `var.greeting`, and `prose` is the text `Repeat exactly, with no extra words: Hello, Ada!`.
 
@@ -26,9 +27,11 @@ The second block calls `models.infer(prose)`, which sends the text to a model an
 
 ## 1. The prompt file and its front matter
 
-### A prompt is one Markdown file with front matter, one H1, and sections
+### A prompt is one Markdown file with front matter and a body, and the body needs no heading
 
-The file opens with YAML front matter between two lines of three dashes. The body has exactly one H1, whose text is the prompt's title, and the parser ignores the Markdown above it. A file that lacks an H1 fails the parse with `prompt requires an H1 title`, and a second H1 fails with `prompt must contain exactly one H1 title`. The H1 is required because it marks where the prompt begins.
+The file opens with YAML front matter between two lines of three dashes, and the rest of the file is the body. The parser requires no heading in the body. A body of one Lua block is a whole prompt, and a body of prose alone parses too and ends its run with the text `done` (section 3). A prompt has no title: its name is the front matter `name`, and the Engine reports the start and the end of a run under that name.
+
+The owner's rule: "we don't require any headings at all". An author who wants a heading above the sections writes one, and the parser reads it as a section like any other (section 2). The owner's rule: "If they want to have the H1, they can have it, but they don't need it." The name is in the front matter because every prompt already states it there. The owner's reason: "the real title for the prompt comes from the front matter".
 
 ### One kind of prompt covers pipelines, tool loops, and chats
 
@@ -48,11 +51,13 @@ A change to the language leaves the number at 0 and deletes the old form, which 
 
 ## 2. Sections, blocks, and prose
 
-### A heading of level 2 to 6 starts a section one level below its parent
+### Every heading starts a section, and the shallowest heading level is the top level
 
-Each H2 is a top-level section, an H3 is a child of the H2 above it, and so on through H6. A heading that skips a level, such as an H4 directly under an H2, fails the parse as an orphan heading. A heading inside a block quote or a list item is prose of the section around it.
+Every heading, from H1 to H6, starts a section. The top level is the shallowest heading level in the file, so in a file whose headings are H2 and H3, each H2 is a top-level section and each H3 is a child of the H2 above it. A heading is exactly one level deeper than its parent. A heading that skips a level, such as an H4 directly under an H2, fails the parse as an orphan heading. So does a first heading that is deeper than a later one: an H2 named `Run` above an H1 fails with ``section `Run` is an orphan H2 heading with no parent H1``. A heading with no text fails at every level, with a message such as `an H1 section heading must not be empty`. A heading inside a block quote or a list item is prose of the section around it.
 
 Only headings mark sections, so XML tags remain free for the author and the model to use for emphasis, nonce delimiters, and injection defense.
+
+The top level follows the file so that a plain series of H2 sections runs in file order by fall-through (section 3). The owner's reason: "Wouldn't it be better to just let the author start with the H2? And now it's implicit, it's just a series of H2." If every prompt had an H1 as its root section, the H2 sections would be its children, and each would run only when the H1's Lua named it. The owner's reason: "every H1 that wants to chain has to have a jump, and that looks ugly".
 
 ### Lua names a section by its heading, with the `#` markers
 
@@ -102,33 +107,39 @@ A run moves to another section when the walk falls through, when a Lua block cal
 
 The rule exists so that a reader of the Lua can reconstruct the whole control graph, and so that every branch is a visible Lua condition.
 
-### The H1's blocks run once, before the first section
+### The code before the first heading is the preamble, and it runs first as an ordinary section
 
-The Engine runs the Lua blocks under the H1 once, in a VM of their own, and that run is the H1 pass. `jump` and `call` there can name every top-level section. When the pass ends, the Engine starts the walk with the pass's `var` and `argv`. A `return` in an H1 block ends the whole run.
+The preamble is the text between the front matter and the first heading. When it has a Lua block, it is the first top-level section: its name is the empty string, it has no children, and the main walk enters it first, in a fresh VM, as it enters any section. When it has no Lua block, it is commentary, and the walk starts at the first heading's section. The preamble's blocks follow the rules of section 2, so the Markdown above a Lua block is that block's `prose`. A `return` in the preamble ends the run, and a preamble that runs off its end falls through to the next top-level section.
 
-An H1 block that raises a Lua error ends the run with the code `requirements_unmet`, before any section runs. An author therefore writes hard checks in the H1 as `assert` calls. The run's result contains the text of the failure, and the code makes the kind of failure machine-readable for Hosts, supervisors, and evals.
+The preamble and the sections after it are entries of one chain, the main walk. The next section therefore starts with the preamble's `var`, on the model that the preamble left current, and under the limit that the preamble set with `tasks.concurrency`, and it can wait on a task that the preamble spawned. From the preamble the top-level sections are siblings, as in `jump('../Scan')`, and a child path misses with an error that ends `` the preamble has no child `Scan` ``. The preamble reports its section start and its section finish under the empty name, and an error message labels its Lua blocks by their place, as `preamble prologue`, `preamble lua 2`, and `preamble epilog`.
+
+An uncaught Lua error in the preamble, such as a failed `assert`, ends the run with the code `lua_runtime`, as in every section, before the next section runs. An author therefore writes a hard check of the input there as an `assert` call. `requirements_unmet` is the code of the run's start checks alone ([The Engine](engine.md)).
+
+The Engine has one code path for every section, and the preamble is a section whose name is empty. The owner's rule: "I don't want any special functions for H1. I want everything to be the same." The start of a prompt has no setup that only it can do: tools, model calls, `call`, and `jump` work in every section, and the main walk starts on the `default` model ([Model calls and conversations](models-and-conversations.md)). The owner's reason: "what can H1 really do in terms of setup? I'm thinking nothing."
+
+The run starts at the first top-level section, whichever it is. The owner's reason: "every prompt has a beginning, and we simply start there". A prompt whose body is a Lua block and then a section under the heading `## Research` runs the block and then `Research`. The owner's goal: "I want this to chain without a jump".
 
 ### Top-level sections run in file order, and a nested section runs when Lua names it
 
-The walk enters the first H2, runs its blocks, and falls through to the next H2, until a block executes a `return` or the last H2 ends. A child section runs when Lua names it with `jump`, `call`, `require`, or a task call.
+The main walk enters the first top-level section, which is the preamble when the prompt has one, runs its blocks, and falls through to the next top-level section, until a block executes a `return` or the last top-level section ends. A child section runs when Lua names it with `jump`, `call`, `require`, or a task call. An H1 above a series of H2 headings makes them its children, so the walk runs the H1's blocks, and each H2 section runs only when Lua names it.
 
 A subroutine section is therefore a child of the section that calls it, or a top-level section placed after the section whose `return` ends the run.
 
 ### Each section entry starts a fresh Lua VM, and the Engine copies `var` into it
 
-The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the H1 pass, the main walk, a `call`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the input of a `call`.
+The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the main walk, a `call`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the input of a `call`.
 
 With these explicit channels, a section behaves the same whether the run enters it by fall-through, by `jump`, by `call`, or as a task. One VM for a whole walk would create hidden globals that depend on the path, state that is impossible to clone, and inconsistent inputs for a section.
 
 ### A `return` ends the chain, and a walk past its last section returns `done`
 
-A `return` at the top level of a Lua block ends the chain the block runs in. A returned string, number, or boolean is the chain's result as text, and on the main walk and in the H1 pass that result is the run's result. A `return` of nil, or of no value, ends the chain with no text, the way a walk past its last section ends. A returned table fails with `cannot return a table as a result`. After a block that ends with no `return`, the Engine runs the next block. The rule makes Lua control flow compact: one `return` both ends the chain and states its result.
+A `return` at the top level of a Lua block ends the chain the block runs in. A returned string, number, or boolean is the chain's result as text, and on the main walk that result is the run's result. A `return` of nil, or of no value, ends the chain with no text, the way a walk past its last section ends. A returned table fails with `cannot return a table as a result`. After a block that ends with no `return`, the Engine runs the next block. The rule makes Lua control flow compact: one `return` both ends the chain and states its result.
 
 A `return` ends the chain whatever its value, because the author wrote it to end the chain. If a nil value moved the run on to the next block, `return x` would end the chain or continue it depending on what `x` holds, and `return call(...)` would depend on what the called section did. A `return` inside a function is that function's, and it leaves the chain running.
 
 Lua returns no value both for a bare `return` and for a block that ends with none, so the Engine marks the difference when it compiles a block. `LuaProgram::compile` in `runvil-internal/lua/src/program.rs` compiles the block's source inside a `do` block, followed by a `return` of the block's one argument. The Engine calls every block with a private marker as that argument, so a block returns the marker only when it runs off its end. The compiler checks the source alone first, so a syntax error reads as it does for the source alone, and every line of the block keeps its number.
 
-When the main walk runs past its last section, or ends at a `return` with no text, the run's result is the text `done`. A prompt that has an H1 and lacks sections is valid and ends the same way.
+When the main walk runs past its last section, or ends at a `return` with no text, the run's result is the text `done`. A prompt that lacks sections, one whose body has no heading and no Lua block, is valid and ends the same way, because the walk has no section to enter.
 
 ### `jump` ends the block and continues the walk at another section
 
@@ -140,7 +151,7 @@ A section of a called chain may jump as well, so what a section can do is indepe
 
 When a section jumps to one of its direct children, the Engine walks the children from that target and falls through the target's following siblings. When the last child ends, the walk resumes at the section after the jumper.
 
-The rules are identical at every level: the Engine's section semantics are independent of the heading level. A detour that ran only the one child and then returned would apply different fall-through rules at the H3 level than at the H2 level.
+The rules are identical at every level: the Engine's section semantics are independent of the heading level. A detour that ran only the one child and then returned would apply different fall-through rules at a child level than at the top level.
 
 ### `call` runs a contained chain and returns its final text, or nil for a chain with none
 
@@ -198,19 +209,19 @@ The parser leaves `require` calls unchecked, so a bad heading raises an error wh
 
 A run starts with one argument string. `args` is that string, unparsed and untrimmed. `argv` is the same input as a Lua value: for a prompt with an `args:` declaration the Engine parses the string as JSON, and `argv` is nil when the parse fails. The Engine starts the run either way, and `if argv then` is the prompt's test for bad input.
 
-The owner's reason: "it can't be a hard error. we want to allow a prompt to receive broken JSON and then let the H1 handle it... it's under the prompt's control".
+Malformed JSON is input like any other, and the Engine raises no error for it. What the run does with a broken argument string is the prompt's decision, and its Lua has the raw text in `args`.
 
 ### Every prompt has an `args:` declaration, and the default is one optional string named `prose`
 
-Front matter declares each argument under `args:` with a `type` of `string`, `boolean`, `integer`, or `number`. A prompt that omits the key gets one optional string argument named `prose`, and the Engine wraps the whole argument string as `argv.prose`. The declaration documents the arguments for a caller. The checks are the H1's work: it reads the fields strictly or repairs them.
+Front matter declares each argument under `args:` with a `type` of `string`, `boolean`, `integer`, or `number`. A prompt that omits the key gets one optional string argument named `prose`, and the Engine wraps the whole argument string as `argv.prose`. The declaration documents the arguments for a caller. The checks are the work of the prompt's own Lua: a section reads the fields it needs, and a failed `assert` on one ends the run with the code `lua_runtime`.
 
 The owner's rule: "there must be no freeform prompts". The default field is named `prose` because a field named `args` would name `args` twice.
 
-### The H1 pass may assign `argv`, and every later section reads it frozen
+### `argv` is read-only in every section, and a prompt keeps the input it builds in `var`
 
-In the H1 pass `argv` is a plain writable global. An H1 block can read broken input from `args`, build a corrected value, and assign it. When the pass ends, the Engine freezes the value, and an assignment in a section raises `argv is frozen outside H1: assign it in H1 only`. A null nested inside the frozen value reads as `json.null`.
+Every section VM has `argv` behind the guard on the globals table (section 6), and each table inside it is a read-only proxy. An assignment to the global raises ``argv is read-only: assign to `var` or a section global instead``, and a write to a field named `x` raises `argv is read-only: cannot set field 'x'`. The preamble, a called chain, and a task follow the same rule. A prompt that gets malformed input reads `args`, builds the value it needs, and keeps it in `var` for the sections that follow. A null nested inside `argv` reads as `json.null`.
 
-The assignment is the H1's one privilege: tools, model calls, `call`, and `jump` work there as in any section. The owner's reason: "being able to look at a prompt, and know that argv can only change in H1, has value".
+`argv` always holds the parsed form of `args`, so a reader of any section knows where its value came from. One rule for every section also means one way to install `argv` in a VM. The owner's reason: "I value uniformity over everything else."
 
 ### A placeholder names data in `args`, `argv`, `item`, `var`, `sys`, or a Lua global
 
@@ -246,7 +257,7 @@ The empty iteration is documented behavior: the language guide lists `pairs` and
 
 ### `sys` is a sealed table of facts about the run and the section entry
 
-`sys.when` is the run's start time, `sys.id` is the section entry's id, such as `0.1` ([Tasks and fanout](tasks-and-fanout.md)), `sys.taskid` is the enclosing task, `sys.section_name` is the running section, and `sys.section_count` is the number of top-level sections. `sys.index` exists in a task's first section when the spawn supplied an index, and `sys.model` exists after the entry's first tool call. A read of any other field raises `unknown sys field`, and a write raises `sys is read-only`.
+`sys.when` is the run's start time, `sys.id` is the section entry's id, such as `0.0` for the first section that the main walk enters ([Tasks and fanout](tasks-and-fanout.md)), `sys.taskid` is the enclosing task, `sys.section_name` is the name of the running section, which is the empty string in the preamble, and `sys.section_count` is the number of top-level sections, the preamble included. `sys.index` exists in a task's first section when the spawn supplied an index, and `sys.model` exists after the entry's first tool call. A read of any other field raises `unknown sys field`, and a write raises `sys is read-only`.
 
 The table refuses writes because `sys` is runtime metadata: the Engine writes it, and an author only reads it. The Engine reads the start time from its caller ([The Engine](engine.md)).
 
@@ -268,7 +279,7 @@ Lua leaves the order of hash keys open, and the Lua binding sets the hash seed i
 
 ### One guard on `_G` answers reads of `argv`, `prose`, and `messages`, and `setmetatable` refuses finalizers
 
-The Engine puts one metatable on the globals table. It answers reads of `argv`, `prose`, and `messages` and raises on an assignment to `prose`, to `messages`, or to a frozen `argv`. An author's `setmetatable(_G, mt)` records `mt` behind the guard, so the documented pattern of default values for globals works. Author code can overwrite every other Engine global for the rest of that VM.
+The Engine puts one metatable on the globals table. It answers reads of `argv`, `prose`, and `messages` and raises on an assignment to any of the three. An author's `setmetatable(_G, mt)` records `mt` behind the guard, so the documented pattern of default values for globals works. Author code can overwrite every other Engine global for the rest of that VM.
 
 `setmetatable` raises for a metatable with a `__gc` field. Lua runs finalizers with hooks disabled, so a finalizer that loops would continue to run after a cancel.
 
@@ -349,17 +360,16 @@ Each question asks for the reason behind a part of the design.
 3. Why does a called chain, a task, or a fanout arm work on a copy of `var`, and why does the Engine discard its writes?
 4. Why does a main walk that ends with no text return the text `done`, while a called chain returns nil and a task returns the empty string?
 5. Why may a section alternate any number of Lua blocks and prose blocks?
-6. Why may a prompt have an H1 and lack sections?
-7. Why is the number of `jump` calls unlimited, while nesting and the rounds of `models.loop` each have a cap?
+6. Why is the number of `jump` calls unlimited, while nesting and the rounds of `models.loop` each have a cap?
 
 **Parsing**
 
-8. Why is a heading inside a block quote or a list item prose?
-9. Why is the `runvil:` key optional to the parser and required by the run's first step?
+7. Why is a heading inside a block quote or a list item prose?
+8. Why is the `runvil:` key optional to the parser and required by the run's first step?
 
 **The Lua environment**
 
-10. Why does a read of an unknown `sys` field raise, while a missing key of `var` or of `argv` reads nil?
+9. Why does a read of an unknown `sys` field raise, while a missing key of `var` or of `argv` reads nil?
 
 ## 11. Method and limits
 
@@ -369,5 +379,6 @@ Each question asks for the reason behind a part of the design.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The `prompts/` folder of the walk-through moved with them. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 - **Return rule.** On 2026-11-13 the entries on `return` in sections 3 and 4 were brought to the change that follows `5bca6f9` in `runvil-harness`, whose plan is `plan/2026-11-13-1-return-ends-the-chain.plan.md` there. Before it, a block that returned nil or no value let the next block run, and `require` took the first block value other than nil. That session ran the build and its tests. The rest of the page still describes the code at the commits above.
 - **`call` with no text.** On 2026-11-13 the entry on `call` in section 3 and question 4 of section 10 were brought to the second change that follows `5bca6f9` in `runvil-harness`: `call` returns nil for a chain that ends with no text, where it returned the empty string. That session ran the build and its tests too.
+- **Every heading is a section.** On 2026-11-13 the text on headings, the preamble, and `argv` was brought to the two changes that follow `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. The update covers the summary, the walk-through, the entry on the prompt file in section 1, the entry on headings in section 2, the entries on the preamble, the walk, chains, `return`, and a jump to a child in section 3, the entries on `args` and `argv` in section 5, the entries on `sys` and the `_G` guard in section 6, and the questions of section 10. Before them, a prompt had exactly one H1, whose text was its title, and the Lua blocks under it ran once as the H1 pass, which handed its `var`, its `argv`, its model, its concurrency limit, and its tasks to the walk over the H2 sections. A Lua error in the pass ended the run with the code `requirements_unmet`, and the pass could assign `argv`, which every later section read frozen. Section 10 had a question on a prompt with an H1 and no sections, and the questions after it each moved up one number. That session ran the build and its tests.
 
 *2026-11-10 16:47 - Claude Fable 5.2*

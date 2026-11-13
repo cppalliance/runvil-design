@@ -49,7 +49,7 @@ Constructs described below are labeled active (changed by this plan), existing (
 - M: `markdown.parse`, `markdown.render`, `markdown.section`, `markdown.section_or`, `markdown.select`, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
 - N: `name`
 - O: `output`
-- P: deferred `pfanout`, `prompt.section(path)`, `prompt.section_or(path)`, `runvil: 0`, `prose`, provider projection
+- P: deferred `pfanout`, preamble, `prompt.section(path)`, `prompt.section_or(path)`, `runvil: 0`, `prose`, provider projection
 - R: `require(path)`, `return`
 - S: section paths, sections, selectors, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
 - T: task handles, `tasks`, `tasks.await_all`, `tasks.fanout`, thematic break, `tools.add`, `tools["add_local"]`, `tools.always`, `tools.bind`, `tools.call`, `tools.calls`
@@ -67,8 +67,6 @@ description: Answer one request
 runvil: 0
 ---
 
-# Greeting
-
 ## Answer
 
 Answer {{ args }}.
@@ -82,11 +80,11 @@ return models.infer(prose)
 
 Optional `input` and `output` declarations contain `path` and `description`. Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to 24.
 
-**Sections.** Exactly one non-empty H1 follows the frontmatter. Text before it is inert preface. H2 through H6 headings form the section tree, levels cannot be skipped, and sibling names must be unique.
+**Sections.** No heading is required. Every heading, H1 through H6, starts a section, and the headings form the section tree. The top level is the shallowest heading level in the file. A heading is exactly one level deeper than its parent, so levels cannot be skipped and a first heading deeper than a later one fails. A heading cannot be empty, and sibling names must be unique. A prompt has no title: its name is the frontmatter `name`.
 
-Fall-through follows source order. The H1 preamble resolves tool bindings and may return to finish the run, with a scalar as the run's text. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there, where a relative path names a top-level section.
+Fall-through follows source order. The preamble is the text between the frontmatter and the first heading. When it holds a `lua` fence it is the first top-level section, with an empty name and no children, and when it holds none it is commentary. The preamble resolves tool bindings and may return to finish the run, with a scalar as the run's text. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there. From the preamble the top-level sections are siblings, so a relative path takes the sibling form, as in `jump("../Scan")`. No section path names the preamble, because its name is empty.
 
-**Pending prose and thematic breaks.** Each section heading starts an empty pending Markdown buffer. Markdown appends to that buffer.
+**Pending prose and thematic breaks.** The start of the body and each section heading start an empty pending Markdown buffer. Markdown appends to that buffer.
 
 Any thematic break recognized by the Markdown parser clears the buffer and is not included in `prose`.
 
@@ -220,9 +218,9 @@ The host passes a map from role to model when it prepares a prompt. A role witho
 
 ### The current model
 
-A chain is one line of sequential execution: the H1 pass, the root walk, a `call` child, or a spawned task. Every fanout arm is a spawned task. Each chain has one current model. A chain starts on the `default` role, and `models.use` changes its current model for the rest of the chain, across its sections, until the next switch.
+A chain is one line of sequential execution: the root walk, a `call` child, or a spawned task. Every fanout arm is a spawned task. Each chain has one current model, and `models.use` changes it for the rest of the chain, across its sections, until the next switch.
 
-The root walk starts on the model the H1 pass ended on. A `call` child and a task started with `tasks.spawn` or `tasks.fanout` start with a copy of the parent's current model, taken when the call or spawn is dispatched, so a task that waits in the queue is not changed by a later switch in its parent. A child's switch never reaches its parent or its siblings.
+The root walk starts on the `default` role. The preamble is the first section of the root walk, so a switch there holds in the sections after it. A `call` child and a task started with `tasks.spawn` or `tasks.fanout` start with a copy of the parent's current model, taken when the call or spawn is dispatched, so a task that waits in the queue is not changed by a later switch in its parent. A child's switch never reaches its parent or its siblings.
 
 A `models.use("strong")` for one expensive step leaves every later section of that chain on `strong`, which is a cost to plan for. Saving the current model and restoring it undoes the switch:
 
@@ -261,11 +259,11 @@ Bound tools remain unavailable to the model until `tools.always`, `tools.add`, o
 
 ### `tools.bind(alias, capability, override?)`
 
-**Effect:** Resolves a host tool in H1 and freezes it under a local alias. **Return:** A read-only Tool with name, description, parameters, wire name, and trust flag. **Failure:** A non-H1 call, no match, ambiguity, duplicate alias, or duplicate selected identity raises a binding error. **Example:** `tools.bind("search", "search authoritative sources")`
+**Effect:** Resolves a host tool in the preamble and freezes it under a local alias. **Return:** A read-only Tool with name, description, parameters, wire name, and trust flag. **Failure:** A call outside the preamble, no match, ambiguity, duplicate alias, or duplicate selected identity raises a binding error. **Example:** `tools.bind("search", "search authoritative sources")`
 
 ### `tools.always(alias_or_tool, override?)`
 
-**Effect:** Adds a bound tool from H1 to every section's model-visible scope, with an optional model-facing description. **Return:** The frozen Tool. **Failure:** A non-H1 call, unknown alias, or conflicting scope raises a binding error. **Example:** `tools.always("search")`
+**Effect:** Adds a bound tool from the preamble to every section's model-visible scope, with an optional model-facing description. **Return:** The frozen Tool. **Failure:** A call outside the preamble, unknown alias, or conflicting scope raises a binding error. **Example:** `tools.always("search")`
 
 ### `tools.add(alias_or_list, override?)`
 
@@ -426,7 +424,7 @@ A compactor may call tool-free `models.infer` with or without an explicit handle
 
 ## Control flow
 
-Fall-through visits siblings in source order and carries `var`, but no implicit text result. Thematic breaks only clear pending prose and never affect control flow. A section is named by a section path: titles separated by `/`, each matched exactly. A relative path names a neighbor of the section its code is written in, `name` for a direct child and `../name` for a sibling, and a path from the top, such as `/Library/Template`, names any section. The visible set is the current section's siblings except itself plus its direct children, which is what the two relative forms name. `call`, `call_async`, `jump`, and `tasks.fanout` take only the relative forms, so they never reach farther. The `prompt` reads take either kind.
+The top level is the preamble, when there is one, and the sections at the shallowest heading level. A run starts at the first top-level section, and fall-through visits the top-level sections in source order and carries `var`, but no implicit text result. A deeper section runs when Lua names it, and fall-through from it visits its later siblings the same way. Thematic breaks only clear pending prose and never affect control flow. A section is named by a section path: titles separated by `/`, each matched exactly. A relative path names a neighbor of the section its code is written in, `name` for a direct child and `../name` for a sibling, and a path from the top, such as `/Library/Template`, names any section. The visible set is the current section's siblings except itself plus its direct children, which is what the two relative forms name. `call`, `call_async`, `jump`, and `tasks.fanout` take only the relative forms, so they never reach farther. The `prompt` reads take either kind.
 
 ### `prompt.section(path)`
 
@@ -568,7 +566,6 @@ name: fanout-review
 description: Draft once and review in parallel
 runvil: 0
 ---
-# Fanout Review
 ## Draft
 Draft {{ args }}.
 ```lua
@@ -596,7 +593,6 @@ name: compact-analysis
 description: Analyze with tools and compaction
 runvil: 0
 ---
-# Compact Analysis
 ```lua
 tools.bind("search", "search authoritative sources")
 ```
@@ -624,7 +620,6 @@ name: analysis-chat
 description: Interactive or unattended analysis
 runvil: 0
 ---
-# Analysis Chat
 ```lua
 tools.bind("search", "search authoritative sources")
 ```
