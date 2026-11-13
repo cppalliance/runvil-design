@@ -3,7 +3,7 @@
 - Scope: how a prompt calls a model and what a conversation is: the `models` API, model roles, the model loop, replies, limits on a round, messages, compaction, and the client that sends a model request
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
-- Update: the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
+- Update: the two entries on a chain's current model in section 2, the entry on a section entry's conversation in section 5, and gap 1 of section 9 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -313,7 +313,7 @@ Each item names a text that differs from the code: the shipped chat prompt, a gu
 
 **The chat prompt and the language guide**
 
-1. Model changes in Workshop. The H1 prose of `workshop/agents/agents/chat.md` says of the model that "a selection change takes effect on the next run". `WorkshopBroker::routed` in `workshop/server/src/agents/broker.rs` sends each round to the dropdown's current pick, and the Workshop test `gate_a_model_picked_between_turns_serves_the_next_round` pins that.
+1. Model changes in Workshop. The paragraph before the first heading of `workshop/agents/agents/chat.md` says of the model that "a selection change takes effect on the next run". `WorkshopBroker::routed` in `workshop/server/src/agents/broker.rs` sends each round to the dropdown's current pick, and the Workshop test `gate_a_model_picked_between_turns_serves_the_next_round` pins that.
 2. The ceiling on rounds. Guide chapter 16 says "A prompt's own `max_tool_iterations` value replaces the run's round cap". `max_tool_iterations` in `runvil-internal/runtime/src/execute/context.rs` also applies `RunLimits::tool_iterations_ceiling`, which the guide omits.
 3. Who sets the request limits. A table in chapter 16 names the Harness as the part that changes the response cap and the receive timeout. `GatewayChat::with_request_limits` is the one setter, `GatewayBroker::new` uses the defaults, and `RunSetup` lacks both values.
 
@@ -351,6 +351,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The Workshop crates stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
-- **Every heading is a section.** On 2026-11-13 the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass. The pass started on the `default` role, and the main walk started on the model that the pass ended on. Gap 1 of section 9 still names the H1 prose of Workshop's `chat.md`, which has its title at the Engine commit that Workshop pins. That session ran the build and its tests.
+- **Every heading is a section.** On 2026-11-13 the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass. The pass started on the `default` role, and the main walk started on the model that the pass ended on. Gap 1 of section 9 named the H1 prose of Workshop's `chat.md`. It names the paragraph before the file's first heading, because Workshop pins that change at `7147e709` and the file has no title line. That session ran the build and its tests.
 
 *2026-11-10 16:39 - Claude Fable 5.2*
