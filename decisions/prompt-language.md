@@ -3,6 +3,7 @@
 - Scope: the prompt file as its author writes it: front matter, sections, Lua blocks and prose, the order sections run in, `jump`, `call`, and `require`, arguments, substitution, the Lua globals, and the limits and errors an author meets
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
+- Update: the entries on `return` in sections 3 and 4 state the rule of the change that follows `5bca6f9` in `runvil-harness`: a `return` always ends its chain (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -103,13 +104,13 @@ The rule exists so that a reader of the Lua can reconstruct the whole control gr
 
 ### The H1's blocks run once, before the first section
 
-The Engine runs the Lua blocks under the H1 once, in a VM of their own, and that run is the H1 pass. `jump` and `call` there can name every top-level section. When the pass ends, the Engine starts the walk with the pass's `var` and `argv`. A scalar that an H1 block returns ends the whole run.
+The Engine runs the Lua blocks under the H1 once, in a VM of their own, and that run is the H1 pass. `jump` and `call` there can name every top-level section. When the pass ends, the Engine starts the walk with the pass's `var` and `argv`. A `return` in an H1 block ends the whole run.
 
 An H1 block that raises a Lua error ends the run with the code `requirements_unmet`, before any section runs. An author therefore writes hard checks in the H1 as `assert` calls. The run's result contains the text of the failure, and the code makes the kind of failure machine-readable for Hosts, supervisors, and evals.
 
 ### Top-level sections run in file order, and a nested section runs when Lua names it
 
-The walk enters the first H2, runs its blocks, and falls through to the next H2, until a block returns a value or the last H2 ends. A child section runs when Lua names it with `jump`, `call`, `require`, or a task call.
+The walk enters the first H2, runs its blocks, and falls through to the next H2, until a block executes a `return` or the last H2 ends. A child section runs when Lua names it with `jump`, `call`, `require`, or a task call.
 
 A subroutine section is therefore a child of the section that calls it, or a top-level section placed after the section whose `return` ends the run.
 
@@ -119,11 +120,15 @@ The Engine builds a new Lua VM each time a chain enters a section ([The Engine](
 
 With these explicit channels, a section behaves the same whether the run enters it by fall-through, by `jump`, by `call`, or as a task. One VM for a whole walk would create hidden globals that depend on the path, state that is impossible to clone, and inconsistent inputs for a section.
 
-### A returned scalar ends the chain, and a walk past its last section returns `done`
+### A `return` ends the chain, and a walk past its last section returns `done`
 
-A Lua block's top-level `return` of a string, a number, or a boolean ends the chain it runs in, and the value as text is the chain's result. On the main walk and in the H1 pass that result is the run's result. After a block that returns nil the Engine runs the next block, and a returned table fails with `cannot return a table as a result`. The rule makes Lua control flow compact: one `return` both ends the chain and states its result.
+A `return` at the top level of a Lua block ends the chain the block runs in. A returned string, number, or boolean is the chain's result as text, and on the main walk and in the H1 pass that result is the run's result. A `return` of nil, or of no value, ends the chain with no text, the way a walk past its last section ends. A returned table fails with `cannot return a table as a result`. After a block that ends with no `return`, the Engine runs the next block. The rule makes Lua control flow compact: one `return` both ends the chain and states its result.
 
-When the main walk runs past its last section, the run's result is the text `done`. A prompt that has an H1 and lacks sections is valid and ends the same way.
+A `return` ends the chain whatever its value, because the author wrote it to end the chain. If a nil value moved the run on to the next block, `return x` would end the chain or continue it depending on what `x` holds, and `return call(...)` would depend on what the called section did. A `return` inside a function is that function's, and it leaves the chain running.
+
+Lua returns no value both for a bare `return` and for a block that ends with none, so the Engine marks the difference when it compiles a block. `LuaProgram::compile` in `runvil-internal/lua/src/program.rs` compiles the block's source inside a `do` block, followed by a `return` of the block's one argument. The Engine calls every block with a private marker as that argument, so a block returns the marker only when it runs off its end. The compiler checks the source alone first, so a syntax error reads as it does for the source alone, and every line of the block keeps its number.
+
+When the main walk runs past its last section, or ends at a `return` with no text, the run's result is the text `done`. A prompt that has an H1 and lacks sections is valid and ends the same way.
 
 ### `jump` ends the block and continues the walk at another section
 
@@ -139,7 +144,7 @@ The rules are identical at every level: the Engine's section semantics are indep
 
 ### `call` runs a contained chain and returns its final text
 
-`call(heading, input)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block returns a scalar or the last section at its level ends, and `call` returns the chain's result as a string.
+`call(heading, input)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block executes a `return` or the last section at its level ends, and `call` returns the chain's result as a string, which is the empty string for a chain that ends with no text.
 
 A `call` works like a call of a different prompt whose sections happen to be in the same file. The caller inherits only the chain's answer, because the tokens that the chain spent would otherwise bloat the caller.
 
@@ -161,11 +166,11 @@ With only the children in the set, two sibling sections would be unable to share
 
 Shared code exists for reuse, so a library runs only where a section asks for it. With Lua's own `require`, a prompt could load Lua files from disk, and library code would be unable to make a call that waits.
 
-### A library runs once in each section VM, and `require` returns its first non-nil block value
+### A library runs once in each section VM, and `require` returns the value of its first `return`
 
-A library's blocks run in order. The first block that returns a value other than nil ends the load, and `require` returns that value, which may be a table or a function. For a library whose blocks all return nil, `require` returns `true`. Later calls in the same VM return the saved value, and a library that requires itself raises an error that begins `require cycle:`.
+A library's blocks run in order. After a block that ends with no `return`, the next block runs. The first block that executes a `return` ends the load, and `require` returns its value, which may be a table or a function, or `true` when the `return` gives nil or no value. For a library whose blocks all end with no `return`, `require` returns `true`. Later calls in the same VM return the saved value, and a library that requires itself raises an error that begins `require cycle:`.
 
-`require` returns a value of any type because a library returns its module as a table. A block that returns nil lets the next block run, the way a section moves to its next block, and the result `true` matches standard Lua. The cycle error exists because standard Lua 5.5 lacks cycle detection and recurses until the stack overflows.
+`require` returns a value of any type because a library returns its module as a table. A `return` ends the load the way a block's `return` ends a chain, and the result `true` for a library with no value matches standard Lua. The cycle error exists because standard Lua 5.5 lacks cycle detection and recurses until the stack overflows.
 
 ### `require` can also name the siblings of each ancestor section
 
@@ -360,5 +365,6 @@ Each question asks for the reason behind a part of the design.
 - **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The `prompts/` folder of the walk-through moved with them. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
+- **Return rule.** On 2026-11-13 the entries on `return` in sections 3 and 4 were brought to the change that follows `5bca6f9` in `runvil-harness`, whose plan is `plan/2026-11-13-1-return-ends-the-chain.plan.md` there. Before it, a block that returned nil or no value let the next block run, and `require` took the first block value other than nil. That session ran the build and its tests. The rest of the page still describes the code at the commits above.
 
 *2026-11-10 16:47 - Claude Fable 5.2*

@@ -84,7 +84,7 @@ Optional `input` and `output` declarations contain `path` and `description`. Opt
 
 **Sections.** Exactly one non-empty H1 follows the frontmatter. Text before it is inert preface. H2 through H6 headings form the section tree, levels cannot be skipped, and sibling names must be unique.
 
-Fall-through follows source order. The H1 preamble resolves tool bindings and may return a scalar to finish the run. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there, where a relative path names a top-level section.
+Fall-through follows source order. The H1 preamble resolves tool bindings and may return to finish the run, with a scalar as the run's text. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there, where a relative path names a top-level section.
 
 **Pending prose and thematic breaks.** Each section heading starts an empty pending Markdown buffer. Markdown appends to that buffer.
 
@@ -94,7 +94,7 @@ Each ordinary Lua fence receives the remaining buffer as its fresh lazy `prose` 
 
 Section end discards any remaining buffer without error or model invocation, so trailing Markdown is naturally inert. Thematic breaks only reset prose capture; they never terminate calls, prevent fall-through, restrict trailing content, or become part of the prompt.
 
-**Lua fences, deferred inheritance, and return.** Exact unindented ordinary `lua` fences execute in source order, and each ordinary fence is a separate coroutine in the same VM. Returning nil continues; returning a scalar finishes the current frame as text; returning a table, function, thread, or userdata fails. The documented deferred `lua inherit` contract forms a contiguous initialization prefix before ordinary executable prose or Lua, collects applicable blocks from the target and its ancestors, and executes them once in root-to-leaf source order on each fresh VM. No inheritance parsing, replay, tests, or migration is active in this plan.
+**Lua fences, deferred inheritance, and return.** Exact unindented ordinary `lua` fences execute in source order, and each ordinary fence is a separate coroutine in the same VM. A fence that ends without executing a `return` continues to the next fence. A `return` at a fence's top level always finishes the current frame: returning a scalar finishes it as text; returning nil or no value finishes it with no text; returning a table, function, thread, or userdata fails. A `return` inside a function returns from that function only. The documented deferred `lua inherit` contract forms a contiguous initialization prefix before ordinary executable prose or Lua, collects applicable blocks from the target and its ancestors, and executes them once in root-to-leaf source order on each fresh VM. No inheritance parsing, replay, tests, or migration is active in this plan.
 
 **Prose capture.** Pairing is an implementation association, not a source-validity rule. Markdown before the most recent thematic break is commentary; Markdown after it is available to the next ordinary Lua fence. Unconsumed Markdown is inert, so prose without a following Lua fence is never an error. Runvil runs no model implicitly. Deferred inherit fences do not consume pending prose.
 

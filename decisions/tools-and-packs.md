@@ -147,7 +147,7 @@ The Engine raises because a handler is the author's own Lua, so its failure is a
 2. Call `jump` from the block, after the tool call returns. Inside a handler `jump` raises an error, because with a jump there `models.loop` would need rules for reporting a batch that the jump abandons partway.
 3. Use `models.infer` for a model call. A `models.loop` that a handler starts while the section's loop runs raises an error, because its records would precede the outer batch's.
 
-The first rule is also the rule for a block's `return`.
+A block's `return` turns its value into text the same way and refuses a table with the same error. The two differ for `nil`: a handler's `nil` is the empty string, and a block's `return` of `nil` ends its chain with no text ([The prompt language](prompt-language.md)).
 
 ## 5. Tool calls
 
