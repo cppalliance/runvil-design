@@ -10,7 +10,7 @@ The host supplies transport, model-tool continuation, confinement, events, cance
 
 ## Current implementation scope
 
-The active language work renames section-based `execute` to synchronous `call` and `tool_call` to `tools.call`, adds pending Markdown capture with thematic-break reset and lazy `prose`, removes `reply`, and retains plain message arrays with optional `messages.new()` builders.
+The active language work has `call` as the synchronous section call and `execute` as the synchronous call of another prompt, renames `tool_call` to `tools.call`, adds pending Markdown capture with thematic-break reset and lazy `prose`, removes `reply`, and retains plain message arrays with optional `messages.new()` builders.
 
 The active model runtime retains `models.infer`, adds Rust-backed `models.loop`, implements the minimum compactor invocation surface with `compactors.fail` as the only policy, validates provider-neutral messages and correlated model-tool exchanges, and reads model and tool selection at call time. All host operations are namespace functions; handles are pure inspectable values with no methods, so there is exactly one way to invoke anything.
 
@@ -41,14 +41,14 @@ Constructs described below are labeled active (changed by this plan), existing (
 - A: `args`
 - C: `call(path, args?)`, `call_async(path, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
 - D: `description`
-- E: events, deferred `execute(path, input?)`, deferred `execute_async(path, input?)`
+- E: events, `execute(name, args?)`, deferred `execute_async(name, args?)`
 - F: `tasks.fanout(worker, collection)`, `tasks.fanout(model, worker, collection)`, frontmatter
 - I: `include`, incarnation, inherited Lua
 - J: `jump(path)`
 - L: lifecycle, `local_include`, `log(message)`, `lua`, `lua inherit`
 - M: `markdown.parse`, `markdown.render`, `markdown.section`, `markdown.section_or`, `markdown.select`, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
 - N: `name`
-- P: deferred `pfanout`, preamble, `prompt.section(path)`, `prompt.section_or(path)`, `runvil: 0`, `prose`, provider projection
+- P: deferred `pfanout`, preamble, `prompt.section(path)`, `prompt.section_or(path)`, `prompts`, `runvil: 0`, `prose`, provider projection
 - R: `require(path)`, `return`
 - S: section paths, sections, selectors, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
 - T: task handles, `tasks`, `tasks.await_all`, `tasks.fanout`, thematic break, `tools.add`, `tools["add_local"]`, `tools.always`, `tools.bind`, `tools.call`, `tools.calls`
@@ -81,9 +81,11 @@ Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to
 
 Optional `args` declares the run's arguments, one JSON object, in a subset of JSON Schema with the keywords `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`, `description`, and `default`. A `type` is `string`, `boolean`, `integer`, `number`, `array`, or `object`, and the root is an object. Any other keyword fails the parse. An object is closed unless it says `additionalProperties: true`. A prompt without `args` takes one optional string named `text`. The run's first step fills each missing field's default, checks the arguments against the declaration, and ends the run with `args_invalid` on the first mismatch.
 
+Optional `prompts` lists the prompts this prompt may run with `execute`, each by the name the `PromptFinder` knows it under, which is the name `Prompt::file` returns. An empty or repeated name fails the parse. `Prompt::parse(finder, name)` parses the prompt, then every prompt the lists reach, each once, so a missing or malformed listed prompt fails the parse and nothing is found during a run. Prompts may list each other, and a prompt may list itself.
+
 **Sections.** No heading is required. Every heading, H1 through H6, starts a section, and the headings form the section tree. The top level is the shallowest heading level in the file. A heading is exactly one level deeper than its parent, so levels cannot be skipped and a first heading deeper than a later one fails. A heading cannot be empty, and sibling names must be unique. A prompt has no title: its name is the frontmatter `name`.
 
-Fall-through follows source order. The preamble is the text between the frontmatter and the first heading. When it holds a `lua` fence it is the first top-level section, with an empty name and no children, and when it holds none it is commentary. The preamble resolves tool bindings and may return to finish the run, with a scalar as the run's text. `call_async`, deferred `execute`, and deferred `execute_async` are unavailable there, while `call`, `jump`, and both `prompt` reads work there. From the preamble the top-level sections are siblings, so a relative path takes the sibling form, as in `jump("../Scan")`. No section path names the preamble, because its name is empty.
+Fall-through follows source order. The preamble is the text between the frontmatter and the first heading. When it holds a `lua` fence it is the first top-level section, with an empty name and no children, and when it holds none it is commentary. The preamble resolves tool bindings and may return to finish the run, with a scalar as the run's text. `call_async` and deferred `execute_async` are unavailable there, while `call`, `execute`, `jump`, and both `prompt` reads work there. From the preamble the top-level sections are siblings, so a relative path takes the sibling form, as in `jump("../Scan")`. No section path names the preamble, because its name is empty.
 
 **Pending prose and thematic breaks.** The start of the body and each section heading start an empty pending Markdown buffer. Markdown appends to that buffer.
 
@@ -128,27 +130,40 @@ Missing, null, malformed, unavailable, or non-JSON values fail at the first read
 
 **Deferred partial Markdown composition.** `include`, `local_include`, and partial Markdown fragments do not currently exist, so the current plan has no removal, compatibility, testing, or migration work for them. They are future composition features, not rejected designs. Their parsing, lifecycle, VM scope, persistence, and return semantics remain deferred; later plans will implement them. The known distinction is that `require()` returns a cached Lua module value while `include()` does not.
 
-### `execute(path, input?)`
+### `execute(name, args?)`
 
-**Effect:** Synchronously invokes one complete trusted `.md` Runvil document by spawning it through the common task runtime and awaiting its outcome. The child runs through the same formal parser and executor as a root prompt, optionally replaces its `args`, receives fresh prompt and VM state, owns its model and tool bindings, shares the parent run's store and host policy, and inherits cancellation, deadline, and confinement. Parent globals, `var`, and `lua inherit` ancestry do not cross the document boundary. Awaiting suspends only the current fence coroutine. **Return:** The child prompt's final text, or nil when it completed without a scalar result. **Failure:** A bare name, non-`.md` extension, absolute path, malformed complete prompt, execution cycle, nesting limit, failed or cancelled child, conflicting frozen identity, or confined-root escape raises a typed execution error. **Example:** `local report = execute("./prompts/report.md", args)`
+**Implementation status:** Active.
 
-**Implementation status.** This is a documented deferred target contract. The current implementation plan must not add path-based `execute`, `execute_async`, their tests, or their prompt migrations.
+**Effect:** Runs another prompt as a blocking child chain of its caller and resumes the caller with its result. `name` is one of the names the calling prompt lists under `prompts:`, so the parse has already found and parsed the prompt, and no finder is called during a run. `args` is a table of named fields, or a string, which is the one field `text`, as `call` takes them. The child's `args:` declaration checks them and fills its defaults, as it does for a run, and no arguments means `{}`. The child starts at its first top-level section, the preamble when it has one, and falls through as a main prompt does. It gets a fresh `var`, starts on the `default` model of its own model set, and works in a new, empty store. **Return:** The child's final text, or nil when it ended with no text, as `call` gives. **Failure:** A name the calling prompt does not list raises a Lua runtime error that names the prompt and what it lists. Arguments the child's declaration refuses raise `args_invalid` in the caller, on the line of the `execute`, and the child does not start. A failed child raises its error in the caller, placed in the child's file. An `execute` that would run deeper than the call-depth cap of 8 raises `call_depth_exceeded`. **Example:** `local report = execute("report.md", { topic = args.topic })`
 
-**Migration order.** After the public `call` and `execute` contracts freeze, rename the current section-based `execute` operation to `call` as the first child-composition behavior change and preserve its synchronous behavior. Verify that no section-form `execute` remains and reserve `execute` for this deferred contract; integrate asynchronous section-child behavior only after the common task runtime exists.
+**One run.** The child is not a run of its own. It has its caller's scheduler, cancel flag, event log, files, and Packs, and it counts against the same limits:
 
-### `execute_async(path, input?)`
+- A task the child spawns is admitted under its caller's concurrency share and every ancestor's, up to the run's ceiling, and it counts toward the run's idle-task cap.
+- The child runs one level deeper than its caller, under the one call-depth cap. Recursion is allowed, so prompts may execute each other, and a prompt that lists itself may execute itself, until the cap stops them.
+- Its tool calls count toward the Harness's one cap on tool calls in flight, and they work in the run's files under its caller's file access.
+- Its caller is parked as on a `call`, so `tasks.status` reports `call`. The run reports no event of its own for an `execute`.
 
-**Deferred target contract:** Eagerly creates and enqueues the same complete-document task that `execute` will synchronously await, then returns its durable Task handle. The executor controls when queued work becomes running. Its path, input, isolation, failure, cancellation, confinement, and restoration semantics are identical to `execute`. This API is not implemented in the current plan.
+**What crosses.** Only the arguments go in, and only the text comes out. `call`, `jump`, `require`, and the `prompt` reads see only the prompt they are written in, so one section name in two prompts names two sections. The caller's `var`, `args`, and current model are the same after an `execute` as before it. `execute` works wherever `call` works: in the preamble, in a library, and in a task.
 
-**Deferred resolution and caching contract.** Nested `require` and `execute` calls resolve relative to the module or complete prompt that contains them. A replayed inherit block retains its declaring Markdown file as its resolution anchor. Bare names never search the process working directory or `package.path`; Runvil exposes no unrestricted package searchers or native module loaders. Required modules cache once per VM, while every `execute` call creates a fresh child prompt invocation. An embedded prompt without a source directory may load files only when its host supplies a confined virtual root.
+**Listing is per prompt.** If A lists B and B lists C, then B may execute C and A may not.
 
-**Deferred confinement contract.** Resolution freezes bytes for the run, canonicalizes every path, and checks symlinks, junctions, and other reparse points against declared roots. Required module and executed prompt bytes participate in incarnation identity when their contracts are implemented. Only trusted code roots may execute. Loading or child execution never promotes data to system authority.
+**Packs.** The run holds every Pack the Host installed, one instance of each, whatever any of its prompts names. A prompt's `uses:` marks the Packs that prompt requires and whose preludes install in its own sections, and every other Pack is its extra. So a child's `uses:` changes nothing its caller sees. Each prompt has its own model set, because a role's thinking switch comes from that prompt's `models:`. The run's first step checks every prompt it holds: an unsupported `runvil:` version, an unmet declared Pack, or an unmet model role of any of them refuses the run, in a failure that names the linked prompt. A prelude that fails to load is found when its prompt's first section starts, as the error the `execute` raises.
+
+**Store.** Each execution gets a new store: empty, with its own claims ledger, and gone when the child ends. The child's `call` chains and tasks share it. The caller and the child see none of each other's store. A `Vfs` effect and its record name the store by a chain id: the root chain's, `0`, for the store the run starts with, and the child chain's for a store an `execute` made.
+
+### `execute_async(name, args?)`
+
+**Deferred target contract:** Creates and enqueues the child chain that `execute` runs and waits for, then returns its durable Task handle without waiting. The executor controls when queued work becomes running. Its name, arguments, isolation, failure, cancellation, and restoration rules are those of `execute`. This API is not implemented.
+
+**Deferred resolution and caching contract.** Nested `require` calls resolve relative to the module or complete prompt that contains them. A replayed inherit block retains its declaring Markdown file as its resolution anchor. Bare names never search the process working directory or `package.path`; Runvil exposes no unrestricted package searchers or native module loaders. Required modules cache once per VM. An `execute` resolves no path: it names a prompt that its own prompt lists, which the parse found, and every `execute` call starts a new child chain. An embedded prompt without a source directory may load module files only when its host supplies a confined virtual root.
+
+**Deferred confinement contract.** Module resolution freezes bytes for the run, canonicalizes every path, and checks symlinks, junctions, and other reparse points against declared roots. Required module bytes, and the source of every prompt a run holds, participate in incarnation identity when that contract is implemented. Only trusted code roots may be loaded. Loading a module or executing a child prompt never promotes data to system authority.
 
 ## State and globals
 
 One VM lives from section entry through every fence, suspension, and interactive turn in that entry. It exposes safe base functions plus the `string`, `table`, `math`, and `utf8` libraries. The deferred module contract later adds Runvil's sandboxed `require`; unrestricted `package`, `io`, `os`, `debug`, `load`, `loadfile`, `dofile`, and native module loading remain unavailable.
 
-A host call resumes its fence coroutine at the same call site. Fall-through, jump, call, and every deferred `call_async` section entry create fresh section VMs. Deferred `execute` and `execute_async` create fresh child prompt invocations with their own section VMs when implemented.
+A host call resumes its fence coroutine at the same call site. Fall-through, jump, call, and every deferred `call_async` section entry create fresh section VMs. An `execute` starts a chain in another prompt, whose section entries create fresh section VMs as every chain's do, and deferred `execute_async` will do the same when implemented.
 
 A Lua `local` belongs only to its fence or retained closure, while an ordinary global remains available to later fences in that section VM. Fresh VMs receive only inherited initialization and explicit transfer channels.
 
@@ -308,7 +323,7 @@ Model-facing description precedence is a `tools.add` override, then a `tools.bin
 
 **Implementation status.** Existing store behavior may continue unchanged, but the task-aware linearizability, journaling, conflict, ordering, and replay changes described here are deferred and inert.
 
-Store is run-scoped bulk state shared by all tasks. Every operation is linearizable and journaled under its task and operation IDs. Reads observe state at their committed operation sequence and preserve read-your-writes. Causal order consists of same-task program order, parent operations before asynchronous child creation, and a terminal outcome observation before the observer's later operations. Causally unordered destructive mutations by different tasks to one path fail as a conflict; destructive mutations are write, replace, and delete. Concurrent append with append is atomic and permitted. Its byte order follows the persisted commit sequence, is unspecified to authors, and is stable on replay. An unordered append mixed with a destructive mutation conflicts. Each mutation and its operation result commit atomically.
+A store is bulk state shared by every chain and task of one prompt's execution. The run starts with one, and each `execute` gives the prompt it runs a new, empty one, which is gone when that prompt ends. Every operation is linearizable and journaled under its task and operation IDs. Reads observe state at their committed operation sequence and preserve read-your-writes. Causal order consists of same-task program order, parent operations before asynchronous child creation, and a terminal outcome observation before the observer's later operations. Causally unordered destructive mutations by different tasks to one path fail as a conflict; destructive mutations are write, replace, and delete. Concurrent append with append is atomic and permitted. Its byte order follows the persisted commit sequence, is unspecified to authors, and is stable on replay. An unordered append mixed with a destructive mutation conflicts. Each mutation and its operation result commit atomically.
 
 ### `store.write(path, text)`
 
@@ -447,7 +462,7 @@ The top level is the preamble, when there is one, and the sections at the shallo
 
 ### `call(path, args?)`
 
-**Implementation status:** Active. Rename the current section-based `execute` operation to `call` as the first behavior change and preserve its synchronous execution semantics.
+**Implementation status:** Active.
 
 **Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally gives the chain its own `args`, a table of named fields or a string that the chain reads as `args.text`, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** A malformed path, a path from the top, a path that names no section, `args` that are a list or neither a table nor a string, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("Worker", { topic = "allocators" })`
 
@@ -483,7 +498,7 @@ A TaskError contains stable `family`, `code`, `message`, `retryable`, and origin
 
 Tasks move through `queued`, `running`, `waiting`, and `closing` before exactly one terminal state: `succeeded`, `failed`, or `cancelled`. Entering `closing` atomically closes the child-creation gate, fixes terminal intent, requests cancellation of every nonterminal descendant, and drains local descendants before publishing the outcome. A parent waiting in `user_input()` remains live and its children continue. Actual parent return, failure, or cancellation closes the scope. Version 0 has no detached or orphan task.
 
-Model-visible subagent tools use this same runtime through a fixed section target in the current implementation scope; fixed document targets remain deferred with `execute`. One tool invocation calls asynchronously, awaits, unwraps, and returns a serializable correlated result; a model never receives a Task handle.
+Model-visible subagent tools use this same runtime through a fixed section target in the current implementation scope; fixed prompt targets remain deferred. One tool invocation calls asynchronously, awaits, unwraps, and returns a serializable correlated result; a model never receives a Task handle.
 
 ### `tasks.fanout(worker, collection)`
 
@@ -535,7 +550,7 @@ Each model attempt records its attempt ID, projection hash, model, finish reason
 
 A run owns a unique identity and exclusive ownership epoch. Stable opaque task IDs derive from that run, the incarnation, frame activation, and asynchronous-call operation identity, so replay recreates the same handle and a fork receives a new identity. Every suspending, effectful, or control-flow-relevant host observation is journaled with its operation kind, canonical argument digest, policy identity, and result schema. This includes nil `task:result()` probes, `tasks.await_all` candidate sets, modes, outcomes, cancellation races, store reads, clocks, input, and host snapshots.
 
-A section incarnation hashes prompt source, non-secret host policy, task limits, runtime identity, and every sealed continuing-conversation identity. The deferred module and complete-document contracts add frozen required-module bytes and executed child-prompt source when implemented. Cold restore acquires the next exclusive ownership epoch, verifies the incarnation and journal signatures, creates fresh VMs at section entry, and replays recorded host-call results without repeating completed effects. Scheduling reopens only after every active frame is reconstructed at its durable wait or first unrecorded operation. Drift rejects resume or creates an explicitly linked incarnation.
+A section incarnation hashes prompt source, which is the source of every prompt the run holds, non-secret host policy, task limits, runtime identity, and every sealed continuing-conversation identity. The deferred module contract adds frozen required-module bytes when implemented. Cold restore acquires the next exclusive ownership epoch, verifies the incarnation and journal signatures, creates fresh VMs at section entry, and replays recorded host-call results without repeating completed effects. Scheduling reopens only after every active frame is reconstructed at its durable wait or first unrecorded operation. Drift rejects resume or creates an explicitly linked incarnation.
 
 A snapshot is one atomically committed task-graph and store cut at a fence or host-operation boundary. It contains the event offset, block position, active projections, task states and immutable outcomes, parent links, per-frame replay cursors, operation-journal position, store version, cancellation state, and outstanding waits or children. Store mutation and operation completion commit together, so replay never duplicates a completed append. A snapshot never contains a live coroutine, mutable userdata, tool implementation, credential, provider secret, or wait token.
 
@@ -545,7 +560,7 @@ An external operation recorded as possibly dispatched but not completed reattach
 
 The active scope defaults to 24 models.loop iterations, model response size 16 MiB, and Lua memory 64 MiB. `models.loop` raises typed context exhaustion when its precheck or provider reports overflow. Hosts may configure supported active bounds.
 
-Active input waits preserve their section VM and follow host wait, failure, and cancellation policy. Deferred limits cover running and live child tasks, child depth, task execution time, replay work, child recursion, and required-module or executed-prompt depth and bytes. Running-capacity saturation, queued-task admission, reconnect lifetime, and cold-session policy remain inert until their owning contracts are implemented.
+Active input waits preserve their section VM and follow host wait, failure, and cancellation policy. An executed prompt runs under the active call-depth cap of 8, which `call`, `execute`, and every task share. Deferred limits cover running and live child tasks, child depth, task execution time, replay work, child recursion, and required-module depth and bytes. Running-capacity saturation, queued-task admission, reconnect lifetime, and cold-session policy remain inert until their owning contracts are implemented.
 
 Failure families are parse, version, binding, completion, tool, store, Lua, quota, substitution, context, module, execution, incarnation, cancelled, and internal. Parse errors distinguish frontmatter, structure, fence, and Lua failures. Invalid source, unsafe paths, malformed messages, incarnation drift, and compactor corruption fail without blind retry; marked transport and service failures may be retried only by the Rust models.loop policy.
 

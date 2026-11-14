@@ -9,7 +9,7 @@
 
 ## Summary
 
-A run's files are in a virtual file system, the VFS, which the crate `runvil-vfs` implements. The Host builds one `VfsRef` handle for each run: a table of mounts, each a backend in memory or over a real directory, which holds the files the run's tools work in. The store is a separate value, a `Store`, that the Engine makes for each run. Lua reads and writes it through the `store` table. The main walk, each task, and each tool call has an `Access`, an object that performs file operations for one identity: it checks the path, the policy of its handle, and what the others have read and written, and then calls the backend. A `store` call runs on a view of the store, an `Access` with the calling chain's identity that reaches the store alone and asks no Host policy. Sections 1 to 7 describe this design.
+A run's files are in a virtual file system, the VFS, which the crate `runvil-vfs` implements. The Host builds one `VfsRef` handle for each run: a table of mounts, each a backend in memory or over a real directory, which holds the files the run's tools work in. The store is a separate value, a `Store`, that the Engine makes for each run, and each `execute` gives the prompt that it runs a store of its own. Lua reads and writes a store through the `store` table. The main walk, each task, and each tool call has an `Access`, an object that performs file operations for one identity: it checks the path, the policy of its handle, and what the others have read and written, and then calls the backend. A `store` call runs on a view of the store, an `Access` with the calling chain's identity that reaches the store alone and asks no Host policy. Sections 1 to 7 describe this design.
 
 A check of this page against the code found two gaps (section 9) and eight questions about reasons (section 10). The larger gap is the comment on the `Vfs` trait: it says that a single synchronous thread drives a run, and the Harness calls `Run::step` from an async function.
 
@@ -17,7 +17,7 @@ Section 8 lists the planned work. Its largest item is a sequence of two steps: t
 
 ## From `store.write` to the backend and back
 
-A Lua block calls `store.write('notes.md', text)`. The function is a shim that yields a table, which the Engine parses into a `Request::Store` with a `VfsOp::Write`. The Engine derives a store view from the run's `Store` under the `Access` of the calling chain, such as the main walk or a task. The view is a second `Access` with the chain's identity and scope, and it reaches the run's store alone. The Engine issues `Effect::Vfs` with the view and the operation. `Run::step` returns the effect, and the chain waits.
+A Lua block calls `store.write('notes.md', text)`. The function is a shim that yields a table, which the Engine parses into a `Request::Store` with a `VfsOp::Write`. The Engine derives a store view from the run's `Store` under the `Access` of the calling chain, such as the main walk or a task. The view is a second `Access` with the chain's identity and scope, and it reaches the run's store alone. The Engine issues `Effect::Vfs` with the id of the store, the view, and the operation. `Run::step` returns the effect, and the chain waits.
 
 The Harness records the effect and calls `perform_vfs_op`, which calls `Access::write` on the view.
 
@@ -27,9 +27,9 @@ A later section of the same walk calls `store.read('notes.md')`, which runs the 
 
 ## 1. The `store` table
 
-### Every Lua block has a `store` table over the files that a run's sections and tasks share
+### Every Lua block has a `store` table over the files that a prompt's sections and tasks share
 
-The Engine installs a `store` table in the Lua VM of every section entry. The preamble, the Lua before a prompt's first heading, is a section entry like the others ([The prompt language](prompt-language.md)). The table's functions read and write the store, a set of text files that all the sections and tasks of one run share. A tool call works in the files of the run's handle and sees no file of the store (section 3).
+The Engine installs a `store` table in the Lua VM of every section entry. The preamble, the Lua before a prompt's first heading, is a section entry like the others ([The prompt language](prompt-language.md)). The table's functions read and write the store, a set of text files that all the sections and tasks of one prompt share while it runs. The run's own prompt has the store that the run starts with, and a prompt that an `execute` runs has a new store for that execution (section 3). A tool call works in the files of the run's handle and sees no file of a store (section 3).
 
 The owner's reason: "Store is always present, its a core feature of the Runvil language because its the way to move data between sections and handle fanout."
 
@@ -61,11 +61,11 @@ A store is built from the file system types because it keeps their claims rules 
 
 The `vfs` module of each facade crate, `runvil` and `runvil-engine`, exports the public items of `runvil-vfs` except `Store`, so a Host can build the file system that its runs' tools work in and can add a backend of its own. `runvil-vfs` alone exports `Store`, because holding a `Store` is the whole authority over it (section 3).
 
-### A store call is one `Access` call on a view of the run's `Store`
+### A store call is one `Access` call on a view of the calling chain's `Store`
 
-For each `store` call the Engine derives a store view with `Store::view`, from the run's `Store` and the calling chain's `Access`. `Store::view` is the only way into a store. The view is a second `Access` with the chain's identity and scope, and its operations reach that store alone. It checks each path against the store's path rules (section 1) and gives error paths back in the form the caller wrote. `dispatch_vfs` in `runvil-internal/runtime/src/execute/scheduler/dispatch.rs` is the one place in the Engine that makes a store view.
+For each `store` call the Engine derives a store view with `Store::view`, from the calling chain's `Store` and the calling chain's `Access`. `Store::view` is the only way into a store. The view is a second `Access` with the chain's identity and scope, and its operations reach that store alone. It checks each path against the store's path rules (section 1) and gives error paths back in the form the caller wrote. `dispatch_vfs` in `runvil-internal/runtime/src/execute/scheduler/dispatch.rs` is the one place in the Engine that makes a store view.
 
-The store follows one rule: it offers a subset of the operations of the VFS. A store is a value and not a mount of a handle, because one scope has to hold many stores. A child prompt that `execute` runs will get a store of its own, and it will run in its caller's scope under its caller's identity. The owner's rule: "prompts passed to execute or execute_async should get their own store which is completely isolated from the caller's store. they cannot see each others' paths or claims." `execute` is planned work ([The Engine](engine.md)).
+The store follows one rule: it offers a subset of the operations of the VFS. A store is a value and not a mount of a handle, because one scope has to hold many stores. A child prompt that `execute` runs gets a store of its own, and it runs in its caller's scope under its caller's identity (section 3). The owner's rule: "prompts passed to execute or execute_async should get their own store which is completely isolated from the caller's store. they cannot see each others' paths or claims."
 
 ### Virtual paths have one POSIX form on every operating system
 
@@ -95,9 +95,19 @@ The Host builds the handle because the mounts are the Host's choice: memory, a r
 
 ### The Engine makes each run an empty store, which only the run reaches
 
-The Engine makes a run's store with `Store::new()` in `ChainState::root`, in `runvil-internal/runtime/src/execute/context.rs`. A new store is empty. Every chain of the run shares the one store: the main walk, a `call` chain, a task, and a fanout arm. The Engine never hands the `Store` out: a caller reaches the store only through the view in a `Vfs` effect, for that effect's one operation (section 7). Nothing seeds the store before the run, and nothing reads it afterward. Data goes into a run as `args` and comes out as the result ([The Harness and the Host API](harness-and-host.md)). The store and the handle are disjoint: a tool sees no file of the store, and a `store` call sees no file of the handle.
+The Engine makes a run's store with `Store::new()` in `ChainState::root`, in `runvil-internal/runtime/src/execute/context.rs`. A new store is empty. Every chain that runs the run's own prompt shares the one store: the main walk, a `call` chain, a task, and a fanout arm. The Engine never hands the `Store` out: a caller reaches the store only through the view in a `Vfs` effect, for that effect's one operation (section 7). Nothing seeds the store before the run, and nothing reads it afterward. Data goes into a run as `args` and comes out as the result ([The Harness and the Host API](harness-and-host.md)). The store and the handle are disjoint: a tool sees no file of the store, and a `store` call sees no file of the handle.
 
 The owner's reason: "Every prompt starts with a, a memory store that's completely empty. And that's the only type of store there is. And it doesn't map to any file system path in the virtual file system." With no way in from outside, a run's result depends only on its prompt, its arguments, and the answers to its effects.
+
+### Each `execute` gives the prompt it runs a new, empty store
+
+`ChainState::with_prompt`, in the same file, makes a store with `Store::new()` for the chain of each `execute` ([The prompt language](prompt-language.md)). The store is empty and has a claims table of its own. The executed prompt's `call` chains and tasks share it, and a prompt that the child executes in turn gets another. The caller and the child see none of each other's store files: one path in the two stores is two files, and the caller finds no file of the child after the `execute` returns. A second `execute` of the same prompt starts with an empty store again.
+
+A child's store is gone when the child ends. Each chain releases its hold on its store when it finishes or is aborted, and a store is freed once the last chain that shared it has ended.
+
+The child's tool calls are a different matter: they work in the files of the run's handle under the caller's file access, as the caller's own tool calls do, because the executed prompt is a part of the caller's run.
+
+The rule is the owner's (section 2). An executed prompt therefore has the one way in and the one way out that a run has: its arguments and its text. Two fanout arms that execute one prompt can each write the same path with no conflict, because each execution has its own store and its own claims.
 
 ### `RealBackend` maps a real directory into the namespace and confines paths and links to it
 
@@ -173,7 +183,13 @@ An error has three readers: Rust code matches the variant, Lua code branches on 
 
 ### Each `store` call is one `Vfs` effect, which the Harness performs inline
 
-A `store` function yields its operation, and the Engine issues one `Effect::Vfs` for it ([The Engine](engine.md)). The Harness performs the effect at once with `perform_vfs_op`, before it waits for any other effect. The Engine reports one of sixteen events for each call, such as `VfsWriteSucceeded`, which names the section and omits the path. The run's record holds every store operation: each `Vfs` effect record with its operation and each answer record with its outcome, in order. The record is the only view of a store outside its run, and it is enough to rebuild the store. The test `a_runs_vfs_records_rebuild_its_store` in `harness-internal/runner/tests/it/effect_loop-vfs.rs` applies each `Vfs` record of a run that has an `Ok` answer to an empty memory handle, and the file it rebuilds reads as the text that the run returned.
+A `store` function yields its operation, and the Engine issues one `Effect::Vfs` for it ([The Engine](engine.md)). The Harness performs the effect at once with `perform_vfs_op`, before it waits for any other effect. The Engine reports one of sixteen events for each call, such as `VfsWriteSucceeded`, which names the section and omits the path and the store. The run's record holds every store operation: each `Vfs` effect record with the id of its store and its operation, and each answer record with its outcome, in order. The record is the only view of a store outside its run, and the records of one store are enough to rebuild it. The test `a_runs_vfs_records_rebuild_its_store` in `harness-internal/runner/tests/it/effect_loop-vfs.rs` applies each `Vfs` record of a run that has an `Ok` answer to an empty memory handle, and the file it rebuilds reads as the text that the run returned.
+
+### A `Vfs` effect and its record name the store by a chain id
+
+`Effect::Vfs` has a `store` field, a `ChainId`, and the effect's record holds it beside the operation, as in `{"Vfs":{"store":"0","op":{...}}}`. The id `0`, the root chain's, names the store that the run starts with. A store that an `execute` made has the id of the executed prompt's chain, such as `0.0`, and every operation on that store has this id, whichever chain of the executed prompt made the call. `ChainStore` in `runvil-internal/runtime/src/execute/context.rs` keeps a store together with the id of the chain it was made for.
+
+The record names the store because an executed prompt reports under its caller's task, and two stores can each have a file at one path. Without the id, a reader of the log could not tell the caller's `a.md` from the child's, and neither store could be rebuilt. With it, the records of each store rebuild that store. The test `the_vfs_records_of_each_store_id_rebuild_that_store` in `runvil-internal/runtime/src/execute/tests/execute/store.rs` applies the records of a run of three prompts to one empty store for each id, and each rebuilt store has the files that its prompt wrote. The id is a chain id because a chain id is the same in every run with the same inputs and answers ([Tasks and fanout](tasks-and-fanout.md)), which a replay needs.
 
 The Harness performs the call inline because the store is memory: a `Vfs` effect is one operation that touches no disk, so it has no future for the effect loop to wait on. `answer_vfs` in `harness-internal/runner/src/effect_loop.rs` performs the operation through the effect's view, and the view drops when the function returns, so the Harness holds no way to the store between effects. The loop answers every `Vfs` effect of a step this way and then steps the run once. VFS operations from different chains run one at a time, in the order the Engine issues them.
 
@@ -181,7 +197,7 @@ Store operations are effects for the owner's reason: "We want to be able to debu
 
 ### A run's store ends with the run, and the files of its tools last as long as the Host's mounts
 
-A run's store is memory: it is empty when the run starts and is gone when the run ends, so no run finds a file of an earlier run in its store. A prompt that built a file returns the file's text, as in `return store.read('report.md')`. The files of a run's tools are in the mounts of the run's handle. A `MemoryBackend` drops with its handle, and the files below a `RealBackend::rooted` mount are in a real directory, which outlasts the run. Workshop builds `VfsRef::default()` for each run, so the files of a Workshop run's tools exist in memory until the run ends. Workshop's workspace document is a separate file ([Workshop: how the app is built](workshop-app.md)).
+A run's store is memory: it is empty when the run starts and is gone when the run ends, so no run finds a file of an earlier run in its store. The store of an executed prompt is gone sooner, when that prompt ends (section 3). A prompt that built a file returns the file's text, as in `return store.read('report.md')`. The files of a run's tools are in the mounts of the run's handle. A `MemoryBackend` drops with its handle, and the files below a `RealBackend::rooted` mount are in a real directory, which outlasts the run. Workshop builds `VfsRef::default()` for each run, so the files of a Workshop run's tools exist in memory until the run ends. Workshop's workspace document is a separate file ([Workshop: how the app is built](workshop-app.md)).
 
 A run has one way in, its arguments, and one way out, its result. The owner's reason: "If a prompt wants to return a file, it should return it as the string of its return value."
 
@@ -194,7 +210,7 @@ Each of these items is still to be built.
 - **File changes for a Plugin's tools.** Functions of the C contract with which a tool writes, deletes, and renames a run's files. Contract 0.4 has three file functions, which stat, list, and read, so the Write, StrReplace, and Delete tools of `std` are stubs, and the shell of `bash` refuses each change. `Access` has the operations, and a Rust Pack can call them ([Tools and Packs](tools-and-packs.md)).
 - **A real directory in Workshop.** Workshop would mount a real directory into each run's file system, and the choice of the directory is a product decision. Workshop builds `VfsRef::default()` for each run. Its code has two real mounts, each read-only and each behind a constant that is `false`: `ENABLED` mounts a demo of the language guide, and `C_DRIVE` mounts the `C:` drive at `/c`, so that the shell and the file tools can be tried on real files.
 - **A database mount.** A mount would show an agent's run database as files, once the VFS is async. The backends that ship are `MemoryBackend` and `RealBackend`.
-- **Replay.** Replay would read a run's records back into a run. A debugger would rebuild a run's store from the same records, at any step. The Harness records each `Vfs` effect and its answer.
+- **Replay.** Replay would read a run's records back into a run. A debugger would rebuild each store of a run from the same records, at any step. The Harness records each `Vfs` effect and its answer.
 - **Glob across mounts.** A glob would also search the backends mounted below the mount that matches its pattern. A glob runs inside that one mount and skips a backend mounted below it.
 
 ## 9. Known gaps

@@ -18,7 +18,7 @@ Section 7 lists the planned work. Its largest item is replay: the recorder recei
 
 At startup a Host creates a `PackRegistry` and fills it. `insert_plugin_dir` loads each library Plugin of a directory, `insert_plugin` loads a Plugin that is compiled into the Host, and both kinds follow the C contract. Two Plugins, `plugin-web` and `plugin-mcp`, enter through a second API: each is a Rust function named `install`, which the Host calls with the registry, a configuration value, and the Host's services. The move of the two onto the C contract is planned work (section 7). The Host then passes the registry to `Packs::new`. It builds one `Host` with three fields: `packs`, a `PromptFinder` in `prompts`, and a `Timer` in `timer`. The `run-prompt` example in the `runvil` crate runs one prompt this way, with only the built-in Packs.
 
-For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` finds the source, parses it, and checks its `uses:` list against the installed Packs. The Host then calls `RunSetup::new` with a recorder and a broker, sets the fields this run needs, and calls `Harness::new`. It takes a `RunControl` from `Harness::control` and awaits `Harness::run`.
+For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` finds the source, parses it and every prompt that it lists for `execute`, and checks the `uses:` list of each against the installed Packs. The Host then calls `RunSetup::new` with a recorder and a broker, sets the fields this run needs, and calls `Harness::new`. It takes a `RunControl` from `Harness::control` and awaits `Harness::run`.
 
 `Harness::run` first calls the recorder's `begin_run` with a `RunMeta`: a seed drawn from the operating system and the start time from the Host's timer. It asks the broker for its model list and picks the run's model. It creates the run's Pack instances and builds an Engine `Run` with the arguments in `RunSetup.args`.
 
@@ -40,7 +40,7 @@ A prompt file names a model by a role, such as `strong`, and a set of tools by a
 
 ### A Host depends on one crate, `runvil`
 
-`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Rust Plugin API. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, and the rest of the Harness is in `runvil::harness`, which includes the loader of the C contract: `insert_plugin`, `insert_plugin_dir`, `Plugin`, `PluginReport`, and `PluginSource`. `runvil::plugin` has the Rust Plugin API of the crate `runvil-plugin`, such as `PackRegistry`, `Pack`, and `HostServices`. The types of the C contract are in `runvil-plugin-sys`, outside `runvil`. The crate has 118 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
+`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Rust Plugin API. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, and the rest of the Harness is in `runvil::harness`, which includes the loader of the C contract: `insert_plugin`, `insert_plugin_dir`, `Plugin`, `PluginReport`, and `PluginSource`. The same module has three stock prompt finders: `FindTextPrompt`, `FindFilePrompt`, and `PromptSet` (section 2). `runvil::plugin` has the Rust Plugin API of the crate `runvil-plugin`, such as `PackRegistry`, `Pack`, and `HostServices`. The types of the C contract are in `runvil-plugin-sys`, outside `runvil`. The crate has 121 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
 
 The owner's goal: "I want the outside world to only see one runvil crate, not runvil-*."
 
@@ -72,7 +72,17 @@ A Host's own parts may still need a runtime: the docs of `GatewayBroker` state t
 
 ### `Host::parse` parses the prompt before a run exists, and a parse failure returns to the caller unrecorded
 
-`Host::parse(name)` calls `Prompt::parse` with the Host's `PromptFinder`, then checks the prompt's `uses:` list against the installed Packs. It returns the parse error unchanged, or a `RequirementsUnmet` error that names each declared Pack that the Host lacks or that a Plugin inserted as unavailable. Only a Rust `install` inserts a Pack as unavailable. The loader drops every Pack of a contract Plugin whose load fails, so `Host::parse` reports each of them with the text `is not installed`, and the reason is in the `PluginReport` that `insert_plugin_dir` returned. The recorder's first call for a run is `begin_run`, inside `Harness::run`.
+`Host::parse(name)` calls `Prompt::parse` with the Host's `PromptFinder`, which parses the named prompt and every prompt that the `prompts:` lists reach from it ([The Engine](engine.md)). It then checks the `uses:` list of each of those prompts against the installed Packs. It returns the parse error unchanged, or a `RequirementsUnmet` error that names each declared Pack that the Host lacks or that a Plugin inserted as unavailable. The line of a Pack that only a linked prompt declares starts with that prompt's name, as in `- review.md: web is unavailable: runvil/web is not installed`. Only a Rust `install` inserts a Pack as unavailable. The loader drops every Pack of a contract Plugin whose load fails, so `Host::parse` reports each of them with the text `is not installed`, and the reason is in the `PluginReport` that `insert_plugin_dir` returned. The recorder's first call for a run is `begin_run`, inside `Harness::run`.
+
+### A prompt that lists other prompts needs a finder that serves each listed name
+
+The Harness calls the Host's finder only inside `Host::parse`. One parse finds the named prompt and then each prompt that the `prompts:` lists reach, so the finder has to serve every one of those names. A listed name that the finder lacks fails the parse, and the failure is placed on the `prompts:` line of the prompt that lists the name.
+
+`runvil::harness` has three stock finders. `FindTextPrompt` serves one prompt from text, and `FindFilePrompt` serves one from a file. Each fails a find for any other name with the code `not_found` and the message `no prompt named {name}`, so the two fit a prompt that lists no prompt, or only itself. `PromptSet` serves the prompts that a Host inserts as text, as files, and as directories, each file of a directory under its file name, such as `greet.md`. A Host whose prompts execute each other therefore gives its `Host` a `PromptSet`, or a finder of its own that serves each name.
+
+A run that has started holds its parsed prompt and every prompt that one links, and an `execute` runs one of those. `PromptSet::rescan` lists the set's directories again, which changes what later parses find and changes no run in progress. The test `a_run_executes_the_prompt_its_parse_linked_though_the_set_has_lost_that_prompts_file` in `harness-internal/runner/tests/it/harness-execute.rs` removes a listed prompt's file after the parse and rescans: the run still executes the prompt, and the next `Host::parse` fails with `no prompt named greet.md`.
+
+Every find happens in `Host::parse` because a stock finder reads a file with a blocking `std::fs` call, and a parse runs before the run's future exists. The rule holds for a prompt that executes others because the parse has read them all.
 
 ### `RunSetup::new` takes the recorder and the broker, and every other field has a default
 
@@ -122,7 +132,7 @@ The design sets a rule for every performer, which is a broker, a Pack, or a time
 
 ### The Harness answers each `Vfs` effect inline, on the thread that polls the run
 
-A `Vfs` effect is one operation on the run's store, and it holds a view of that store under the calling chain's identity. The loop appends the effect's record, performs the operation with `perform_vfs_op` on that view, appends the answer, and resumes the run before it waits again. When one step issues several `Vfs` effects, the loop answers all of them and then steps once. Store operations from different chains run one at a time, in the order the Engine issued them. The Harness reaches a run's store only to perform the one operation of a `Vfs` effect, through that effect's view. It puts nothing in the store before a run and reads nothing from it after.
+A `Vfs` effect is one operation on a store of the run, and it holds the id of that store and a view of it under the calling chain's identity. A run has the store that it starts with, and one more for each `execute` ([Files and the VFS](files-and-the-vfs.md)). The loop appends the effect's record, which names the store, performs the operation with `perform_vfs_op` on that view, appends the answer, and resumes the run before it waits again. When one step issues several `Vfs` effects, the loop answers all of them and then steps once. Store operations from different chains run one at a time, in the order the Engine issued them. The Harness reaches a run's store only to perform the one operation of a `Vfs` effect, through that effect's view. It puts nothing in the store before a run and reads nothing from it after.
 
 The loop performs the operation itself because the store is memory, so the call touches no disk and has nothing to wait on. The owner's rule: "Every prompt starts with a, a memory store that's completely empty. And that's the only type of store there is. And it doesn't map to any file system path in the virtual file system." With no way in from outside, a run's result depends only on its prompt, its arguments, and its answers.
 
@@ -134,7 +144,7 @@ The loop catches a panic from a broker, a Pack, or a timer, logs it with the eff
 
 `RunPacks`, the run's snapshot of its Pack instances, performs every `ToolCall` and `Render` effect. It finds the Pack from the first segment of the tool id and calls `Pack::call`. The lookup skips the run's tool catalog, because a model can call a model-only tool, which a Pack's `render` adds outside the catalog.
 
-At most `RunSetup.max_tool_calls_in_flight` tool calls run at once, 10 by default, and the loop starts waiting calls lowest effect id first. Chat, render, and timer effects start at once and are outside the count. [Tools and Packs](tools-and-packs.md) covers the cap's reasons and `Pack::call`.
+At most `RunSetup.max_tool_calls_in_flight` tool calls run at once, 10 by default, and the loop starts waiting calls lowest effect id first. The count is one for the whole run, so the tool calls of a prompt that an `execute` runs are in it with the calls of the run's own prompt. Chat, render, and timer effects start at once and are outside the count. [Tools and Packs](tools-and-packs.md) covers the cap's reasons and `Pack::call`.
 
 ### A pending run whose effects are all answered ends with an `Internal` error, unless its main chain waits for a message
 

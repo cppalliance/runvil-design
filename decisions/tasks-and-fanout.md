@@ -8,7 +8,7 @@
 
 ## Summary
 
-A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
+A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, one for each `execute`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
 
 A check of this page against the code found one gap and left five questions about reasons for the owner. Section 8 describes the gap, and section 9 lists the questions. The gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
 
@@ -134,11 +134,11 @@ The release prevents a deadlock: 8 outer arms that wait on their own inner arms 
 
 The scheduler clamps a value above the limit, where it could raise an error, so that a prompt is portable wherever it runs, whatever the limit. The function is named after tasks because tasks are what it limits.
 
-### `call`, `tasks.spawn`, and fanout arms share one depth cap of 8
+### `call`, `execute`, `tasks.spawn`, and fanout arms share one depth cap of 8
 
-A `call` child and a spawned task each run one level deeper than the chain that started them, and `MAX_CALL_DEPTH` is 8. The start that would run at level 9 raises an error with the code `call_depth_exceeded` and the text "recursion exceeded cap of 8". `make_call_depth_exceeded_error` in `runvil-internal/runtime/src/error.rs` formats "recursion exceeded cap of {cap}".
+A `call` child, an `execute` child, and a spawned task each run one level deeper than the chain that started them, and `MAX_CALL_DEPTH` is 8. The start that would run at level 9 raises an error with the code `call_depth_exceeded` and the text "recursion exceeded cap of 8". `make_call_depth_exceeded_error` in `runvil-internal/runtime/src/error.rs` formats "recursion exceeded cap of {cap}".
 
-A fanout arm counts as a level, so the depth of a recursion accumulates across a fanout, where it would otherwise start again in each arm.
+A fanout arm counts as a level, so the depth of a recursion accumulates across a fanout, where it would otherwise start again in each arm. An `execute` counts as a level too, so the cap also ends a recursion between prompts that execute each other ([The prompt language](prompt-language.md)).
 
 ## 5. Determinism
 
@@ -164,7 +164,7 @@ The result is one rule: after a join, a chain can read what the task wrote. A wa
 
 ### Every task has an inbox, and `tasks.receive()` reads it
 
-An inbox is a queue of text messages, oldest first. The Engine has one for the main chain, which is the main walk, and one for each task. `tasks.receive()` returns the oldest message, or suspends the chain until a message is queued. A `call` child reads the inbox of the task it runs inside. A chain inside `models.loop` reads its messages before its next model request ([Model calls and conversations](models-and-conversations.md)).
+An inbox is a queue of text messages, oldest first. The Engine has one for the main chain, which is the main walk, and one for each task. `tasks.receive()` returns the oldest message, or suspends the chain until a message is queued. A `call` child and an `execute` child read the inbox of the task they run inside. A chain inside `models.loop` reads its messages before its next model request ([Model calls and conversations](models-and-conversations.md)).
 
 The inbox functions are members of `tasks` for two reasons: `tasks.send` is there, and `tasks.note` is a member that also acts on the caller's own task.
 
@@ -199,7 +199,7 @@ Each of these items is still to be built.
 
 ### A doc comment in `ids.rs` calls a run's depth unbounded, and the code caps it at 8
 
-The doc comment at the top of `runvil-internal/types/src/ids.rs` says that a path is "chosen over a packed integer" because the depth and the width of a run "are both unbounded (call nesting, fanout arm count)". `MAX_CALL_DEPTH` in `runvil-internal/runtime/src/execute/scheduler/chain_record.rs` is 8, and a `call` or a spawn that would run at level 9 raises `call_depth_exceeded` (section 4).
+The doc comment at the top of `runvil-internal/types/src/ids.rs` says that a path is "chosen over a packed integer" because the depth and the width of a run "are both unbounded (call nesting, fanout arm count)". `MAX_CALL_DEPTH` in `runvil-internal/runtime/src/execute/scheduler/chain_record.rs` is 8, and a `call`, an `execute`, or a spawn that would run at level 9 raises `call_depth_exceeded` (section 4).
 
 ## 9. Questions for the owner
 

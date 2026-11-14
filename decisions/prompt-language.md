@@ -1,6 +1,6 @@
 # The prompt language: design decisions and their reasons
 
-- Scope: the prompt file as its author writes it: front matter, sections, Lua blocks and prose, the order sections run in, `jump`, `call`, and `require`, arguments, substitution, the Lua globals, and the limits and errors an author meets
+- Scope: the prompt file as its author writes it: front matter, sections, Lua blocks and prose, the order sections run in, `jump`, `call`, `execute`, and `require`, arguments, substitution, the Lua globals, and the limits and errors an author meets
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Update: the entries on `return` in sections 3 and 4, and the entry on `call` in section 3, state the rules of the two changes that follow `5bca6f9` in `runvil-harness`: a `return` always ends its chain, and `call` returns nil for a chain that ends with no text (section 11)
@@ -9,11 +9,11 @@
 
 ## Summary
 
-A prompt is one Markdown file. Its front matter names the prompt and declares its arguments and requirements, and each heading in its body starts a section, which is a list of prose blocks and Lua blocks. Lua before the first heading is the preamble, which is the first section. The Engine runs the top-level sections in file order, each in a fresh Lua VM. A Lua block moves the run to another section with `jump` or `call`, loads shared code with `require`, and sends prose to a model with a call such as `models.infer`. The Engine passes the table `var` from each section to the next. Sections 1 to 7 describe these parts.
+A prompt is one Markdown file. Its front matter names the prompt and declares its arguments and requirements, and each heading in its body starts a section, which is a list of prose blocks and Lua blocks. Lua before the first heading is the preamble, which is the first section. The Engine runs the top-level sections in file order, each in a fresh Lua VM. A Lua block moves the run to another section with `jump` or `call`, runs another prompt file with `execute`, loads shared code with `require`, and sends prose to a model with a call such as `models.infer`. The Engine passes the table `var` from each section to the next. Sections 1 to 7 describe these parts.
 
 A check of this page against the code found one gap and left nine questions about reasons for the owner. Section 9 describes the gap, and section 10 lists the questions. The gap is in the language guide: eight chapters name a failed parse by a parse error kind, and `Prompt::parse` returns one `Error` type whose `code` names the failure.
 
-Section 8 lists the planned work. Its largest item is a call from one prompt file into another: `call` starts a chain only in the sections of the running prompt.
+Section 8 lists the planned work. Its largest item is Lua module files and Markdown includes: `require` loads only sections of the running prompt.
 
 ## From a prompt file to its final text
 
@@ -37,11 +37,19 @@ The owner's rule: "we don't require any headings at all". An author who wants a 
 
 Every prompt is a Markdown file, and the same Engine code runs a fixed pipeline, a model that calls tools in a loop, and a chat with a user. The Lua in each section decides which of these the section does. The choice belongs to the section because one prompt can combine all three.
 
-### Front matter accepts seven keys and refuses any other
+### Front matter accepts eight keys and refuses any other
 
-The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `uses`, `args`, and `models`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
+The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `uses`, `args`, `models`, and `prompts`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
 
-Section 5 covers `args:`. Other pages cover three keys: `uses:` ([Tools and Packs](tools-and-packs.md)), and `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)).
+Section 5 covers `args:`, and the next entry covers `prompts:`. Other pages cover three keys: `uses:` ([Tools and Packs](tools-and-packs.md)), and `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)).
+
+### `prompts:` lists the prompts that a prompt may run with `execute`
+
+The value of `prompts:` is a list of names, as in `prompts: [review.md, summarize.md]`. Each name is the one that the caller's `PromptFinder` knows the prompt under, which is the name that `Prompt::file` returns for it ([The Engine](engine.md)). The parser refuses an empty entry and a name that the list has twice, each with the code `frontmatter_invalid`. `Prompt::parse` then finds and parses every listed prompt and every prompt that those list, so a listed prompt that is missing or malformed fails the parse of the prompt that lists it.
+
+A list covers its own prompt alone. If A lists B and B lists C, then B may execute C and A may not, and A's list need not name C. The parse still reads C when it parses A. The owner's reason: "if prompt A calls prompt B, and prompt B calls prompt C, then A implicitly requires C". A rule that made A name every prompt below it would be the alternative, in the owner's words: "the alternative is that every prompt has to exhaustively enumerate all its descendants which is pointless".
+
+The names are in the front matter, where the parser reads them, because a name that Lua computed would be known only when the `execute` runs. The owner's rule: "I want to parse each of those named prompts so that we don't have to find it later". Prompts may list each other, and a prompt may list itself.
 
 ### `runvil: 0` marks a prompt, and a language change leaves the version at 0
 
@@ -103,7 +111,7 @@ A miss returns nil because a read is optional by nature: a prompt can use headin
 
 ### Lua decides every move between sections
 
-A run moves to another section when the walk falls through, when a Lua block calls `jump` or `call`, or when Lua starts a task ([Tasks and fanout](tasks-and-fanout.md)). `jump` and `call` are Lua functions, and the Engine leaves them out of every tool list. A model influences the order through data that Lua reads and branches on.
+A run moves to another section when the walk falls through, when a Lua block calls `jump` or `call`, or when Lua starts a task ([Tasks and fanout](tasks-and-fanout.md)), and it moves into another prompt when a Lua block calls `execute`. `jump`, `call`, and `execute` are Lua functions, and the Engine leaves them out of every tool list. A model influences the order through data that Lua reads and branches on.
 
 The rule exists so that a reader of the Lua can reconstruct the whole control graph, and so that every branch is a visible Lua condition.
 
@@ -115,7 +123,7 @@ The preamble and the sections after it are entries of one chain, the main walk. 
 
 An uncaught Lua error in the preamble, such as a failed `assert`, ends the run with the code `lua_runtime`, as in every section, before the next section runs. An author therefore writes there, as an `assert` call, a hard check that the `args:` declaration cannot express, such as the range of a number. `requirements_unmet` and `args_invalid` are the codes of the run's start checks alone ([The Engine](engine.md)).
 
-The Engine has one code path for every section, and the preamble is a section whose name is empty. The owner's rule: "I don't want any special functions for H1. I want everything to be the same." The start of a prompt has no setup that only it can do: tools, model calls, `call`, and `jump` work in every section, and the main walk starts on the `default` model ([Model calls and conversations](models-and-conversations.md)). The owner's reason: "what can H1 really do in terms of setup? I'm thinking nothing."
+The Engine has one code path for every section, and the preamble is a section whose name is empty. The owner's rule: "I don't want any special functions for H1. I want everything to be the same." The start of a prompt has no setup that only it can do: tools, model calls, `call`, `execute`, and `jump` work in every section, and the main walk starts on the `default` model ([Model calls and conversations](models-and-conversations.md)). The owner's reason: "what can H1 really do in terms of setup? I'm thinking nothing."
 
 The run starts at the first top-level section, whichever it is. The owner's reason: "every prompt has a beginning, and we simply start there". A prompt whose body is a Lua block and then a section under the heading `## Research` runs the block and then `Research`. The owner's goal: "I want this to chain without a jump".
 
@@ -127,7 +135,7 @@ A subroutine section is therefore a child of the section that calls it, or a top
 
 ### Each section entry starts a fresh Lua VM, and the Engine copies `var` into it
 
-The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the main walk, a `call`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the arguments of a `call`.
+The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the main walk, a `call`, an `execute`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the arguments of a `call`.
 
 With these explicit channels, a section behaves the same whether the run enters it by fall-through, by `jump`, by `call`, or as a task. One VM for a whole walk would create hidden globals that depend on the path, state that is impossible to clone, and inconsistent inputs for a section.
 
@@ -168,6 +176,28 @@ A `call` works like a call of a different prompt whose sections happen to be in 
 The second argument of `call` is optional: a table of named fields or a string. Every section of the called chain reads a table as its `args`, and reads a string as `args.text`. With no second argument, the chain reads the caller's `args`. A table that is a list raises `args must be a table of named fields or a string, got a list`. The Engine checks a call's arguments against no declaration and fills no defaults in them. The chain's `var` is a deep copy of the caller's `var`, and the Engine discards the chain's writes to it when the chain ends.
 
 The `args:` declaration describes what a caller passes the prompt, so it has no say in what one section passes another. A string becomes the field `text` so that `args` is a table in every chain, and `text` is also the field of a prompt that declares no arguments (section 5).
+
+### `execute` runs another prompt as a child chain of the same run
+
+`execute(name, args)` starts a new chain in the prompt that `name` names and suspends the calling block, as `call` does. The name is one of the names under `prompts:` in the calling prompt's front matter (section 1). The chain starts at the first top-level section of the named prompt, which is the preamble when the prompt has one, and it follows the rules of the main walk. `execute` returns the chain's final text as a string, and it returns nil for a chain that ends with no text, by the rule of `call`. A prompt that ends with no text therefore gives nil to an `execute`, where a run of the same prompt ends with the text `done`.
+
+The executed prompt is a part of the caller's run and not a run of its own. It has the caller's scheduler, cancel flag, event log, files, and Packs, and it counts against the same limits. A task that it spawns is admitted under its caller's concurrency limit and counts toward the run's cap on idle tasks. Its chain runs one level deeper than its caller, under the one depth cap (section 7). Its tool calls work in the run's files under its caller's file access, and the Harness counts them toward its one cap on tool calls in flight ([The Harness and the Host API](harness-and-host.md)). The owner's reason: "you could have a sub-agent in the main prompt, and then you can have a sub-agent in the child prompt, but they all contribute to the same set of limits".
+
+`execute` works wherever `call` works: in the preamble, in a library while it loads, and in a task. A failed child raises its error in the caller, located in the child's file, and a `pcall` around the `execute` catches it. A name that the calling prompt does not list raises an error with the code `lua_runtime` that names the prompt and what it lists, as in ``prompt `c.md` is not listed: `prompt` lists `b.md` under `prompts:` ``.
+
+### Only the arguments go into an executed prompt, and only its text comes back
+
+`call`, `jump`, `require`, the `prompt` reads, and the task calls look a heading up in the prompt that they are written in. One section name in two prompts therefore names two sections, and a prompt has no way to name a section of another prompt. The owner's goal: "I just want it to be as if the other prompt sections were in the main document, but without having their section names conflict". The owner's rule: "prompts can't name sections from other prompts. You can just only execute."
+
+The child starts with an empty `var`, on the `default` model of its own model set, and with a new, empty store ([Files and the VFS](files-and-the-vfs.md)). A `call` differs on the first two: its chain starts with a copy of the caller's `var` and on the caller's current model. The child's `args` are the arguments of the `execute`. After the `execute` returns, the caller's `var`, `args`, and current model are the same as before it. The owner's rule: "The executed prompt gets a new var, nothing comes across except args/argv".
+
+Each prompt also keeps its own front matter. The Packs under the child's `uses:` are the declared Packs in the child's sections, and their preludes run there and in no section of the caller ([Tools and Packs](tools-and-packs.md)). A role's thinking switch comes from the `models:` of the prompt that the section belongs to, and the round cap of `models.loop` comes from that prompt's `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)).
+
+### The executed prompt's `args:` declaration checks the arguments of an `execute`
+
+The second argument of `execute` is optional: a table of named fields or a string, in the forms that `call` takes. A string is the one field `text`, and an `execute` with no second argument passes the empty object `{}`. The Engine checks the object against the `args:` declaration of the executed prompt and fills the declared defaults, by the rules of a run's first step (section 5). A mismatch raises an error with the code `args_invalid` at the line of the `execute`, as in ``argument `query` must be a string, got integer``, and the child does not start. A caller that wants the child to read its own arguments passes them, as in `execute('review.md', args)`.
+
+`execute` differs from `call` in two ways here: it checks the arguments, and it passes `{}` where `call` passes the caller's `args`. The declaration describes what a caller passes the prompt, and for an executed prompt the caller is the prompt that wrote the `execute`. The check is the one that a run's arguments get, so every section of a prompt reads arguments of the declared shape, whether a Host started the prompt or another prompt executed it. The error is in the caller because the caller built the arguments.
 
 ### A section names its siblings and its direct children
 
@@ -225,7 +255,7 @@ The owner's rule: "there must be no freeform prompts". The default field is name
 
 ### `args` is the checked object, a read-only table in every section
 
-Every section VM has `args` behind the guard on the globals table (section 6). It holds the object that passed the check, with its defaults, so it is a table in every section, and a field that the caller left out and that has no default reads nil. Each table inside it is a read-only view. An assignment to the global raises ``args is read-only: assign to `var` or a section global instead``, and a write to a field named `x` raises `args is read-only: cannot set field 'x'`. The preamble, a called chain, and a task follow the same rule. A null inside an object that takes undeclared fields reads as `json.null`. A prompt that needs a different value builds it in Lua and keeps it in `var`.
+Every section VM has `args` behind the guard on the globals table (section 6). It holds the object that passed the check, with its defaults, so it is a table in every section, and a field that the caller left out and that has no default reads nil. Each table inside it is a read-only view. An assignment to the global raises ``args is read-only: assign to `var` or a section global instead``, and a write to a field named `x` raises `args is read-only: cannot set field 'x'`. The preamble, a called chain, an executed prompt, and a task follow the same rule. A null inside an object that takes undeclared fields reads as `json.null`. A prompt that needs a different value builds it in Lua and keeps it in `var`.
 
 Apart from writes, a view behaves like the table it stands for. `#`, `pairs`, `next`, `ipairs`, `table.concat`, and `table.unpack` read the data. A view that Lua hands to `tools.call`, to `tasks.fanout`, to a spawn's `item`, or to `var` arrives there as its data.
 
@@ -245,9 +275,9 @@ The Engine removes fourteen base globals, among them `load`, `dofile`, `rawget`,
 
 The libraries include `utf8` because it is pure, and an author needs it to cut a string at a character boundary.
 
-### The Engine installs 20 globals and reserves 62 names
+### The Engine installs 21 globals and reserves 63 names
 
-Six Engine globals are the data of the run: `args`, `item`, `messages`, `prose`, `sys`, and `var`. Eight are tables of operations: `compactors`, `json`, `markdown`, `models`, `prompt`, `store`, `tasks`, and `tools`. Six are functions: `call`, `jump`, `log`, `require`, `ui`, and `untrusted`. Two exist only in some VMs: `ui` when the caller supplied a snapshot, and `item` in the first section of a task whose spawn supplied one. The list `RESERVED_NAMES` adds the 19 Lua globals that the sandbox leaves in place and the 23 keywords of Lua 5.5. A Pack prelude, the Lua that the Engine runs for a Pack in each section VM, fails to install when it defines a reserved name.
+Six Engine globals are the data of the run: `args`, `item`, `messages`, `prose`, `sys`, and `var`. Eight are tables of operations: `compactors`, `json`, `markdown`, `models`, `prompt`, `store`, `tasks`, and `tools`. Seven are functions: `call`, `execute`, `jump`, `log`, `require`, `ui`, and `untrusted`. Two exist only in some VMs: `ui` when the caller supplied a snapshot, and `item` in the first section of a task whose spawn supplied one. The list `RESERVED_NAMES` adds the 19 Lua globals that the sandbox leaves in place and the 23 keywords of Lua 5.5. A Pack prelude, the Lua that the Engine runs for a Pack in each section VM, fails to install when it defines a reserved name.
 
 Other pages cover `models`, `messages`, and `compactors` ([Model calls and conversations](models-and-conversations.md)), `tools` and `untrusted` ([Tools and Packs](tools-and-packs.md)), `tasks` and `item` ([Tasks and fanout](tasks-and-fanout.md)), and `store` ([Files and the VFS](files-and-the-vfs.md)).
 
@@ -267,7 +297,7 @@ The proxy is empty because Lua calls `__newindex` only for a key that a table la
 
 ### `sys` is a sealed table of facts about the run and the section entry
 
-`sys.when` is the run's start time, `sys.id` is the section entry's id, such as `0.0` for the first section that the main walk enters ([Tasks and fanout](tasks-and-fanout.md)), `sys.taskid` is the enclosing task, `sys.section_name` is the name of the running section, which is the empty string in the preamble, and `sys.section_count` is the number of top-level sections, the preamble included. `sys.index` exists in a task's first section when the spawn supplied an index, and `sys.model` exists after the entry's first tool call. A read of any other field raises `unknown sys field`, and a write raises `sys is read-only`.
+`sys.when` is the run's start time, `sys.id` is the section entry's id, such as `0.0` for the first section that the main walk enters ([Tasks and fanout](tasks-and-fanout.md)), `sys.taskid` is the enclosing task, `sys.section_name` is the name of the running section, which is the empty string in the preamble, and `sys.section_count` is the number of top-level sections of the section's own prompt, the preamble included. `sys.index` exists in a task's first section when the spawn supplied an index, and `sys.model` exists after the entry's first tool call. A read of any other field raises `unknown sys field`, and a write raises `sys is read-only`.
 
 The table refuses writes because `sys` is runtime metadata: the Engine writes it, and an author only reads it. The Engine reads the start time from its caller ([The Engine](engine.md)).
 
@@ -323,9 +353,9 @@ A stop drops the model round or the tool call in flight and leaves the cancel fl
 
 A call that waits, such as `tools.call`, yields the block's coroutine, and the module comment of `runvil-internal/lua/src/coro.rs` says "Yield cannot cross the C boundary". Lua's `table.sort` is a C function, so a waiting call inside its comparator raises Lua's own error, `attempt to yield across a C-call boundary`.
 
-### `call`, tasks, and fanout arms nest at most 8 levels
+### `call`, `execute`, tasks, and fanout arms nest at most 8 levels
 
-A `call`, a task, and a fanout arm each run one level deeper than the chain that started them, and a `jump` runs at the jumper's level. A start at level 9 fails with the code `call_depth_exceeded` ([Tasks and fanout](tasks-and-fanout.md)).
+A `call`, an `execute`, a task, and a fanout arm each run one level deeper than the chain that started them, and a `jump` runs at the jumper's level. A start at level 9 fails with the code `call_depth_exceeded` ([Tasks and fanout](tasks-and-fanout.md)). The levels of one run count together, whichever prompt a level runs in. Two prompts that execute each other, and a prompt that lists itself and executes itself, therefore stop at the cap. The owner's answer on recursion between prompts: "cap covers it, yes".
 
 The nesting cap and the round cap of `models.loop` are backstops: a prompt ends through its explicit Lua conditions. `jump` calls are unlimited in number, so a loop of `jump` calls ends by a Lua condition or by a cancel.
 
@@ -344,7 +374,7 @@ The nesting limit is 127 because `serde_json`, which parses the input of `json.d
 
 Each of these items is still to be built.
 
-- **A call into another prompt file.** A Lua function, planned as `execute`, that calls another prompt file, so that a large program can consist of several prompt files. `call` starts a chain only in the sections of the running prompt. `Prompt::parse` finds the run's prompt by its name through a `PromptFinder`, and a called prompt is to resolve the same way.
+- **An `execute` that returns at once.** A Lua function, planned as `execute_async`, that starts a listed prompt as a task and returns the task's handle. `execute` suspends its caller until the executed prompt ends.
 - **Lua module files and Markdown includes.** A `require` of a Lua file by its path, as in `require("./path.lua")`, and an `include` for partial Markdown. `require` loads only sections of the running prompt.
 - **Front matter in Lua.** A sealed table with the prompt's own `name`, `args`, and `models` declarations. The `prompt` table has two functions, `section` and `list`, and both read sections.
 - **A live clock.** A way for Lua to read the current time during a run. `sys.when` is the run's start time.

@@ -8,11 +8,11 @@
 
 ## Summary
 
-The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 103 names a caller uses. Sections 1 to 8 describe these parts.
+The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, which also holds every prompt that it lists for `execute`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 103 names a caller uses. Sections 1 to 8 describe these parts.
 
 A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
 
-Section 9 lists the planned work. Its largest item is child prompts: a Lua `execute()` call that runs another prompt by name.
+Section 9 lists the planned work. Its largest item is replay: Harness code that runs a recorded run a second time and compares the records of the two runs.
 
 ## From a prompt file to a finished run
 
@@ -56,7 +56,15 @@ The Harness's gateway client parses SSE streams and OpenAI bodies, because the E
 
 `PromptFinder` is a trait with one method, `find(name)`, which returns a prompt's source text. `Prompt::parse(finder, name)` calls it and parses the text, and a closure of the form `Fn(&str) -> Result<String, Error>` is a finder. `Prompt::file` and every failure name the prompt by the caller's name for it, such as `research.md`.
 
-Once child prompts exist, prompts will refer to each other by these names, so the name also works as the key for spotting duplicates. Section 9 lists child prompts as planned work.
+Prompts refer to each other by these names. A prompt's `prompts:` list names the prompts that its Lua may run with `execute`, and the parse keeps each prompt it has reached under its name, so the name is also the key that tells the parse it has a prompt already.
+
+### `Prompt::parse` also parses every prompt that the `prompts:` lists reach
+
+A prompt lists the prompts that its Lua may run with `execute` under `prompts:` in its front matter ([The prompt language](prompt-language.md)). `Prompt::parse` finds each listed prompt through the same finder, parses it as it parses the named prompt, and reads that prompt's own list in turn, until it has every prompt the lists reach, each once. An entry that names a prompt the parse has already reached, the named prompt included, finds nothing again, so prompts may list each other and a prompt may list itself. The `Prompt` that the parse returns holds the others in one flat table by name, and `Prompt::linked` returns them in the order of their names. Each prompt in that table has an empty table of its own.
+
+A listed prompt that the finder lacks, or one that fails to parse, fails the whole parse. A find failure with no location is placed on the `prompts:` line of the prompt that lists the name, and a parse failure is placed in the prompt that failed. An empty entry and a repeated entry fail with the code `frontmatter_invalid`.
+
+The parse reads every prompt so that a run has nothing to find. A run holds all its prompts from its first step, so a prompt file that changes later changes no run that has started, and a missing prompt is an error when the prompt loads, before any section runs. The owner's rule: "I want to parse each of those named prompts so that we don't have to find it later". The table is flat because of the owner's design: "when we parse a prompt, we have a table. We have the initial prompt, and then we have a map for the other prompts to their parsed sections".
 
 ### `Prompt::parse` compiles every Lua block
 
@@ -74,13 +82,15 @@ A running section may name its siblings and its direct children by heading, and 
 
 ### A caller steps a run with four functions
 
-`Run::new(prompt, args, params)` builds a run, and `args` is the text of the run's arguments, one JSON object. `Run::step` advances it until it needs an answer and returns a `Step`. `Run::resume(id, answer)` delivers the answer to one effect. `Run::deliver(text)` queues a message for the main chain's inbox ([The Harness and the Host API](harness-and-host.md)). `Run` is `Send` and owns its prompt through an `Arc`.
+`Run::new(prompt, args, params)` builds a run, and `args` is the text of the run's arguments, one JSON object. The run holds `prompt` and every prompt it links, so a caller passes the prompt that `Prompt::parse` returned. `Run::step` advances it until it needs an answer and returns a `Step`. `Run::resume(id, answer)` delivers the answer to one effect. `Run::deliver(text)` queues a message for the main chain's inbox ([The Harness and the Host API](harness-and-host.md)). `Run` is `Send` and owns its prompt through an `Arc`.
 
 The caller answers effects one at a time, in any order. Parallel work in a fanout depends on that: the caller resumes one arm while the effects of the other arms are in flight.
 
 ### `Run::new` always succeeds, and the first `step` checks that the run can start
 
-The first `Run::step` calls `check_start`, which makes three checks in order. The prompt declares `runvil: 0`. The arguments are one JSON object that matches the prompt's `args:` declaration ([The prompt language](prompt-language.md)): `Run::new` reads the text and keeps a mismatch for this check, which returns it with the code `args_invalid` and no location. The params meet what the prompt requires: each Pack under `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each declared role meets that role's requirements. A requirements failure has the code `requirements_unmet`, and its message names every gap.
+The first `Run::step` calls `check_start`, which makes three checks in order. The prompt and every prompt it links declare `runvil: 0`. The arguments are one JSON object that matches the prompt's `args:` declaration ([The prompt language](prompt-language.md)): `Run::new` reads the text and keeps a mismatch for this check, which returns it with the code `args_invalid` and no location. The params meet what each of those prompts requires: each Pack under a `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each role that a prompt declares meets that prompt's requirements for the role. A requirements failure has the code `requirements_unmet`, and its message names every gap.
+
+The checks cover the linked prompts because a run may execute any of them. The owner's reason: "we want to know up front if the prompt can run or not". Within each kind of gap, the message lists the gaps of the run's own prompt first and then those of each linked prompt in the order of their names. A line about a linked prompt's gap starts with that prompt's name, as in `- review.md: missing required Pack: web`, and a Pack that two prompts declare has one line. The failure's location is in the first prompt that caused a gap, on the `uses:` key for a Pack and on the `models:` key for a model.
 
 ### A step returns its effects and its events as values
 
@@ -136,19 +146,21 @@ One counter numbers every model round of a run in issue order, and loop rounds a
 
 ### `Effect::Vfs` is one `store` operation
 
-The Engine issues a `Vfs` effect for each of the eight `store.*` calls. The effect has an `access`, the calling chain's view of the run's store, and a `VfsOp` with the call's arguments. A caller answers it with `perform_vfs_op(&access, op)`, a synchronous function ([Files and the VFS](files-and-the-vfs.md)).
+The Engine issues a `Vfs` effect for each of the eight `store.*` calls. The effect has three fields: `store`, the id of the store that the call works on, `access`, the calling chain's view of that store, and `op`, a `VfsOp` with the call's arguments. A caller answers it with `perform_vfs_op(&access, op)`, a synchronous function ([Files and the VFS](files-and-the-vfs.md)).
 
-Lua says `store`, and the names below the Lua layer say `Vfs`, because every one of these operations is a VFS operation made through a view of the run's store.
+A run has more than one store when a prompt executes another, so the effect names its store. The `store` field is a `ChainId`: `0`, the id of the root chain, for the store that a run starts with, and the id of an executed prompt's chain, such as `0.0`, for a store that an `execute` made. The view alone would be enough to perform the operation, and the id is there for the record.
+
+Lua says `store`, and the names below the Lua layer say `Vfs`, because every one of these operations is a VFS operation made through a view of a store.
 
 ### `Effect::record` and `EffectAnswer::record` return JSON for the run log
 
-`Effect::record` returns the effect as a `serde_json::Value`, minus its live handles. A `ToolCall` record omits the file access, and a `Timer` record stores seconds, though the effect has a `Duration`. `EffectAnswer::record` returns the answer's outcome, and a failure is an object with a `kind`, the tag of its `ErrorCode` or `VfsError`, and a `message`. The typed records behind the two functions, `EffectRecord` and `AnswerRecord`, are private to `runvil-runtime`.
+`Effect::record` returns the effect as a `serde_json::Value`, minus its live handles. A `ToolCall` record omits the file access, a `Vfs` record omits the view and keeps the store's id beside the operation, and a `Timer` record stores seconds, though the effect has a `Duration`. `EffectAnswer::record` returns the answer's outcome, and a failure is an object with a `kind`, the tag of its `ErrorCode` or `VfsError`, and a `message`. The typed records behind the two functions, `EffectRecord` and `AnswerRecord`, are private to `runvil-runtime`.
 
 ## 5. Inside a step: chains, section VMs, and requests
 
 ### The scheduler builds one `SectionContext` with a fresh Lua VM for each section entry
 
-A chain is the scheduler's record of one sequence of sections: the main walk, a `call` child, or a task ([Tasks and fanout](tasks-and-fanout.md)). The main walk is the run's one root chain, and it starts at the first top-level section, which is the preamble when the prompt has one ([The prompt language](prompt-language.md)). Each time a chain enters a section, the scheduler builds a `SectionContext`, which the code calls a frame. The frame owns a new `SectionVm`, a sandboxed Lua state that runs every block of the section, and the frame's `Drop` destroys it. The next section's VM starts with the Engine globals and the chain's `var`.
+A chain is the scheduler's record of one sequence of sections: the main walk, a `call` child, an `execute` child, or a task ([Tasks and fanout](tasks-and-fanout.md)). The main walk is the run's one root chain, and it starts at the first top-level section, which is the preamble when the prompt has one ([The prompt language](prompt-language.md)). An `execute` child starts the same way in the prompt it runs. Each time a chain enters a section, the scheduler builds a `SectionContext`, which the code calls a frame. The frame owns a new `SectionVm`, a sandboxed Lua state that runs every block of the section, and the frame's `Drop` destroys it. The next section's VM starts with the Engine globals and the chain's `var`.
 
 The rule is one `SectionContext` for each section entry, whichever way the chain entered the section: by falling through from the section before, by `jump`, or by `call`. One VM shared across sections would create hidden globals that depend on the path the run took, uncloneable state, and inconsistent section inputs.
 
@@ -161,8 +173,8 @@ The frame constructor creates the VM and applies the run's memory and log limits
 1. It injects `args`, `sys`, and `var`.
 2. It installs the Engine globals, such as `log` and `json`.
 3. It installs `jump` and the `prompt` reads.
-4. It installs the coroutine shims, `models.loop` and the eight `store` functions among them.
-5. It runs each Pack prelude.
+4. It installs the coroutine shims, `models.loop`, `call`, `execute`, and the eight `store` functions among them.
+5. It runs the prelude of each Pack that the section's prompt declares.
 6. It installs `require`.
 
 The `store` functions are yield shims, so step 4 installs them with the other yield shims, before the preludes. A prelude runs on the main Lua state, outside any coroutine, where a yield fails. A prelude that calls the store or a tool while it installs therefore fails to load, and the run ends with the code `lua_runtime` before it issues any effect. A function that the prelude defines may call the store or a tool when a block calls that function.
@@ -181,7 +193,7 @@ The workspace builds `mlua` 0.12 with the features `lua55`, `vendored`, `seriali
 
 ### `Request` is one closed enum, and every `Answer` variant is a success
 
-Every call that suspends a block is one variant of `Request` in the Lua crate, with typed fields that the parse checks. The enum has 20 variants. A leaf request, such as `Infer` or `Store`, becomes an effect. A structural request, such as `Call` or `Spawn`, changes which chains the scheduler runs. The enum is closed because it is the audit surface: one file lists everything a script can cause.
+Every call that suspends a block is one variant of `Request` in the Lua crate, with typed fields that the parse checks. The enum has 21 variants. A leaf request, such as `Infer` or `Store`, becomes an effect. A structural request, such as `Call`, `Execute`, or `Spawn`, changes which chains the scheduler runs. The enum is closed because it is the audit surface: one file lists everything a script can cause.
 
 The scheduler resumes a block with a `Result` over `Answer`, and every failure is the `Err` side, because the Lua side reads the variant of an answer only when the answer is a success.
 
@@ -196,6 +208,22 @@ The trampoline is Lua because a Rust function can yield only with mlua's `async`
 A `Run` owns one `Scheduler`, and the scheduler owns five objects, each with its own state and rules. `ChainArena` stores the chains, `EffectTable` lists the effects that await an answer, `TaskArena` stores the tasks, `Inboxes` stores unread messages, and `Admission` queues the chains that wait for a concurrency slot. The scheduler itself owns the ready queue and the run's phase, and it performs every action that writes to two of the five.
 
 A request that changes one chain and the effect table, such as a model round, runs in `ChainOps`, a view that borrows that chain and the table. `Scheduler::with_chain` is the one entry to the view. Functions in the `execute` module take the chain's `ChainState` as their first parameter, `ctx`.
+
+### A chain holds the state of the prompt it runs
+
+`ChainState` has three layers. `SharedState` is the same for every chain of a run: the limits, the cancel flag, the event buffer, the handle to the run's files, and a table of the run's prompts by name. `PromptState` is the same for every chain that runs one prompt: the prompt, its tool set, its model set, and the preludes of the Packs that it declares. The fields of `ChainState` itself are the ones that a fork replaces: the chain's arguments, its reporting handles, its prompt, and its store. `ChainState::root` in `runvil-internal/runtime/src/execute/context.rs` builds one `PromptState` for the run's own prompt and one for each prompt it links.
+
+The scheduler reads a chain's prompt from the chain. A section lookup, `sys.section_count`, the round cap of `models.loop`, and the file name in an error therefore each come from the prompt that the chain runs. A `call` chain and a task keep the prompt and the store of the chain that started them.
+
+Each prompt has a tool set and a model set of its own because both depend on its front matter. The tool set marks the Packs under that prompt's `uses:` as the declared ones, and the model set has the thinking switch that the prompt's `models:` gives each role. Each is built over the run's one catalog, roster, and role map.
+
+### `execute` starts a `call` chain in another of the run's prompts
+
+`Request::Execute` has a name and optional arguments. `prepare_execute` in `runvil-internal/runtime/src/execute/scheduler/dispatch.rs` makes three checks in order: the depth cap, the name against the `prompts:` list of the prompt that the caller runs, and the arguments against the `args:` declaration of the named prompt. A failed check raises its error at the `execute`, and no chain starts. The function then forks the caller's state with `ChainState::with_prompt`, which gives the new chain the `PromptState` of the named prompt, the checked arguments, and a new store. It starts a chain of the kind `ChainKind::Call` whose parent is the caller. The chain starts at the first top-level section of the named prompt, with an empty `var`, on the `default` model of that prompt's model set, under the caller's file access and the caller's concurrency limit.
+
+The new chain is a `call` chain in all but the prompt it runs, so the scheduler has one code path for both. The caller is parked as on a `call`, and the chain's end answers it with the final text or with no text. The finish, the abort of a subtree, a cancel, the depth count, and the admission of tasks work as they do for a `call`, and the run reports no event of its own for an `execute`. The owner's reason: "it's not a separate run. The run is somewhat integrated into the whole."
+
+A run that a caller builds over a prompt from another prompt's `Prompt::linked` holds that one prompt. An `execute` of a second prompt fails there with the code `internal`, because a run is built over the prompt that a parse returned.
 
 ### A chain's position is a stack of `SectionPos` values
 
@@ -214,7 +242,7 @@ A caller changes a limit by assigning a field of `RunLimits::default()` and pass
 - `lua_memory_bytes`: 64 MiB for each Lua VM.
 - `lua_log_events`: 1024 `log` calls for each Lua VM.
 
-The fields are public because `RunLimits` is a plain `Copy` value whose only invariant is in its `NonZero` types. The call depth cap is a scheduler constant, `MAX_CALL_DEPTH`, with the value 8, and a deeper `call` or task fails with the code `call_depth_exceeded`.
+The fields are public because `RunLimits` is a plain `Copy` value whose only invariant is in its `NonZero` types. The call depth cap is a scheduler constant, `MAX_CALL_DEPTH`, with the value 8, and a deeper `call`, `execute`, or task fails with the code `call_depth_exceeded`. Every prompt of a run counts against the run's one set of limits: a task that an executed prompt spawns takes a slot under `max_concurrency` and counts toward `max_idle_tasks`, as a task of the run's own prompt does.
 
 ### A Lua block may run any number of instructions, and a hook polls the cancel flag
 
@@ -287,7 +315,7 @@ The owner's goal: "I want as many internal crates as possible and I want maximum
 
 Each of these items is still to be built.
 
-- **Child prompts.** A Lua `execute()` call that runs another prompt by the name the Host uses for it. A run executes one prompt, and `Prompt::parse` finds that prompt by name through a `PromptFinder`.
+- **An `execute` that returns at once.** A Lua `execute_async` call that starts another prompt as a task and returns its handle. `execute` runs a listed prompt as a blocking child chain, and its caller waits for the result.
 - **Replay.** Harness code that runs a recorded run a second time and compares the records of the two runs. The Engine attaches a `Provenance` to each effect and event, and `Effect::record` and `EffectAnswer::record` return the JSON that a run log stores.
 - **The store as a tool.** The `store` API as a tool, which would move the `Vfs` effect out of the Engine. The Engine issues a `Vfs` effect for each `store.*` call.
 - **The round id on `ModelTurnFailed`.** A round id in the `ModelTurnFailed` event, so that a Host can drop exactly the failed round's streamed pieces. The Engine writes the round id in a round's thinking, reply, and tool-call events.
@@ -297,7 +325,7 @@ Each of these items is still to be built.
 
 Each item names a place where the language guide differs from the code.
 
-1. Run limits. Chapter 16 has a section titled "The five run limits" and says that a prompt's own value "replaces the run's round cap". `RunLimits` in `runvil-internal/runtime/src/execute/params.rs` has six fields, and `ChainState::max_tool_iterations` caps the prompt's value at `tool_iterations_ceiling`.
+1. Run limits. Chapter 16 has a section titled "The five run limits" and says that a prompt's own value "replaces the run's round cap". `RunLimits` in `runvil-internal/runtime/src/execute/params.rs` has six fields, and `PromptState::max_tool_iterations` caps the prompt's value at `tool_iterations_ceiling`.
 2. Parse error kinds. Chapter 16 teaches six kinds, such as `Frontmatter` and `Structure`, and says "The set of parse error kinds is open". The code has one closed enum, `ErrorCode` in `runvil-internal/types/src/error.rs`, and `Prompt::parse` returns one of six codes, such as `frontmatter_invalid` or `lua_compile`.
 
 ## 11. Questions for the owner

@@ -80,10 +80,20 @@ The guide calls the undeclared Packs extras. A section offers them with `tools.o
 
 The Host decides because it is the party that installs Plugins. With this rule the Packs and tools that a prompt can reach on one Host are the same for every prompt, and the front matter of one prompt has no effect on what another prompt's run holds.
 
+### A linked prompt's `uses:` requires its Packs for the run and runs their preludes in its own sections
+
+A prompt may list other prompts under `prompts:`, and a run of it holds each of them for `execute` ([The prompt language](prompt-language.md)). `Host::parse` and the run's first step read the `uses:` of every one of those prompts. A Pack that a linked prompt declares is required for the run, so the run is refused when the Host lacks the Pack or the Pack cannot serve. The refusal names the linked prompt, as in `- review.md: web is unavailable: runvil/web is not installed`, and a Pack that two prompts declare counts once.
+
+A linked prompt's `uses:` does nothing else to the run. The run still has every Pack in the Host's registry, one instance of each, and a tool of any Pack answers a call from any of the run's prompts. In each section, `tools.packs` marks as required the Packs under the `uses:` of that section's own prompt, and `tools.packs.extras()` lists every other Pack of the run. A caller's Packs are therefore the same before and after it executes a prompt.
+
+A Pack's prelude runs in the sections of each prompt that declares the Pack, and in no section of a prompt that leaves it out. The owner's rule: "A prompt's sections should only have preludes injected for the packs it names. It should not inject preludes for packs named by other prompts in prompts: frontmatter". The Lua globals of a prompt therefore depend on its own `uses:` list, whichever prompt executes it, and two Packs whose preludes define one global collide only in a prompt that declares both.
+
+`RunPacks::preludes` gives the Engine one prelude for each usable Pack that any prompt of the run declares, and the Engine keeps for each prompt the preludes of the Packs that the prompt declares, in the order of its `uses:`. A prelude that fails to load fails the section entry that installs it. For an executed prompt, that entry is its first section, so the failure is the error that the `execute` raises.
+
 ### A declared Pack can be refused at three points
 
 1. At install. A Rust Plugin whose setup fails inserts its Pack as unavailable, with a reason. The loader drops every Pack of a library Plugin whose load fails, and `Host::parse` then reports each one with the text `is not installed`.
-2. At parse. `Host::parse` refuses a prompt that declares a Pack that the Host lacks, or one that a Plugin inserted as unavailable.
+2. At parse. `Host::parse` refuses a prompt when it, or a prompt it links, declares a Pack that the Host lacks or one that a Plugin inserted as unavailable.
 3. At the run's first step. A factory that fails or panics, or a `ready` that returns an error, makes the Pack unavailable to that one run. The Harness also marks `runvil/user` unavailable in a run that lacks a user (section 9).
 
 The third case exists because a factory's result is unknown at parse time. The next run calls the factory again.
@@ -441,7 +451,7 @@ Chapters 4, 12, and 13 show the refusal of a missing Pack at the run's first ste
 A Rust Pack can flag a tool with `survives_stop`, and it can set a Lua prelude. The Engine and the Harness act on both, and each shipped Rust Pack leaves both unset. A Pack from the C contract has neither (section 8).
 
 1. `survives_stop`. `ToolInfo::survives_stop` in `runvil-internal/types/src/tools/info.rs` sets the flag, and the Engine copies it to each `ToolCall` effect. On a stop, the Harness drops every tool call except a flagged one, through `Reach::AllButSurvivors` in `harness-internal/runner/src/effect_loop.rs`. `ToolInfo::new` sets the flag to `false`, each tool of `web` and `mcp` leaves it at `false`, the loader builds each tool of `std` and `bash` with `ToolInfo::new` and a wire name alone, and tests are the only callers of the setter.
-2. The Pack prelude. `PackInfo::prelude` in `runvil-plugin/src/pack.rs` sets the prelude. `RunPacks::preludes` in `harness-internal/runner/src/packs.rs` collects the preludes of the declared Packs, and `install_preludes` in `runvil-internal/lua/src/prelude.rs` runs them in each section VM. `PackInfo::new` sets the prelude to `None`, the `PackInfo` values of `web`, `mcp`, `user`, and `subagents` leave it at `None`, the loader builds the `PackInfo` of `std` and of `bash` from a name and a description, and tests are the only callers of the setter.
+2. The Pack prelude. `PackInfo::prelude` in `runvil-plugin/src/pack.rs` sets the prelude. `RunPacks::preludes` in `harness-internal/runner/src/packs.rs` collects the preludes of the Packs that the run's prompts declare, and `install_preludes` in `runvil-internal/lua/src/prelude.rs` runs a prompt's own in each of its section VMs. `PackInfo::new` sets the prelude to `None`, the `PackInfo` values of `web`, `mcp`, `user`, and `subagents` leave it at `None`, the loader builds the `PackInfo` of `std` and of `bash` from a name and a description, and tests are the only callers of the setter.
 
 ## 12. Questions for the owner
 
