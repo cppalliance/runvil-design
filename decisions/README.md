@@ -5,7 +5,7 @@ This folder has fifteen pages, one for each part of Runvil's design. A page says
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, `runvil-docs` at `cfd69a4`, `runvil-cloud-providers` at `1817cc4`, `runvil-plugin-api` at `63a2403`, and `runvil-plugin-bashkit` at `6a2e36d`
 - Repositories: the Engine and the Harness moved to the `runvil-harness` repository after that commit of `runvil`. The text on repositories, crates, dependency rules, and CI describes `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9` (see Limits)
 - Plugins: Workshop then moved to the `runvil-workshop` repository. The text on Plugins, Packs, and file access by tools describes `runvil-harness` at `18361d02`, `runvil-workshop` at `f386801b`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980` (see Limits)
-- Size: 545 entries in about 80,000 words
+- Size: 546 entries in about 80,000 words
 
 ## The pages
 
@@ -17,7 +17,7 @@ This folder has fifteen pages, one for each part of Runvil's design. A page says
 | [Files and the VFS](files-and-the-vfs.md) | The `store` API, the virtual file system, policies, conflicts | 24 | 2 | 8 |
 | [The Engine](engine.md) | Parsing, the run state machine, effects, limits, the one error type, the public surface | 40 | 2 | 9 |
 | [The Harness and the Host API](harness-and-host.md) | The `runvil` crate, `Host`, `RunSetup`, performing effects, the recorder, the run inbox, stop and cancel | 39 | 5 | 12 |
-| [Tools and Packs](tools-and-packs.md) | Tools, Packs, Plugins, the C contract, the shipped Packs | 61 | 5 | 16 |
+| [Tools and Packs](tools-and-packs.md) | Tools, Packs, Plugins, the C contract, the shipped Packs | 62 | 5 | 16 |
 | [The Gateway](gateway.md) | The Gateway's API, configuration, local models, providers, profiles, boot | 52 | 15 | 10 |
 | [Speech](speech.md) | Speech to text, text to speech, voice in Workshop | 39 | 7 | 6 |
 | [Workshop: how the app is built](workshop-app.md) | The desktop shell, the server, the protocol, state, the workspace document | 48 | 11 | 9 |

@@ -18,7 +18,7 @@ Section 10 lists the planned work. Its two largest items are one Plugin API, whi
 
 A Plugin is an entry point that installs Packs. Four Plugins ship with Runvil. Two are dynamic libraries that export the C function `runvil_plugin`: `std` and `bashkit`, each in a repository of its own. The other two are Rust functions named `install`, one in each of `plugin-web` and `plugin-mcp`. A Pack installs tools, and a Rust Pack can also set a Lua prelude. The Pack `runvil/web` installs two tools, `web/search` and `web/fetch`.
 
-At startup the Host creates a `PackRegistry`, calls each `install` function with it, and has the Harness load the libraries of its Plugin directory into it. Each Pack enters the registry together with a factory. When a run starts, the Harness picks the run's Packs, asks the factory of each one for that run's Pack instance, waits for the instance's `ready`, and reads its tool list. The two ways into the registry are two Plugin APIs with different abilities, which is a gap (section 11). The plan is one API, the C contract, for every Pack (section 10).
+At startup the Host creates a `PackRegistry`, calls each `install` function with it, and has the Harness load the libraries of its Plugin directory into it. Each Pack enters the registry together with a factory, and the registry holds one Pack for each Pack id. When a run starts, the Harness asks the factory of each Pack in the registry for that run's Pack instance, waits for the instance's `ready`, and reads its tool list. The two ways into the registry are two Plugin APIs with different abilities, which is a gap (section 11). The plan is one API, the C contract, for every Pack (section 10).
 
 A prompt lists the Packs it requires under `uses:`. Each section's Lua then offers tools to its model with `tools.offer`. At the section's first `models.loop` round, the Engine builds the tool list from those offers and sends the same list with every later round.
 
@@ -34,6 +34,12 @@ A Pack installs tools, and a Rust Pack can also set a Lua prelude. A Plugin is a
 
 A Pack's fully qualified name has two segments, a vendor and a name, as in `runvil/web`. The name segment is the Pack id, and every tool id in the Pack starts with it, as in `web/fetch`.
 
+### A registry holds one Pack for each Pack id
+
+`PackRegistry` refuses a Pack whose id it already holds, whatever the vendor of either Pack. The first Pack that a Plugin inserts keeps the id, and the second insert fails with the reason `pack_id_taken` and a message that names the holder, as in ``Pack `acme/web` cannot take the Pack id web, which `runvil/web` holds``. A Pack that a Plugin inserted as unavailable holds its id too. The two built-in Packs are in every registry from the start, so the same rule keeps `subagents` and `user` for them. The owner's rule: "runvil/web and acme/web cannot both be in the host's PackRegistry".
+
+The rule follows from the tool id. A tool id starts with the Pack id and has no vendor, and the Harness finds the Pack for a tool call from that first segment. With one Pack for each id, `web/fetch` names one tool on a Host, and a prompt reaches every Pack of a run by its bare Pack id.
+
 ### Lua uses a tool's id, and the model uses its wire name
 
 Lua code uses the id, such as `web/search`. The model sees the wire name, which by default is the id with `_` in place of each `/` and `.`. A Pack may set a different wire name, and the model sees `std/read` as `Read`.
@@ -42,7 +48,11 @@ The tool objects that Lua reads omit wire names, because the Engine may rename t
 
 ### A bare name under `uses:` means the `runvil` vendor
 
-`uses: [web]` means `runvil/web`. A prompt writes another vendor's Pack with both segments, as `acme/web`, and that Pack then replaces `runvil/web` in the run. Under this rule each name has one meaning. If a bare name could mean a third-party Pack, a `runvil` Pack of the same name that ships later would silently take its place in an existing prompt.
+`uses: [web]` means `runvil/web`. A prompt writes another vendor's Pack with both segments, as `acme/web`. Under this rule each name has one meaning. If a bare name could mean a third-party Pack, a `runvil` Pack of the same name that ships later would silently take its place in an existing prompt.
+
+The bare name is the one thing that sets the `runvil` vendor apart. A Pack of any vendor is in every run of its Host (section 2), and Lua reaches each one by its Pack id.
+
+An entry must name the vendor that the Host installed the Pack from. On a Host that has `acme/poop`, the entry `poop` is refused with `poop means runvil/poop, which is not installed; write acme/poop to use that Pack`, and on a Host that has `runvil/web`, the entry `acme/web` is refused with `acme/web is not installed`. The Harness leaves the installed Pack of that id out of such a run, because the run's roster lists the id as unavailable, and the run's first step refuses the run.
 
 The Engine reserves two Pack ids for its own tools. A tool that a prompt defines in Lua gets an id under `adhoc`, and the two discovery tools get ids under `dynamic`.
 
@@ -62,9 +72,13 @@ A prelude runs only for a declared Pack because it defines Lua globals, and so c
 
 Every entry is required. A prompt that can run with or without a Pack tests `tools.packs.get('name')`, which returns the Pack object when the run has the Pack.
 
-### A run includes every `runvil` Pack, and a section opts in to the undeclared ones
+### A run includes every Pack the Host installed, and a section opts in to the undeclared ones
 
-A run includes the Packs its prompt declares, plus each `runvil` Pack whose id is still free. The guide calls the undeclared ones extras. A section offers them with `tools.offer(tools.packs.extras())`, as the built-in chat prompt does. The owner's rule: "extras should be a per-section setting. Disabled by default, and opt-in".
+A run includes every Pack in the Host's registry, whatever the Pack's vendor and whatever the prompt declares. A `uses:` entry adds no Pack to a run and removes none. It marks a Pack as required, so that the run is refused when the Pack is missing or cannot serve, and it runs the Pack's prelude. The owner's rule: "Packs are determined by the host, not the prompts. The frontmatter just indicates which packs are *required*."
+
+The guide calls the undeclared Packs extras. A section offers them with `tools.offer(tools.packs.extras())`, as the built-in chat prompt does. The owner's rule: "extras should be a per-section setting. Disabled by default, and opt-in".
+
+The Host decides because it is the party that installs Plugins. With this rule the Packs and tools that a prompt can reach on one Host are the same for every prompt, and the front matter of one prompt has no effect on what another prompt's run holds.
 
 ### A declared Pack can be refused at three points
 
@@ -76,7 +90,7 @@ The third case exists because a factory's result is unknown at parse time. The n
 
 ### The Harness reads each Pack's tools once, when the run starts
 
-The Harness picks the run's Packs from `uses:`, makes their instances, waits for each `ready`, and reads each tool list. The run uses that catalog until it ends. The Harness picks first so that a run waits only for its own Packs. An error from `ready` is temporary. A Pack that recovers is available to the runs that start afterward.
+The Harness makes the run's instance of each installed Pack, waits for each `ready`, and reads each tool list. The run uses that catalog until it ends. A run waits for every Pack, declared or not, because the tools of an undeclared Pack are in its catalog too. `Pack::ready` resolves within a bound that the Pack owns, so a Pack that cannot start fails its `ready` within that bound, and the run goes on without its tools. An error from `ready` is temporary. A Pack that recovers is available to the runs that start afterward.
 
 ### Lua reads one catalog for the whole run, and the Engine builds the model's tool list once for each section entry
 
