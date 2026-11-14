@@ -194,7 +194,7 @@ The names are the Agent Client Protocol's because the draft of that protocol has
 
 ### `POST /prompts/contract` parses prompt text and returns what its front matter declares
 
-The Run window posts a prompt's name and text. The route calls `Prompt::parse` and answers a `ContractResponse` with `name`, `description`, `runvil`, `max_tool_iterations`, `input`, `output`, `uses`, `args`, and `models`. A prompt that fails to parse answers 422 with a code such as `parse_frontmatter` or `parse_lua`.
+The Run window posts a prompt's name and text. The route calls `Prompt::parse` and answers a `ContractResponse` with `name`, `description`, `runvil`, `max_tool_iterations`, `output`, `uses`, `args`, and `models`. `args` is the prompt's declaration as JSON Schema, as `ArgsSchema::as_json` returns it ([The prompt language](prompt-language.md)). A prompt that fails to parse answers 422 with a code such as `parse_frontmatter` or `parse_lua`.
 
 The route is in the server crate because it only parses a prompt: its work is independent of the granted-folder check, and in `workshop-workspace` it would be that crate's only reason to depend on the Engine.
 

@@ -176,7 +176,7 @@ CodeMirror is a ready-made editor, and the interface isolates it from the rest o
 
 ### The Run window shows what a prompt declares, and its Run button has an empty click handler
 
-Run > New Run Window runs `workbench.action.newRunWindow`, which opens a `run` panel in the main zone and loads the focused editor's file. The panel posts the prompt's text to the server route `POST /prompts/contract` and draws one row for each front-matter key except `uses`. The owner's rule: "let's keep the UI simple, one row for each thing."
+Run > New Run Window runs `workbench.action.newRunWindow`, which opens a `run` panel in the main zone and loads the focused editor's file. The panel posts the prompt's text to the server route `POST /prompts/contract` and draws one row for each front-matter key except `uses`. For `args` it draws one row for each argument the prompt declares at the top level: a switch for a boolean, a number field for an integer or a number, a text field for a string, and a box of JSON text for a list or an object. A string named `text` gets a multiline box, because `text` is the Engine's name for free text. The owner's rule: "let's keep the UI simple, one row for each thing."
 
 The Run button exists so that the window has its final shape. Its click handler is empty because running a prompt from this window is still to be built (section 8).
 
