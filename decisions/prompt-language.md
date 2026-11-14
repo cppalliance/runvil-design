@@ -259,9 +259,9 @@ The owner's reason: "Simpler implementation. Simpler mental model for authors. T
 
 ### `var` is a guarded table of JSON data
 
-`var` is an empty proxy table over a hidden data table, and each table that an author reads from it is a view of the same kind. The proxy checks each write at the assigning line: a function, a userdata, or a thread raises an error that says the value `must be JSON data`, and a key that JSON data has no place for, such as a boolean or an index past the end of a list, raises an error that names the key. A view measures and iterates like the table it stands for: `#` gives the length of the data, `pairs` and `next` visit its entries, and `var.items[#var.items + 1] = x` appends to a list.
+`var` is an empty proxy table over a hidden data table, and each table that an author reads from it is a view of the same kind. The proxy checks each write at the assigning line, by the rules of `json.encode`: a function, a userdata, or a thread raises an error that says the value `must be JSON data`, and a table that mixes list items and named keys raises an error that names it. A write that would leave its table neither a list nor an object raises too, such as a boolean key, a named field in a list, or an index past the end of a list. A view measures and iterates like the table it stands for: `#` gives the length of the data, `pairs` and `next` visit its entries, and `var.items[#var.items + 1] = x` appends to a list.
 
-The proxy is empty because Lua calls `__newindex` only for a key that a table lacks, so only an empty table sees every write. The Engine sets `__len` on each view, and its own `pairs` and `next` read through one, so that an author treats a `var` table as a plain table.
+The proxy is empty because Lua calls `__newindex` only for a key that a table lacks, so only an empty table sees every write. The guard refuses a write that `var` cannot hold as JSON data, where the write is made, because the read-back of `var` at the end of the block would otherwise fail on it or drop a part of it with no message. The Engine sets `__len` on each view, and its own `pairs` and `next` read through one, so that an author treats a `var` table as a plain table.
 
 ### `sys` is a sealed table of facts about the run and the section entry
 

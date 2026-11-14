@@ -42,7 +42,7 @@ They are methods of `Scheduler` because the owners depend on each other through 
 
 ### `tasks.spawn` starts a chain over a section and returns a handle at once
 
-`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. `opts.args` gives the chain its own arguments, a table of named fields or a string, by the rule of the second argument of `call` ([The prompt language](prompt-language.md)), and a chain that gets none reads its spawner's `args`. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has thirteen functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
+`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. `opts.args` gives the chain its own arguments, a table of named fields or a string, by the rule of the second argument of `call` ([The prompt language](prompt-language.md)), and a chain that gets none reads its spawner's `args`. `opts` takes the keys `args`, `item`, and `index`, and any other key raises an error that names it, so a misspelled option fails at the call. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has thirteen functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
 
 ### The chain that spawns a task owns it
 
