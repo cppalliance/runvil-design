@@ -37,11 +37,11 @@ The owner's rule: "we don't require any headings at all". An author who wants a 
 
 Every prompt is a Markdown file, and the same Engine code runs a fixed pipeline, a model that calls tools in a loop, and a chat with a user. The Lua in each section decides which of these the section does. The choice belongs to the section because one prompt can combine all three.
 
-### Front matter accepts eight keys and refuses any other
+### Front matter accepts seven keys and refuses any other
 
-The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `output`, `uses`, `args`, and `models`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
+The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `uses`, `args`, and `models`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
 
-Section 5 covers `args:`. Other pages cover four keys: `uses:` ([Tools and Packs](tools-and-packs.md)), `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)), and `output:`, which names one file in the store ([Files and the VFS](files-and-the-vfs.md)).
+Section 5 covers `args:`. Other pages cover three keys: `uses:` ([Tools and Packs](tools-and-packs.md)), and `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)).
 
 ### `runvil: 0` marks a prompt, and a language change leaves the version at 0
 
@@ -140,6 +140,8 @@ A `return` ends the chain whatever its value, because the author wrote it to end
 Lua returns no value both for a bare `return` and for a block that ends with none, so the Engine marks the difference when it compiles a block. `LuaProgram::compile` in `runvil-internal/lua/src/program.rs` compiles the block's source inside a `do` block, followed by a `return` of the block's one argument. The Engine calls every block with a private marker as that argument, so a block returns the marker only when it runs off its end. The compiler checks the source alone first, so a syntax error reads as it does for the source alone, and every line of the block keeps its number.
 
 When the main walk runs past its last section, or ends at a `return` with no text, the run's result is the text `done`. A prompt that lacks sections, one whose body has no heading and no Lua block, is valid and ends the same way, because the walk has no section to enter.
+
+The output of a prompt is its return value: a prompt that built a file returns the file's text, as in `return store.read('report.md')`. A run has one way in, its arguments, and one way out, its result. The owner's rule: "If a prompt wants to return a file, it should return it as the string of its return value."
 
 ### `jump` ends the block and continues the walk at another section
 

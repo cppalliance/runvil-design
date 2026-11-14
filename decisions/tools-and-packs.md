@@ -260,7 +260,7 @@ The Harness calls `new_pack` while it prepares the run, so a factory returns qui
 
 ### `ToolContext` lends each call the tool id, a file access, and the call's origin
 
-`cx.tool()` returns the id of the called tool. `cx.access()` returns the call's file access, rooted at `/`. `cx.origin()` says which section and which caller made the call. The context's fields are borrows that end with the call, so the Rust compiler rejects a Pack that stores the access.
+`cx.tool()` returns the id of the called tool. `cx.access()` returns the call's file access, rooted at `/` of the file system that the Host gave the run. It reaches no store, so a tool sees no file that `store.write` wrote ([Files and the VFS](files-and-the-vfs.md)). `cx.origin()` says which section and which caller made the call. The context's fields are borrows that end with the call, so the Rust compiler rejects a Pack that stores the access.
 
 The owner's rule: "The tool can't keep the access. ... it has to give it up, after the call is done". A Rust Pack reads the services it needs at `install` and stores them in its factory.
 
@@ -276,9 +276,9 @@ The owner's rule: "The tool can't keep the access. ... it has to give it up, aft
 
 A Rust Pack's tool reads and writes files through `cx.access()`, and each operation runs inside the call. The reason is that the Harness is independent of any particular async runtime, so each part of the context has to be independent of tokio. The shipped Rust Packs, `web` and `mcp`, leave the access unused. The shipped tools that touch files are in the library Plugins `std` and `bashkit`, and they read through the three file functions of the contract, which the loader answers from the same access (section 8). A long file job yields so that the Harness can cancel it. Grep, in the `std` library, ends its step after every 32 files or directories, or after 2 MiB read, so a stop or a cancel drops a long search between two steps.
 
-### The run's mode policy decides each file change
+### The run's mode policy decides each file change that a tool makes
 
-A tool performs every file operation on the call's access, and the file system applies the run's mode policy to each one. In Ask mode it refuses each change, and in Plan mode it accepts changes to markdown paths. The check is in the file system because every operation passes through the access, so the check covers every tool, including each tool written later. Workshop's runs use the file system's default policy, `AllowAll`, and tests are the callers of `ModePolicy` ([Files and the VFS](files-and-the-vfs.md)).
+A tool performs every file operation on the call's access, and the file system applies the run's mode policy to each one. In Ask mode it refuses each change, and in Plan mode it accepts changes to markdown paths. The check is in the file system because every operation passes through the access, so the check covers every tool, including each tool written later. A `store` call is outside the policy, because the run's store is no part of the file system that tools work in. Workshop's runs use the file system's default policy, `AllowAll`, and tests are the callers of `ModePolicy` ([Files and the VFS](files-and-the-vfs.md)).
 
 ### Host services are named, typed objects that `install` reads
 

@@ -8,7 +8,7 @@
 
 ## Summary
 
-The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 107 names a caller uses. Sections 1 to 8 describe these parts.
+The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 103 names a caller uses. Sections 1 to 8 describe these parts.
 
 A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
 
@@ -36,7 +36,7 @@ The Engine returns this work as values so that it is independent of any runtime 
 
 `Effect` has five variants: `Chat` for one model round, `Render` for a Pack's rendering of offered tools, `ToolCall` for one call of a Pack's tool, `Vfs` for one `store` operation, and `Timer` for one sleep. [Tools and Packs](tools-and-packs.md) covers `Render` and `ToolCall`.
 
-The Engine performs four kinds of work itself and reports each as an event: an adhoc tool call, a `GetDynamicTools` call, a refused discovery call, and a `store` call that a Pack prelude makes while it installs.
+The Engine performs three kinds of work itself and reports each as an event: an adhoc tool call, a `GetDynamicTools` call, and a refused discovery call.
 
 ### The caller supplies the start time and a 256-bit seed
 
@@ -80,7 +80,7 @@ The caller answers effects one at a time, in any order. Parallel work in a fanou
 
 ### `Run::new` always succeeds, and the first `step` checks that the run can start
 
-The first `Run::step` calls `check_start`, which makes four checks in order. The prompt declares `runvil: 0`. The arguments are one JSON object that matches the prompt's `args:` declaration ([The prompt language](prompt-language.md)): `Run::new` reads the text and keeps a mismatch for this check, which returns it with the code `args_invalid` and no location. The params' file system declares a store whose backend passes a probe. The params meet what the prompt requires: each Pack under `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each declared role meets that role's requirements. A requirements failure has the code `requirements_unmet`, and its message names every gap.
+The first `Run::step` calls `check_start`, which makes three checks in order. The prompt declares `runvil: 0`. The arguments are one JSON object that matches the prompt's `args:` declaration ([The prompt language](prompt-language.md)): `Run::new` reads the text and keeps a mismatch for this check, which returns it with the code `args_invalid` and no location. The params meet what the prompt requires: each Pack under `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each declared role meets that role's requirements. A requirements failure has the code `requirements_unmet`, and its message names every gap.
 
 ### A step returns its effects and its events as values
 
@@ -138,7 +138,7 @@ One counter numbers every model round of a run in issue order, and loop rounds a
 
 The Engine issues a `Vfs` effect for each of the eight `store.*` calls. The effect has an `access`, the calling chain's view of the run's store, and a `VfsOp` with the call's arguments. A caller answers it with `perform_vfs_op(&access, op)`, a synchronous function ([Files and the VFS](files-and-the-vfs.md)).
 
-Lua says `store`, and the names below the Lua layer say `Vfs`, because every one of these operations is a VFS operation made through the run's store view.
+Lua says `store`, and the names below the Lua layer say `Vfs`, because every one of these operations is a VFS operation made through a view of the run's store.
 
 ### `Effect::record` and `EffectAnswer::record` return JSON for the run log
 
@@ -158,15 +158,16 @@ One function, `enter_section`, builds the frame for every entry, the preamble's 
 
 The frame constructor creates the VM and applies the run's memory and log limits. `setup_section_vm` then runs its installs in this order:
 
-1. It injects `args`, `sys`, `var`, and the store access.
-2. It installs the Engine globals, such as `log` and `store`.
+1. It injects `args`, `sys`, and `var`.
+2. It installs the Engine globals, such as `log` and `json`.
 3. It installs `jump` and the `prompt` reads.
-4. It installs the coroutine shims, `models.loop` among them.
+4. It installs the coroutine shims, `models.loop` and the eight `store` functions among them.
 5. It runs each Pack prelude.
 6. It installs `require`.
-7. It replaces the store functions with yielding shims.
 
-A prelude runs before step 7 because it runs outside a coroutine, where a yield fails. The limits apply before any install, so each prelude runs under the run's own limits.
+The `store` functions are yield shims, so step 4 installs them with the other yield shims, before the preludes. A prelude runs on the main Lua state, outside any coroutine, where a yield fails. A prelude that calls the store or a tool while it installs therefore fails to load, and the run ends with the code `lua_runtime` before it issues any effect. A function that the prelude defines may call the store or a tool when a block calls that function.
+
+The store shims are in place before the preludes on the owner's instruction: "refuse store calls during a prelude's install". The call fails the way a tool call there fails, with no code path of its own, and the run's record holds every store operation of the run. The limits apply before any install, so each prelude runs under the run's own limits.
 
 ### A Lua call that waits yields a request from a coroutine
 
@@ -225,7 +226,7 @@ The Engine sets two quotas, both on `log`: a count of events and a count of byte
 
 ### Every Engine and Harness failure is one `Error` record with an `ErrorCode`
 
-`Error` is a struct in `runvil-types` with five public fields: `code`, `message`, `prose`, `at`, and `facts`. `ErrorCode` is an enum of 69 codes, each with a number and a tag such as `lua_runtime` (201). The hundreds digit names the family: 1xx parse, 2xx Lua, 3xx tasks, 4xx model, 5xx tools, 6xx store, 7xx run, and 8xx caller. The enum's docs add: "A number is never reused." The root `AGENTS.md` makes `Error` the one error type of the Engine and Harness crates, with `VfsError` as the main exception.
+`Error` is a struct in `runvil-types` with five public fields: `code`, `message`, `prose`, `at`, and `facts`. `ErrorCode` is an enum of 67 codes, each with a number and a tag such as `lua_runtime` (201). The hundreds digit names the family: 1xx parse, 2xx Lua, 3xx tasks, 4xx model, 5xx tools, 6xx store, 7xx run, and 8xx caller. The enum's docs add: "A number is never reused." The root `AGENTS.md` makes `Error` the one error type of the Engine and Harness crates, with `VfsError` as the main exception.
 
 `Error`, `ErrorCode`, and `ErrorFact` omit the `#[non_exhaustive]` attribute, so a new code breaks the build of a Host whose `match` on `ErrorCode` names every variant.
 
@@ -249,7 +250,7 @@ The Lua crate builds a failure with `make_lua_runtime_error` when the prompt aut
 
 ### `runvil-engine` contains re-exports, and each item has one path
 
-The crate's one source file has 107 `pub use` lines, at the root and in ten `pub mod` blocks, and private crates define every item. The code calls such a crate a facade. Each line re-exports one item by name from the crate that defines it. A structural check rejects a glob, a list, and an item definition, and `cargo xtask api` rejects a re-exported module ([Crates, build, and CI](crates-build-and-ci.md)). The `runvil` crate, which a Host depends on, is a second facade ([The Harness and the Host API](harness-and-host.md)).
+The crate's one source file has 103 `pub use` lines, at the root and in nine `pub mod` blocks, and private crates define every item. The code calls such a crate a facade. Each line re-exports one item by name from the crate that defines it. A structural check rejects a glob, a list, and an item definition, and `cargo xtask api` rejects a re-exported module ([Crates, build, and CI](crates-build-and-ci.md)). The `runvil` crate, which a Host depends on, is a second facade ([The Harness and the Host API](harness-and-host.md)).
 
 A caller finds every item in this one crate. The owner's reason: "I dont want types scattered around different crates. I have discovered it becomes hard to browse the cargo doc that way." Each line names a single item because a re-exported module or crate would expose everything that the module later gains, and a second path to an item would make the API ambiguous.
 
@@ -288,7 +289,7 @@ Each of these items is still to be built.
 
 - **Child prompts.** A Lua `execute()` call that runs another prompt by the name the Host uses for it. A run executes one prompt, and `Prompt::parse` finds that prompt by name through a `PromptFinder`.
 - **Replay.** Harness code that runs a recorded run a second time and compares the records of the two runs. The Engine attaches a `Provenance` to each effect and event, and `Effect::record` and `EffectAnswer::record` return the JSON that a run log stores.
-- **The store as a tool.** The `store` API as a tool, which would move the `Vfs` effect and the store probe out of the Engine. The Engine issues a `Vfs` effect for each `store.*` call, and the first `step` probes the store's backend.
+- **The store as a tool.** The `store` API as a tool, which would move the `Vfs` effect out of the Engine. The Engine issues a `Vfs` effect for each `store.*` call.
 - **The round id on `ModelTurnFailed`.** A round id in the `ModelTurnFailed` event, so that a Host can drop exactly the failed round's streamed pieces. The Engine writes the round id in a round's thinking, reply, and tool-call events.
 - **Bounds on JSON conversion.** A size budget at every site that converts a Lua table. `json.encode` and `var` writes have a size budget. Six other sites in the Lua crate convert a table of any size, and one encode runs as a single Rust callback between cancel polls.
 

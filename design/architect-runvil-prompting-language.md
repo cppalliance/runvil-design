@@ -48,7 +48,6 @@ Constructs described below are labeled active (changed by this plan), existing (
 - L: lifecycle, `local_include`, `log(message)`, `lua`, `lua inherit`
 - M: `markdown.parse`, `markdown.render`, `markdown.section`, `markdown.section_or`, `markdown.select`, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
 - N: `name`
-- O: `output`
 - P: deferred `pfanout`, preamble, `prompt.section(path)`, `prompt.section_or(path)`, `runvil: 0`, `prose`, provider projection
 - R: `require(path)`, `return`
 - S: section paths, sections, selectors, snapshots, `store.append`, `store.delete`, `store.exists`, `store.glob`, `store.read`, `store.read_numbered`, `store.str_replace`, `store.write`, substitution, `sys`
@@ -78,7 +77,7 @@ return models.infer(prose)
 
 **Frontmatter.** The file starts with YAML containing `name`, `description`, and exactly `runvil: 0`. Unknown keys fail.
 
-An optional `output` declaration contains `path` and `description`. Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to 24.
+Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to 24.
 
 Optional `args` declares the run's arguments, one JSON object, in a subset of JSON Schema with the keywords `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`, `description`, and `default`. A `type` is `string`, `boolean`, `integer`, `number`, `array`, or `object`, and the root is an object. Any other keyword fails the parse. An object is closed unless it says `additionalProperties: true`. A prompt without `args` takes one optional string named `text`. The run's first step fills each missing field's default, checks the arguments against the declaration, and ends the run with `args_invalid` on the first mismatch.
 

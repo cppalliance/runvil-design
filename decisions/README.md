@@ -14,9 +14,9 @@ This folder has fifteen pages, one for each part of Runvil's design. A page says
 | [The prompt language](prompt-language.md) | The prompt file, sections, Lua blocks, the Lua globals, arguments, substitution, `jump` and `call` | 47 | 1 | 9 |
 | [Model calls and conversations](models-and-conversations.md) | The `models` API, the model loop, roles, replies, messages, compaction | 45 | 5 | 10 |
 | [Tasks and fanout](tasks-and-fanout.md) | Concurrent work in a run, the scheduler's order, determinism, inboxes | 26 | 1 | 5 |
-| [Files and the VFS](files-and-the-vfs.md) | The `store` API, the virtual file system, policies, conflicts | 24 | 3 | 8 |
+| [Files and the VFS](files-and-the-vfs.md) | The `store` API, the virtual file system, policies, conflicts | 24 | 2 | 8 |
 | [The Engine](engine.md) | Parsing, the run state machine, effects, limits, the one error type, the public surface | 40 | 2 | 9 |
-| [The Harness and the Host API](harness-and-host.md) | The `runvil` crate, `Host`, `RunSetup`, performing effects, the recorder, the run inbox, stop and cancel | 39 | 5 | 13 |
+| [The Harness and the Host API](harness-and-host.md) | The `runvil` crate, `Host`, `RunSetup`, performing effects, the recorder, the run inbox, stop and cancel | 39 | 5 | 12 |
 | [Tools and Packs](tools-and-packs.md) | Tools, Packs, Plugins, the C contract, the shipped Packs | 61 | 5 | 16 |
 | [The Gateway](gateway.md) | The Gateway's API, configuration, local models, providers, profiles, boot | 52 | 15 | 10 |
 | [Speech](speech.md) | Speech to text, text to speech, voice in Workshop | 39 | 7 | 6 |
@@ -50,7 +50,7 @@ Every page has the same parts in the same order.
 
 ## The gaps that matter most
 
-The pages list 74 gaps and ask 123 questions. These ten gaps matter most.
+The pages list 73 gaps and ask 122 questions. These ten gaps matter most.
 
 1. **MCP server text marked trusted.** An adhoc tool that wraps `mcp/get_dynamic_tools` returns the servers' text to the model outside the untrusted envelope and marked trusted, because two trust rules overlap. The evidence is a reading of the code and two tests, and a test with the real `mcp` Pack would confirm it. ([Tools and Packs](tools-and-packs.md))
 2. **A Gateway guide that differs from the code.** Most of the Gateway page's fifteen gaps are places where the guide says one thing and the code does another. The Speech page lists seven more in the guide's speech chapter, which describes loudness detection where the code runs Silero. ([The Gateway](gateway.md), [Speech](speech.md))

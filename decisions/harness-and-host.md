@@ -10,7 +10,7 @@
 
 A Host is an application that runs prompts, and it depends on one crate, `runvil`. At startup it builds one `Host` struct: its installed Packs, a prompt finder, and a timer. For each run it fills a `RunSetup` with a recorder, an inference broker, a file system, and the run's settings, and creates one `Harness`. `Harness::run` is one future. It steps the Engine, performs each effect, writes every event, effect, and answer to the recorder, and returns a `RunReport`. A `RunControl` sends messages to the run, stops the work in flight, or cancels the run. Sections 1 to 6 describe these parts.
 
-A check of this page against the code found five gaps and left thirteen questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: the table in chapter 16 says that the Harness changes the response cap and the receive timeout, and `GatewayBroker::new` always uses the defaults.
+A check of this page against the code found five gaps and left twelve questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: the table in chapter 16 says that the Harness changes the response cap and the receive timeout, and `GatewayBroker::new` always uses the defaults.
 
 Section 7 lists the planned work. Its largest item is replay: the recorder receives the seed, the start time, every answer, and every message of a run, and the code that passes them to a second run is still to be built.
 
@@ -24,23 +24,23 @@ For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` 
 
 The effect loop then calls `Run::step`. It appends the step's events to the recorder, then appends each effect and starts it. A `Chat` effect calls `InferenceBroker::chat`, a `ToolCall` or `Render` effect calls the run's Packs, a `Timer` effect calls `Timer::sleep`, and a `Vfs` effect runs at once on the same thread. When an answer is ready, the loop appends it and calls `Run::resume`. The same wait also ends on a cancel, a stop, or a sent message.
 
-When `Run::step` returns `Step::Done`, the loop calls the recorder's `end_run` with the result. `Harness::run` reads the declared `output:` file and returns a `RunReport`.
+When `Run::step` returns `Step::Done`, the loop calls the recorder's `end_run` with the result. `Harness::run` returns a `RunReport` with three fields: the run's id in `run_id`, the same result in `result`, and the messages that the run left unread in `unread`.
 
 ## 1. The three layers and the `runvil` crate
 
 ### The Engine emits effects, the Harness performs them, and the Host decides policy
 
-The root `AGENTS.md` defines the terms. The Engine, the `runvil-*` crates, parses a prompt, steps a run, and emits an effect each time the run needs a model reply, a tool result, a timer, or a file. The Harness, the `runvil` crate and the `harness-*` crates, steps the Engine, performs every effect, and records every run. A Host is an application such as Workshop, and it "makes every policy decision".
+The root `AGENTS.md` defines the terms. The Engine, the `runvil-*` crates, parses a prompt, steps a run, and emits an effect each time the run needs a model reply, a Pack's render of the tools a section offers it, a Pack tool's result, a timer, or a store operation. The Harness, the `runvil` crate and the `harness-*` crates, steps the Engine, performs every effect, and records every run. A Host is an application such as Workshop, and it "makes every policy decision".
 
 The Harness owns the effect loop because one ordered record of a run exists only if the Harness sees every effect and every answer. Replay and resume, which section 7 lists as planned work, depend on the same condition.
 
 ### A prompt names roles and Pack ids, and the Host binds both
 
-A prompt file names a model by a role, such as `strong`, and a set of tools by a Pack id under `uses:`. The Host supplies the rest: its selected model fills the roles, its `PackRegistry` supplies the Packs, and `RunSetup.vfs` is the run's file system.
+A prompt file names a model by a role, such as `strong`, and a set of tools by a Pack id under `uses:`. The Host supplies the rest: its selected model fills the roles, its `PackRegistry` supplies the Packs, and `RunSetup.vfs` is the file system that the run's tool calls work in.
 
 ### A Host depends on one crate, `runvil`
 
-`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Rust Plugin API. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, and the rest of the Harness is in `runvil::harness`, which includes the loader of the C contract: `insert_plugin`, `insert_plugin_dir`, `Plugin`, `PluginReport`, and `PluginSource`. `runvil::plugin` has the Rust Plugin API of the crate `runvil-plugin`, such as `PackRegistry`, `Pack`, and `HostServices`. The types of the C contract are in `runvil-plugin-sys`, outside `runvil`. The crate has 122 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
+`runvil` re-exports three groups of items: the Harness, the Engine items a Host reads and builds, and the Rust Plugin API. `Harness`, `Host`, `RunSetup`, `RunReport`, and `RunControl` are at the crate root, and the rest of the Harness is in `runvil::harness`, which includes the loader of the C contract: `insert_plugin`, `insert_plugin_dir`, `Plugin`, `PluginReport`, and `PluginSource`. `runvil::plugin` has the Rust Plugin API of the crate `runvil-plugin`, such as `PackRegistry`, `Pack`, and `HostServices`. The types of the C contract are in `runvil-plugin-sys`, outside `runvil`. The crate has 118 re-exports, each at one path. `cargo xtask api` checks that every type from this repository that a `runvil` signature names is among them.
 
 The owner's goal: "I want the outside world to only see one runvil crate, not runvil-*."
 
@@ -76,27 +76,29 @@ A Host's own parts may still need a runtime: the docs of `GatewayBroker` state t
 
 ### `RunSetup::new` takes the recorder and the broker, and every other field has a default
 
-`RunSetup::new(recorder, broker)` sets the two required fields. The other seven start at defaults: a fresh in-memory store in `vfs`, empty values in `selected_model` and `workspace_roots`, the empty object `{}` in `args`, `RunLimits::default()` in `limits`, 10 in `max_tool_calls_in_flight`, and `false` in `has_user`. Workshop leaves `limits` and `max_tool_calls_in_flight` at their defaults, among them 24 loop rounds and 8 concurrent tasks.
+`RunSetup::new(recorder, broker)` sets the two required fields. The other seven start at defaults: an empty in-memory file system in `vfs`, empty values in `selected_model` and `workspace_roots`, the empty object `{}` in `args`, `RunLimits::default()` in `limits`, 10 in `max_tool_calls_in_flight`, and `false` in `has_user`. Workshop leaves `limits` and `max_tool_calls_in_flight` at their defaults, among them 24 loop rounds and 8 concurrent tasks.
 
 The default of `args` is `{}`, which is what a caller with nothing to pass sends. A Host that leaves the field alone therefore starts a valid run of every prompt that requires no argument.
 
 The broker is a required argument because every run needs inference. A Host that leaves it out fails to compile. With an optional broker, the Harness would refuse each run of such a Host as it prepares the run.
 
-### The Harness reads each `RunSetup` field once, and the run and its output use one file system
+### The Harness reads each `RunSetup` field once, and the run's tool calls work in the one file system that the setup holds
 
-The Harness reads each field once per run. This matters most for `vfs`, the run's whole file system: the run works in it, and the Harness reads the declared output from it. A prompt reads `selected_model` and the first of `workspace_roots` through `ui()`.
+The Harness reads each field once per run. This matters most for `vfs`, the file system that the run's tool calls work in: every tool call of the run gets an access to that one file system. The run's store is no part of it. The Engine makes each run an empty store of its own, which no setup fills and no report returns. The `Policy` of that file system, such as a `ModePolicy` in its Ask, Plan, or Agent mode, sees the file operations of tool calls. So does the operation sink that `VfsRefBuilder::on_op` installs. Neither sees a store operation. A prompt reads `selected_model` and the first of `workspace_roots` through `ui()`.
 
-The Host chooses where a run's files are stored, because the Engine only executes the prompt and works in the file system that its caller supplies. [Files and the VFS](files-and-the-vfs.md) covers the file system.
+The Host chooses where the files of a run's tool calls are stored, because the Engine only executes the prompt and gives each tool call an access to the file system that its caller supplies. No Host policy applies to the store, because a store is no part of that file system: a policy decides what a run's tools may do to the Host's files, and the store is the run's own memory. [Files and the VFS](files-and-the-vfs.md) covers the file system.
 
-### The Harness passes `args` to the Engine as the Host set it and reads the declared `output:` file
+### The Harness passes `args` to the Engine as the Host set it, and the run's result is the report's `result`
 
-`RunSetup.args` is the text of one JSON object, and the Harness passes it to `Run::new` unread. The Engine parses and checks the text at the run's first step ([The prompt language](prompt-language.md)), so text that fails the check ends the run with the code `args_invalid`, and the Host reads that error in `RunReport.result`. After a completed run, the Harness reads the declared `output:` path into `RunReport.output`. When that file is missing after the run, its result stands and `output` is a `NotFound` error.
+`RunSetup.args` is the text of one JSON object, and the Harness passes it to `Run::new` unread. The Engine parses and checks the text at the run's first step ([The prompt language](prompt-language.md)), so text that fails the check ends the run with the code `args_invalid`, and the Host reads that error in `RunReport.result`. When the run ends with no error, `RunReport.result` is its final text: the value that the prompt returned, or the text `done` when no section returned a value. A prompt that built a file returns the file's text, and the Harness reads no file after a run.
 
 The Harness leaves the check to the Engine so that one piece of code decides what arguments a prompt takes, whichever caller starts the run.
 
+A run has one way in, its arguments, and one way out, its result. The owner's rule: "If a prompt wants to return a file, it should return it as the string of its return value."
+
 ### `Harness::run` returns a `RunReport` for every run, and its one error is `RecorderFailed`
 
-`RunReport` has four fields: `run_id`, `result`, `output`, and `unread`. `result` is the final text or the `Error` that ended the run, and a cancel is the error whose code is `canceled`. `output` is the declared output file's text or the reason it is absent. The record begins before the model lookup, so a failed lookup and an early cancel each produce a report. `Harness::run` returns `Err` in one case, a recorder that refused a write, with the code `RecorderFailed`.
+`RunReport` has three fields: `run_id`, `result`, and `unread`. `result` is the final text or the `Error` that ended the run, and a cancel is the error whose code is `canceled`. The record begins before the model lookup, so a failed lookup and an early cancel each produce a report. `Harness::run` returns `Err` in one case, a recorder that refused a write, with the code `RecorderFailed`.
 
 The Harness delivers a failed prompt as a result that says why the prompt failed, the same way it delivers a text that the prompt produced through inference.
 
@@ -120,13 +122,13 @@ The design sets a rule for every performer, which is a broker, a Pack, or a time
 
 ### The Harness answers each `Vfs` effect inline, on the thread that polls the run
 
-A `Vfs` effect is a file operation that the Engine asks for. The loop appends the effect's record, runs the operation with `perform_vfs_op`, appends the answer, and resumes the run before it waits again. When one step issues several `Vfs` effects, the loop answers all of them and then steps once.
+A `Vfs` effect is one operation on the run's store, and it holds a view of that store under the calling chain's identity. The loop appends the effect's record, performs the operation with `perform_vfs_op` on that view, appends the answer, and resumes the run before it waits again. When one step issues several `Vfs` effects, the loop answers all of them and then steps once. Store operations from different chains run one at a time, in the order the Engine issued them. The Harness reaches a run's store only to perform the one operation of a `Vfs` effect, through that effect's view. It puts nothing in the store before a run and reads nothing from it after.
 
-The loop calls the file system directly because a performer for file effects would only forward each operation to it, and `spawn_blocking` exists only in tokio, which `harness-runner` excludes. The cost is that an operation on a real disk blocks the Host's executor thread, and file operations from different chains run one at a time, in the order the Engine issued them. The design accepts that cost. The owner's reason: "its ok to block a little. what's 100ms really?"
+The loop performs the operation itself because the store is memory, so the call touches no disk and has nothing to wait on. The owner's rule: "Every prompt starts with a, a memory store that's completely empty. And that's the only type of store there is. And it doesn't map to any file system path in the virtual file system." With no way in from outside, a run's result depends only on its prompt, its arguments, and its answers.
 
-### The loop answers `Dropped` for a performer or a file backend that panics
+### The loop answers `Dropped` for a performer that panics
 
-The loop catches a panic from a broker, a Pack, a timer, or a file backend, logs it with the effect id, and answers the effect `Dropped`. The Lua call that waited raises the canceled error, which a `pcall` can catch, and an uncaught one ends the run as canceled.
+The loop catches a panic from a broker, a Pack, or a timer, logs it with the effect id, and answers the effect `Dropped`. The Lua call that waited raises the canceled error, which a `pcall` can catch, and an uncaught one ends the run as canceled.
 
 ### The Harness sends each tool call to the Pack named by the id's first segment, and at most 10 run at once
 
@@ -182,7 +184,7 @@ A Host sees a run's events through its recorder: `append` is the only call in wh
 
 ### The Harness writes every event, effect, and answer in loop order
 
-The loop writes a step's events before it starts the step's effects, each effect before its performer starts, and each answer before the run resumes with it. Every effect record has exactly one answer record, and a dropped effect's answer is `Dropped`. The loop also records an effect that the same step issued and withdrew. A recorder that returns an error stops its run.
+The loop writes a step's events before it starts the step's effects, each effect before its performer starts, and each answer before the run resumes with it. Every effect record has exactly one answer record, and a dropped effect's answer is `Dropped`. The loop also records an effect that the same step issued and withdrew. The records are the only view of a run's store outside the run: each `Vfs` effect record holds its operation, and its answer record holds the outcome, which is enough to rebuild the store. A recorder that returns an error stops its run.
 
 The loop records a withdrawn effect because each `Chat` record names an earlier round by id, in its `after` field. With every effect recorded, the `Chat` records of one message list, in record order, are exactly its sends, and every `after` names a recorded round.
 
@@ -262,11 +264,11 @@ Each of these items is still to be built.
 - **A model for each role.** `RunSetup` has one `selected_model`, which fills all five roles.
 - **Small records for large answers.** An answer record stores the whole tool output or file text, so the record contains a copy of everything a script reads.
 - **Request limits for a Host.** `GatewayBroker::new` always uses a receive timeout of 120 seconds and a reply cap of 16 MiB.
-- **An offload for blocking file work.** A hook, supplied by the Host, that runs file operations off the thread that polls the run. The loop runs each file operation inline on that thread.
+- **An offload for blocking file work.** A hook, supplied by the Host, that runs file operations off the thread that polls the run. The loop performs each store operation inline on that thread, and the store is memory.
 - **A step hook.** Pack code that rewrites an effect or its answer between `Run::step` and the performers. The loop starts each effect as `Run::step` returned it and resumes the run with each answer as its performer returned it.
 - **More Host services.** Secrets, a schedule, a model client for Packs, the parent environment of a sub-run, and a way for a contract Plugin to read a service. The two Rust Plugins read two services: `plugin-web` and `plugin-mcp` read `runvil/tokio-runtime`, the Host's runtime handle, and `plugin-web` reads `runvil/search-provider`, the search provider for the `web` Pack. A contract Plugin reads none.
 - **One Plugin API.** `web` and `mcp` as Plugins that follow the C contract, which a Host inserts with `insert_plugin`, and with them contract functions for configuration, Host services, an unavailable Pack with its reason, the origin of a call, and a wait on outside work. The two Plugins are Rust functions named `install`, and `insert_plugin` has tests as its only callers ([Tools and Packs](tools-and-packs.md)).
-- **Approvals.** An approval as an effect of its own, with the dialog in the Host. The effect kinds are `Chat`, `Render`, `ToolCall`, `Vfs`, and `Timer`. When the file system's `Policy` returns `Ask` for an operation, the file system refuses it with `VfsError::ApprovalRequired`.
+- **Approvals.** An approval as an effect of its own, with the dialog in the Host. The effect kinds are `Chat`, `Render`, `ToolCall`, `Vfs`, and `Timer`. When the `Policy` of `RunSetup.vfs` returns `Ask` for a file operation of a tool call, the file system refuses it with `VfsError::ApprovalRequired`. The `Policy` never sees a store operation (section 2).
 - **Requirement gaps before a run.** A call that returns every gap as data before a run exists. `Host::parse` reports missing Packs, and every other gap ends a run with a `RequirementsUnmet` error.
 
 ## 8. Known gaps
@@ -298,20 +300,19 @@ Each question asks for the reason behind a part of the design.
 **The effect loop**
 
 5. Why do only tool calls count toward the cap of 10, while model rounds start at once?
-6. Why does a completed run with a missing output file still succeed?
-7. Why does a performer that panics end the run as canceled?
+6. Why does a performer that panics end the run as canceled?
 
 **Inference and the clock**
 
-8. Why does `GatewayBroker` fix the receive timeout and the reply cap, while `GatewayChat::with_request_limits` is public?
-9. Why does the Host's `Timer` stamp the run's start?
+7. Why does `GatewayBroker` fix the receive timeout and the reply cap, while `GatewayChat::with_request_limits` is public?
+8. Why does the Host's `Timer` stamp the run's start?
 
 **The inbox and cancel**
 
-10. Why does a Host learn whether the run waits for input from two events, through its recorder?
-11. Why does `send` return `false` after the run has ended, where it could return an error?
-12. What will call `CancelHandle::child()`?
-13. Why does every run get a record, including one that ends before its first step?
+9. Why does a Host learn whether the run waits for input from two events, through its recorder?
+10. Why does `send` return `false` after the run has ended, where it could return an error?
+11. What will call `CancelHandle::child()`?
+12. Why does every run get a record, including one that ends before its first step?
 
 ## 10. Method and limits
 
