@@ -10,7 +10,7 @@
 
 A Host is an application that runs prompts, and it depends on one crate, `runvil`. At startup it builds one `Host` struct: its installed Packs, a prompt finder, and a timer. For each run it fills a `RunSetup` with a recorder, an inference broker, a file system, and the run's settings, and creates one `Harness`. `Harness::run` is one future. It steps the Engine, performs each effect, writes every event, effect, and answer to the recorder, and returns a `RunReport`. A `RunControl` sends messages to the run, stops the work in flight, or cancels the run. Sections 1 to 6 describe these parts.
 
-A check of this page against the code found seven gaps and left thirteen questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: chapters 5 and 17 document `sys.execution` as the run's name, and a section that reads it raises an error.
+A check of this page against the code found five gaps and left thirteen questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: the table in chapter 16 says that the Harness changes the response cap and the receive timeout, and `GatewayBroker::new` always uses the defaults.
 
 Section 7 lists the planned work. Its largest item is replay: the recorder receives the seed, the start time, every answer, and every message of a run, and the code that passes them to a second run is still to be built.
 
@@ -275,16 +275,14 @@ Each item names a place where a guide or a doc comment differs from the code, or
 
 **The language guide**
 
-1. Run name and prompt hash. Chapter 4 lists `name` and `prompt_hash` among the values of a run's record and says that every event has an `execution` field. `RunMeta` has `seed`, `flags`, and `started_at`, and each `Event` has a `section` and a `provenance`.
-2. `sys.execution`. Chapters 5 and 17 document it as the run's name, "which the Harness assigns". A section that reads it raises `unknown sys field 'execution'`, and the test `sys_holds_no_execution_label` checks that.
-3. Request limits. The table in chapter 16 says the Harness changes the response cap and the receive timeout. `GatewayChat::with_request_limits` sets them, and `GatewayBroker::new` always uses the defaults.
-4. Start time. Chapter 4 says the start is stamped "from the system wall clock". The Harness calls `now()` on the Host's `Timer`, whose default reads the system clock.
+1. Request limits. The table in chapter 16 says the Harness changes the response cap and the receive timeout. `GatewayChat::with_request_limits` sets them, and `GatewayBroker::new` always uses the defaults.
+2. Start time. Chapter 4 says the start is stamped "from the system wall clock". The Harness calls `now()` on the Host's `Timer`, whose default reads the system clock.
 
 **Doc comments and code that only tests call**
 
-5. The doc comment on `RunMeta.seed` says that the run's id derives from the seed. The recorder issues each `RunId`.
-6. The doc comment on `HostServices::provide` names the reason of an invalid id as `make_invalid_id_error`. The code writes `invalid_id`.
-7. `CancelHandle::child()` has tests as its only callers. Section 6 describes it.
+3. The doc comment on `RunMeta.seed` says that the run's id derives from the seed. The recorder issues each `RunId`.
+4. The doc comment on `HostServices::provide` names the reason of an invalid id as `make_invalid_id_error`. The code writes `invalid_id`.
+5. `CancelHandle::child()` has tests as its only callers. Section 6 describes it.
 
 ## 9. Questions for the owner
 

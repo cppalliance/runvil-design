@@ -10,7 +10,7 @@
 
 A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
 
-A check of this page against the code found two gaps and left five questions about reasons for the owner. Section 8 describes the gaps, and section 9 lists the questions. The larger gap is in the language guide: chapter 15 lists the execution among the fields of the `TaskStarted` event, and the event in the code has the fields `section`, `provenance`, `task`, `target`, `args`, `item`, `index`, and `var`.
+A check of this page against the code found one gap and left five questions about reasons for the owner. Section 8 describes the gap, and section 9 lists the questions. The gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
 
 Section 7 lists the planned work. Its largest item is replay: the Harness driver that runs a recorded run again from its seed, start time, and answers is still to be built.
 
@@ -196,10 +196,6 @@ Each of these items is still to be built.
 - **Inbox messages other than text.** Images, files, audio, and video as inbox messages. An inbox message is a text string.
 
 ## 8. Known gaps
-
-### The guide lists `execution` among the fields of `TaskStarted`, and the code omits it
-
-Guide chapter 15, in its section on the `TaskStarted` event, says the event includes "the execution, the section, the provenance, the task id", the target, and the four spawn seeds. The `events!` macro in `runvil-internal/types/src/event.rs` adds `section` and `provenance` to every variant, and `TaskStarted` declares `task`, `target`, `args`, `item`, `index`, and `var`. The test `no_serialized_event_has_an_execution_key` in `event-tests.rs` asserts that every serialized event lacks an `execution` key. [The Harness and the Host API](harness-and-host.md) lists the other places where the guide names an execution.
 
 ### A doc comment in `ids.rs` calls a run's depth unbounded, and the code caps it at 8
 

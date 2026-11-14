@@ -10,7 +10,7 @@
 
 The Engine is a Rust library that parses a prompt file and runs it as a state machine. `Prompt::parse` compiles each Lua block and returns a `Prompt`, and `Run::new` builds a `Run` from it. Each `Run::step` runs the prompt's Lua until the run waits for answers and returns the effects the run needs: model rounds, Pack renders, Pack tool calls, `store` operations, and timers. The caller performs each effect and passes its answer to `Run::resume`. A run ends with its final text or with one `Error`. Six private crates contain the code, and `runvil-engine` re-exports the 107 names a caller uses. Sections 1 to 8 describe these parts.
 
-A check of this page against the code found three gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
+A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is in chapter 16 of the language guide, which teaches six parse error kinds and calls the set open, while the code has one closed `ErrorCode` enum.
 
 Section 9 lists the planned work. Its largest item is child prompts: a Lua `execute()` call that runs another prompt by name.
 
@@ -298,7 +298,6 @@ Each item names a place where the language guide differs from the code.
 
 1. Run limits. Chapter 16 has a section titled "The five run limits" and says that a prompt's own value "replaces the run's round cap". `RunLimits` in `runvil-internal/runtime/src/execute/params.rs` has six fields, and `ChainState::max_tool_iterations` caps the prompt's value at `tool_iterations_ceiling`.
 2. Parse error kinds. Chapter 16 teaches six kinds, such as `Frontmatter` and `Structure`, and says "The set of parse error kinds is open". The code has one closed enum, `ErrorCode` in `runvil-internal/types/src/error.rs`, and `Prompt::parse` returns one of six codes, such as `frontmatter_invalid` or `lua_compile`.
-3. `sys.execution`. Chapter 5 lists `sys.execution` among six fields of every section entry. `SectionSys` in `runvil-internal/runtime/src/execute/section_context.rs` has `when`, `id`, `taskid`, `section_name`, and `section_count`, plus the optional `index` and `model`.
 
 ## 11. Questions for the owner
 

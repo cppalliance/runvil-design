@@ -11,7 +11,7 @@
 
 A prompt is one Markdown file. Its front matter names the prompt and declares its arguments and requirements, and each heading in its body starts a section, which is a list of prose blocks and Lua blocks. Lua before the first heading is the preamble, which is the first section. The Engine runs the top-level sections in file order, each in a fresh Lua VM. A Lua block moves the run to another section with `jump` or `call`, loads shared code with `require`, and sends prose to a model with a call such as `models.infer`. The Engine passes the table `var` from each section to the next. Sections 1 to 7 describe these parts.
 
-A check of this page against the code found two gaps and left nine questions about reasons for the owner. Section 9 lists the gaps, and section 10 lists the questions. The larger gap is `sys.execution`: chapter 5 of the language guide lists it among the fields of every section entry, and a section that reads it raises an error.
+A check of this page against the code found one gap and left nine questions about reasons for the owner. Section 9 describes the gap, and section 10 lists the questions. The gap is in the language guide: eight chapters name a failed parse by a parse error kind, and `Prompt::parse` returns one `Error` type whose `code` names the failure.
 
 Section 8 lists the planned work. Its largest item is a call from one prompt file into another: `call` starts a chain only in the sections of the running prompt.
 
@@ -351,10 +351,9 @@ Each of these items is still to be built.
 
 ## 9. Known gaps
 
-Each item names a place where the language guide differs from the code.
+The item names a place where the language guide differs from the code.
 
-1. `sys.execution`. Chapter 5 of the language guide lists `sys.execution` among six fields of every section entry, and chapters 12 and 17 name it too. `SectionSys` in `runvil-internal/runtime/src/execute/section_context.rs` has `when`, `id`, `taskid`, `section_name`, and `section_count`, plus the optional `index` and `model`. The test `sys_holds_no_execution_label` asserts that a read of the field raises `unknown sys field 'execution'`.
-2. Parse error kinds. Eight chapters of the guide name a failed parse by a parse error kind, such as `Fence` or `Structure`, and chapter 16 also lists the code for each kind. `Prompt::parse` returns the one `Error` type ([The Engine](engine.md)), whose `code` is `frontmatter_invalid`, `structure_invalid`, `fence_invalid`, `list_empty_item`, `lua_compile`, or `internal`.
+1. Parse error kinds. Eight chapters of the guide name a failed parse by a parse error kind, such as `Fence` or `Structure`, and chapter 16 also lists the code for each kind. `Prompt::parse` returns the one `Error` type ([The Engine](engine.md)), whose `code` is `frontmatter_invalid`, `structure_invalid`, `fence_invalid`, `list_empty_item`, `lua_compile`, or `internal`.
 
 ## 10. Questions for the owner
 

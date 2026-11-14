@@ -9,7 +9,7 @@
 
 The guides are Markdown chapters in the `runvil-docs` repository, and people edit them by hand. Code in the `runvil` repository builds the docs site. The `build-user-guide` program copies each guide's chapters into a source tree for mdBook, the tool that turns Markdown chapters into a website. The build code calls a guide a book. `cargo xtask site` runs mdBook and rustdoc, writes the landing page, and checks the links. The `site.yml` workflow publishes the result. Inside `runvil`, doc comments and short READMEs are the documentation. Sections 1 to 4 describe these parts.
 
-A check of this page against the code found five gaps and left three questions for the owner. Section 6 lists the gaps, and section 7 lists the questions. The largest gap is the Gateway guide: `runvil-docs` has its 11 chapters, and the site build skips them.
+A check of this page against the code found four gaps and left three questions for the owner. Section 6 lists the gaps, and section 7 lists the questions. The largest gap is the Gateway guide: `runvil-docs` has its 11 chapters, and the site build skips them.
 
 The largest planned item in section 5 is the Workshop guide, which is one chapter titled "Coming Soon".
 
@@ -124,10 +124,9 @@ Each of these items is still to be built.
 Each item names a place where a guide, a README, a contributing file, or a doc comment differs from the code, or a file in `runvil-docs` that the site build skips. The pages of the other subjects, such as [The prompt language](prompt-language.md), list further differences in what a guide teaches.
 
 1. The site omits the Gateway guide. `runvil-docs/src/gateway/` has 11 chapters. `BOOKS` in `crates/build-user-guide/src/main.rs` lists the other two books, so `stage` skips the Gateway chapters. The root `README.md` of `runvil` says the guide is in the Gateway's repository, and `runvil-gateway/README.md` says it is in "the main Runvil documentation". `runvil-gateway` lacks both the chapters and a site workflow.
-2. The language guide documents `sys.execution`. Chapter 5 and the quick reference list the field, and the Engine test `sys_holds_no_execution_label` asserts that reading it raises an error.
-3. `runvil-docs/CONTRIBUTING.md` says each of three sets "builds as its own book", and `BOOKS` lists two. It omits that `cargo xtask site` belongs to `runvil` and needs `RUNVIL_DOCS`.
-4. The crate docs of `build-user-guide` say "The generator owns the chapters". People edit the chapters by hand, and `build-user-guide` copies them unchanged.
-5. The site build skips `runvil-docs/src/introduction.md`. The file says Workshop records runs in "an append-only, hash-chained event store", and the crates lack a hash chain.
+2. `runvil-docs/CONTRIBUTING.md` says each of three sets "builds as its own book", and `BOOKS` lists two. It omits that `cargo xtask site` belongs to `runvil` and needs `RUNVIL_DOCS`.
+3. The crate docs of `build-user-guide` say "The generator owns the chapters". People edit the chapters by hand, and `build-user-guide` copies them unchanged.
+4. The site build skips `runvil-docs/src/introduction.md`. The file says Workshop records runs in "an append-only, hash-chained event store", and the crates lack a hash chain.
 
 ## 7. Questions for the owner
 

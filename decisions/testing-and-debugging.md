@@ -10,7 +10,7 @@
 
 A step of a run returns effects: requests for outside work, such as a model reply, that the caller performs ([The Engine](engine.md)). A test steps a run on its own thread and answers every effect itself, so the clock, the seed, and the model's replies are values the test supplies. Each of the Engine's six internal crates has a `test_support` module. The one in `runvil-runtime` defines `Scenario`, a struct with one test's setup, and `ScriptedChat`, a scripted model that answers from a list of replies. The facades `runvil-engine` and `runvil`, two crates of re-exports, each have a suite written against public paths. For debugging, the Harness writes every effect, answer, and event of a run to the Host's recorder. Sections 1 to 6 describe these parts.
 
-A check of this page against the code found four gaps and left five questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: chapter 16 documents a Host debug mode that adds `Request` and `Response` events to a run, and the Harness leaves those events off in every run.
+A check of this page against the code found three gaps and left five questions about reasons for the owner. Section 8 lists the gaps, and section 9 lists the questions. The largest gap is in the language guide: chapter 16 documents a Host debug mode that adds `Request` and `Response` events to a run, and the Harness leaves those events off in every run.
 
 Section 7 lists the planned work. Its largest item is a replay driver, which steps a recorded run through the Engine again and compares the results.
 
@@ -171,10 +171,9 @@ Each of these items is still to be built.
 
 Each item names a place where a guide differs from the code, or where two parts of the code disagree.
 
-1. The run record. Guide chapter 4, under "What a run's record holds", lists a `name`, a `prompt_hash`, and an `execution` field on every event. The code lacks all three, and the tests `a_new_log_has_neither_a_name_nor_a_prompt_hash_column` and `no_serialized_event_has_an_execution_key` assert that.
-2. Raw model bodies. Guide chapter 16 says: "In Host debug mode, the run adds `Request` and `Response` events that hold the raw model request and response bodies." `prepare.rs` in `harness-runner` builds the `RunParams` of every Harness run and leaves `with_report_debug` off, and `RunSetup` lacks a field for it. `StreamAccumulator::finish` in `harness-gateway-client` attaches both bodies to every `Completion`, and a Harness run leaves them unread.
-3. The Harness's log. Guide chapter 4 says that for an unavailable Pack "the Harness writes a line naming the Pack to the Harness's own log". `packs.rs` in `harness-runner` emits that line through `tracing`, and Workshop discards it (section 6).
-4. The speech probe. `tools/gateway-tts-live.mjs` has identical bytes in `runvil` and `runvil-gateway`, and its `buildGateway` function runs `cargo build -p gateway`. The `gateway` package is in `runvil-gateway` only, so the copy in `runvil` fails at its build step when a provider key is set.
+1. Raw model bodies. Guide chapter 16 says: "In Host debug mode, the run adds `Request` and `Response` events that hold the raw model request and response bodies." `prepare.rs` in `harness-runner` builds the `RunParams` of every Harness run and leaves `with_report_debug` off, and `RunSetup` lacks a field for it. `StreamAccumulator::finish` in `harness-gateway-client` attaches both bodies to every `Completion`, and a Harness run leaves them unread.
+2. The Harness's log. Guide chapter 4 says that for an unavailable Pack "the Harness writes a line naming the Pack to the Harness's own log". `packs.rs` in `harness-runner` emits that line through `tracing`, and Workshop discards it (section 6).
+3. The speech probe. `tools/gateway-tts-live.mjs` has identical bytes in `runvil` and `runvil-gateway`, and its `buildGateway` function runs `cargo build -p gateway`. The `gateway` package is in `runvil-gateway` only, so the copy in `runvil` fails at its build step when a provider key is set.
 
 ## 9. Questions for the owner
 
