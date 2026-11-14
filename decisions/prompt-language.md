@@ -249,6 +249,8 @@ Six Engine globals are the data of the run: `args`, `item`, `messages`, `prose`,
 
 Other pages cover `models`, `messages`, and `compactors` ([Model calls and conversations](models-and-conversations.md)), `tools` and `untrusted` ([Tools and Packs](tools-and-packs.md)), `tasks` and `item` ([Tasks and fanout](tasks-and-fanout.md)), and `store` ([Files and the VFS](files-and-the-vfs.md)).
 
+`markdown` has five functions over Markdown text from outside the prompt's own sections. `markdown.parse` reads text into a list of blocks, which are plain tables. `markdown.section` returns the one section that a path names, or one block of it, and raises when it is absent, and `markdown.section_or` returns nil for that miss. `markdown.select` collects every block that a selector matches, and `markdown.render` writes the blocks back as one text.
+
 ### A handle is a plain value, and its operations are functions of a namespace table
 
 A model handle, a tool object, and a task handle are values with fields. Each operation on one is a function of a namespace table that takes the handle as an argument, as in `models.infer(handle, text)` and `tools.call(tool, arguments)`. The message list is the one exception: its builders are colon methods, as in `messages:user(text)`.
@@ -342,7 +344,6 @@ Each of these items is still to be built.
 
 - **A call into another prompt file.** A Lua function, planned as `execute`, that calls another prompt file, so that a large program can consist of several prompt files. `call` starts a chain only in the sections of the running prompt. `Prompt::parse` finds the run's prompt by its name through a `PromptFinder`, and a called prompt is to resolve the same way.
 - **Lua module files and Markdown includes.** A `require` of a Lua file by its path, as in `require("./path.lua")`, and an `include` for partial Markdown. `require` loads only sections of the running prompt.
-- **A `markdown` namespace.** Functions that parse Markdown text from outside the prompt's own sections. `prompt.section` and `prompt.list` read the sections of the running prompt.
 - **Front matter in Lua.** A sealed table with the prompt's own `name`, `args`, and `models` declarations. The `prompt` table has two functions, `section` and `list`, and both read sections.
 - **A live clock.** A way for Lua to read the current time during a run. `sys.when` is the run's start time.
 - **More of `json`.** Encoding of message records, pretty printing, and a decode that builds its values inside the VM's memory limit. `json.encode` raises for a message record, as for every userdata other than `json.null`, and `json.decode` accepts 8,388,608 bytes of input.
