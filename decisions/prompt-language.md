@@ -4,7 +4,7 @@
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
 - Update: the entries on `return` in sections 3 and 4, and the entry on `call` in section 3, state the rules of the two changes that follow `5bca6f9` in `runvil-harness`: a `return` always ends its chain, and `call` returns nil for a chain that ends with no text (section 11)
-- Update: the summary, the walk-through, and entries in sections 1, 2, 3, 5, and 6, among them the entries on the prompt file, on headings, on the preamble, and on `argv`, state the rules of the two changes that follow `8de43c2f` in `runvil-harness`: every heading starts a section, the code before the first heading is the preamble, and `argv` is read-only in every section (section 11)
+- Update: the summary, the walk-through, and entries in sections 1, 2, 3, and 6, among them the entries on the prompt file, on headings, and on the preamble, state the rules of the two changes that follow `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
@@ -17,11 +17,11 @@ Section 8 lists the planned work. Its largest item is a call from one prompt fil
 
 ## From a prompt file to its final text
 
-The shipped prompt `greet.md`, in the repository's `prompts/` folder, has three front matter keys, a paragraph that describes the prompt, and one section named `Main`. `Main` has a Lua block, one line of prose with the placeholder `{{ var.greeting }}`, and a second Lua block. `Prompt::parse` checks the keys, builds the section tree, and compiles both Lua blocks.
+The shipped prompt `greet.md`, in the repository's `prompts/` folder, has four front matter keys, a paragraph that describes the prompt, and one section named `Main`. Its `args:` key declares one required string named `name`. `Main` has a Lua block, one line of prose with the placeholder `{{ var.greeting }}`, and a second Lua block. `Prompt::parse` checks the keys, builds the section tree, and compiles both Lua blocks.
 
-A caller starts a run with one argument string, for example `Ada`. The run's first step reads `runvil: 0` and accepts the prompt. The paragraph above the `Main` heading has no Lua block, so it is commentary, and the first code that runs is in `Main`. The Engine's scheduler enters `Main` and builds a fresh Lua VM, where `args` is `Ada`, `argv.prose` is also `Ada` because the prompt omits the `args:` key, and `var` is an empty table.
+A caller starts a run with one JSON object as its arguments, for example `{"name":"Ada"}`. The run's first step reads `runvil: 0` and accepts the prompt, and then it checks the arguments against the declaration. The paragraph above the `Main` heading has no Lua block, so it is commentary, and the first code that runs is in `Main`. The Engine's scheduler enters `Main` and builds a fresh Lua VM, where `args.name` is `Ada` and `var` is an empty table.
 
-The first block runs `var.greeting = "Hello, " .. args .. "!"`. The prose line becomes the pending prose of the second block. When that block reads `prose`, the Engine replaces the placeholder with the value of `var.greeting`, and `prose` is the text `Repeat exactly, with no extra words: Hello, Ada!`.
+The first block runs `var.greeting = "Hello, " .. args.name .. "!"`. The prose line becomes the pending prose of the second block. When that block reads `prose`, the Engine replaces the placeholder with the value of `var.greeting`, and `prose` is the text `Repeat exactly, with no extra words: Hello, Ada!`.
 
 The second block calls `models.infer(prose)`, which sends the text to a model and returns the reply ([Model calls and conversations](models-and-conversations.md)). The block returns that reply, and a returned string ends the run as its result. If the block omitted its `return`, the walk, the Engine's pass over the sections in file order, would end after `Main`, and the run's result would be the text `done`.
 
@@ -37,11 +37,11 @@ The owner's rule: "we don't require any headings at all". An author who wants a 
 
 Every prompt is a Markdown file, and the same Engine code runs a fixed pipeline, a model that calls tools in a loop, and a chat with a user. The Lua in each section decides which of these the section does. The choice belongs to the section because one prompt can combine all three.
 
-### Front matter accepts nine keys and refuses any other
+### Front matter accepts eight keys and refuses any other
 
-The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `input`, `output`, `uses`, `args`, and `models`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
+The keys are `name`, `description`, `runvil`, `max_tool_iterations`, `output`, `uses`, `args`, and `models`. The parser requires the first two. The struct `Frontmatter` has the serde attribute `deny_unknown_fields`, so a misspelled key fails the parse with the code `frontmatter_invalid`.
 
-Other pages cover five keys: `uses:` ([Tools and Packs](tools-and-packs.md)), `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)), and `input:` and `output:`, which each name one file in the store ([Files and the VFS](files-and-the-vfs.md)).
+Section 5 covers `args:`. Other pages cover four keys: `uses:` ([Tools and Packs](tools-and-packs.md)), `models:` and `max_tool_iterations` ([Model calls and conversations](models-and-conversations.md)), and `output:`, which names one file in the store ([Files and the VFS](files-and-the-vfs.md)).
 
 ### `runvil: 0` marks a prompt, and a language change leaves the version at 0
 
@@ -113,7 +113,7 @@ The preamble is the text between the front matter and the first heading. When it
 
 The preamble and the sections after it are entries of one chain, the main walk. The next section therefore starts with the preamble's `var`, on the model that the preamble left current, and under the limit that the preamble set with `tasks.concurrency`, and it can wait on a task that the preamble spawned. From the preamble the top-level sections are siblings, as in `jump('../Scan')`, and a child path misses with an error that ends `` the preamble has no child `Scan` ``. The preamble reports its section start and its section finish under the empty name, and an error message labels its Lua blocks by their place, as `preamble prologue`, `preamble lua 2`, and `preamble epilog`.
 
-An uncaught Lua error in the preamble, such as a failed `assert`, ends the run with the code `lua_runtime`, as in every section, before the next section runs. An author therefore writes a hard check of the input there as an `assert` call. `requirements_unmet` is the code of the run's start checks alone ([The Engine](engine.md)).
+An uncaught Lua error in the preamble, such as a failed `assert`, ends the run with the code `lua_runtime`, as in every section, before the next section runs. An author therefore writes there, as an `assert` call, a hard check that the `args:` declaration cannot express, such as the range of a number. `requirements_unmet` and `args_invalid` are the codes of the run's start checks alone ([The Engine](engine.md)).
 
 The Engine has one code path for every section, and the preamble is a section whose name is empty. The owner's rule: "I don't want any special functions for H1. I want everything to be the same." The start of a prompt has no setup that only it can do: tools, model calls, `call`, and `jump` work in every section, and the main walk starts on the `default` model ([Model calls and conversations](models-and-conversations.md)). The owner's reason: "what can H1 really do in terms of setup? I'm thinking nothing."
 
@@ -127,7 +127,7 @@ A subroutine section is therefore a child of the section that calls it, or a top
 
 ### Each section entry starts a fresh Lua VM, and the Engine copies `var` into it
 
-The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the main walk, a `call`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the input of a `call`.
+The Engine builds a new Lua VM each time a chain enters a section ([The Engine](engine.md)). A chain is one sequence of section entries: the main walk, a `call`, or a task. A plain Lua global that one section sets reads nil in the next. The Engine copies the previous section's `var` into the new VM, and sections also exchange data through a returned value, the store, and the arguments of a `call`.
 
 With these explicit channels, a section behaves the same whether the run enters it by fall-through, by `jump`, by `call`, or as a task. One VM for a whole walk would create hidden globals that depend on the path, state that is impossible to clone, and inconsistent inputs for a section.
 
@@ -155,15 +155,17 @@ The rules are identical at every level: the Engine's section semantics are indep
 
 ### `call` runs a contained chain and returns its final text, or nil for a chain with none
 
-`call(heading, input)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block executes a `return` or the last section at its level ends. `call` returns the chain's final text as a string, and it returns nil for a chain that ends with no text.
+`call(heading, args)` starts a new chain at the target and suspends the calling block. The chain follows the rules of the walk: it falls through the target's following siblings, and its sections may jump. It ends when a block executes a `return` or the last section at its level ends. `call` returns the chain's final text as a string, and it returns nil for a chain that ends with no text.
 
 A `call` works like a call of a different prompt whose sections happen to be in the same file. The caller inherits only the chain's answer, because the tokens that the chain spent would otherwise bloat the caller.
 
 `call` returns nil for a chain with no text because the chain gave it nothing, and the empty string would read as a reply. The caller tests the value or gives it a fallback with `or`, and a chain can still return the empty string on purpose. With nil, `return call(...)` also hands on what the called chain did: it ends the caller's chain with no text, where the empty string would end it with a text that no block returned. A caller that joins the value to a string with `..` gets a Lua error for nil, at the line of the join. A task and a fanout arm that end with no text report the empty string, because their text is one field of a result that also says whether they succeeded ([Tasks and fanout](tasks-and-fanout.md)).
 
-### A call's input replaces `args`, and the called chain starts with a copy of `var`
+### A call's second argument is the called chain's `args`, and the chain starts with a copy of `var`
 
-The second argument of `call` is an optional string. When it is present, every section of the called chain reads it as `args`, and the Engine derives the chain's `argv` from it. The chain's `var` is a deep copy of the caller's `var`, and the Engine discards the chain's writes to it when the chain ends.
+The second argument of `call` is optional: a table of named fields or a string. Every section of the called chain reads a table as its `args`, and reads a string as `args.text`. With no second argument, the chain reads the caller's `args`. A table that is a list raises `args must be a table of named fields or a string, got a list`. The Engine checks a call's arguments against no declaration and fills no defaults in them. The chain's `var` is a deep copy of the caller's `var`, and the Engine discards the chain's writes to it when the chain ends.
+
+The `args:` declaration describes what a caller passes the prompt, so it has no say in what one section passes another. A string becomes the field `text` so that `args` is a table in every chain, and `text` is also the field of a prompt that declares no arguments (section 5).
 
 ### A section names its siblings and its direct children
 
@@ -205,27 +207,31 @@ The parser leaves `require` calls unchecked, so a bad heading raises an error wh
 
 ## 5. Arguments and substitution
 
-### `args` is the caller's exact string, and `argv` is its parsed form
+### The arguments of a run are one JSON object, and the run's first step checks them
 
-A run starts with one argument string. `args` is that string, unparsed and untrimmed. `argv` is the same input as a Lua value: for a prompt with an `args:` declaration the Engine parses the string as JSON, and `argv` is nil when the parse fails. The Engine starts the run either way, and `if argv then` is the prompt's test for bad input.
+A caller starts a run with the text of one JSON object, and a caller with nothing to pass sends `{}`. The run's first step checks that text directly after the version ([The Engine](engine.md)). Text that is not JSON, JSON that is not an object, and an object that differs from the prompt's declaration each end the run there, before any section runs, with the code `args_invalid`. The error names the first mismatch, as in ``argument `query` must be a string, got integer``. It has no location, because the fault is in the caller's text, and the prompt has no line to name.
 
-Malformed JSON is input like any other, and the Engine raises no error for it. What the run does with a broken argument string is the prompt's decision, and its Lua has the raw text in `args`.
+The arguments are an object so that a Host can publish any prompt as a tool: the arguments of an MCP tool call are a JSON object. The owner's reason: "we can always put it behind an MCP server". The Engine makes the check, so every section reads arguments of the declared shape, and a prompt has no checks of its own to write for a missing field or a wrong type.
 
-### Every prompt has an `args:` declaration, and the default is one optional string named `prose`
+### `args:` declares the object in a subset of JSON Schema, and the default is one optional string named `text`
 
-Front matter declares each argument under `args:` with a `type` of `string`, `boolean`, `integer`, or `number`. A prompt that omits the key gets one optional string argument named `prose`, and the Engine wraps the whole argument string as `argv.prose`. The declaration documents the arguments for a caller. The checks are the work of the prompt's own Lua: a section reads the fields it needs, and a failed `assert` on one ends the run with the code `lua_runtime`.
+The value of `args:` is a schema with eight keywords: `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`, `description`, and `default`. A `type` is `string`, `boolean`, `integer`, `number`, `array`, or `object`, and the root is an object whose `properties` name the arguments. The parser refuses any other keyword, a node that lacks a `type`, an array that lacks `items`, and a default that differs from its own node. Each refusal has the code `frontmatter_invalid` and names the YAML path of the node, such as `args.properties.query`. An object is closed: a field outside its `properties` ends the run, unless the object says `additionalProperties: true`. Before the check, the Engine gives each missing field its `default`, at every depth. A `null` for a field outside the `required` list counts as the field left out. A prompt that omits the key takes one optional string named `text`, so a Host with plain text sends `{"text":"hello"}`.
 
-The owner's rule: "there must be no freeform prompts". The default field is named `prose` because a field named `args` would name `args` twice.
+The declaration is JSON Schema because that is the form in which a tool publishes its arguments, and `ArgsSchema::as_json` returns the declaration in that form. It is a subset so that an unknown keyword fails the parse: a misspelled keyword is an error when the prompt loads, where a reader of full JSON Schema would ignore it. An object is closed so that the Engine refuses a misspelled optional field, which an open object would accept and the prompt would never read. The Engine fills a default because a caller that reads the schema expects the prompt to use it. A `null` counts as a field left out because models send `null` for a field they omit, and the checker of the `std` Pack reads a `null` the same way ([Tools and Packs](tools-and-packs.md)).
 
-### `argv` is read-only in every section, and a prompt keeps the input it builds in `var`
+The owner's rule: "there must be no freeform prompts". The default field is named `text` because that is the word for what a chain returns: a chain ends with its final text.
 
-Every section VM has `argv` behind the guard on the globals table (section 6), and each table inside it is a read-only proxy. An assignment to the global raises ``argv is read-only: assign to `var` or a section global instead``, and a write to a field named `x` raises `argv is read-only: cannot set field 'x'`. The preamble, a called chain, and a task follow the same rule. A prompt that gets malformed input reads `args`, builds the value it needs, and keeps it in `var` for the sections that follow. A null nested inside `argv` reads as `json.null`.
+### `args` is the checked object, a read-only table in every section
 
-`argv` always holds the parsed form of `args`, so a reader of any section knows where its value came from. One rule for every section also means one way to install `argv` in a VM. The owner's reason: "I value uniformity over everything else."
+Every section VM has `args` behind the guard on the globals table (section 6). It holds the object that passed the check, with its defaults, so it is a table in every section, and a field that the caller left out and that has no default reads nil. Each table inside it is a read-only view. An assignment to the global raises ``args is read-only: assign to `var` or a section global instead``, and a write to a field named `x` raises `args is read-only: cannot set field 'x'`. The preamble, a called chain, and a task follow the same rule. A null inside an object that takes undeclared fields reads as `json.null`. A prompt that needs a different value builds it in Lua and keeps it in `var`.
 
-### A placeholder names data in `args`, `argv`, `item`, `var`, `sys`, or a Lua global
+Apart from writes, a view behaves like the table it stands for. `#`, `pairs`, `next`, `ipairs`, `table.concat`, and `table.unpack` read the data. A view that Lua hands to `tools.call`, to `tasks.fanout`, to a spawn's `item`, or to `var` arrives there as its data.
 
-A placeholder is a path between double braces, such as `{{ var.greeting }}`. The first segment selects the source: `args` for the raw string, `argv` for the parsed arguments, `item` for the member a task or a fanout arm runs for, `var`, or `sys`. Any other first segment reads the Lua global of that name. A string renders as written, a number as text, and a table as compact JSON.
+`args` always holds what the caller passed, so a reader of any section knows where its value came from. The name is `args` because it can only mean what the caller passed, where "input" could also mean what a user sends during the run. One rule for every section also means one way to install `args` in a VM. The owner's reason: "I value uniformity over everything else." A view is an empty stand-in for its table because Lua calls `__newindex` only for a key that a table lacks, so a table that held its own entries would accept a write to each of them.
+
+### A placeholder names data in `args`, `item`, `var`, `sys`, or a Lua global
+
+A placeholder is a path between double braces, such as `{{ var.greeting }}`. The first segment selects the source: `args` for the arguments, `item` for the member a task or a fanout arm runs for, `var`, or `sys`. Any other first segment reads the Lua global of that name. The segments after the first are keys, as in `{{ args.query }}`. A string renders as written, a number as text, and a table as compact JSON, so `{{ args }}` renders the whole object.
 
 A missing key, a null value, or a path that ends at a function raises an error at the read of `prose`, and an uncaught one ends the run with the code `substitution`. The owner's rule: "No function calls in {{ }}." Substitution is data only: a placeholder that called a function would let prose invoke tools.
 
@@ -239,7 +245,7 @@ The libraries include `utf8` because it is pure, and an author needs it to cut a
 
 ### The Engine installs 20 globals and reserves 62 names
 
-Seven Engine globals are the data of the run: `args`, `argv`, `item`, `messages`, `prose`, `sys`, and `var`. Seven are tables of operations: `compactors`, `json`, `models`, `prompt`, `store`, `tasks`, and `tools`. Six are functions: `call`, `jump`, `log`, `require`, `ui`, and `untrusted`. Two exist only in some VMs: `ui` when the caller supplied a snapshot, and `item` in the first section of a task whose spawn supplied one. The list `RESERVED_NAMES` adds the 19 Lua globals that the sandbox leaves in place and the 23 keywords of Lua 5.5. A Pack prelude, the Lua that the Engine runs for a Pack in each section VM, fails to install when it defines a reserved name.
+Six Engine globals are the data of the run: `args`, `item`, `messages`, `prose`, `sys`, and `var`. Eight are tables of operations: `compactors`, `json`, `markdown`, `models`, `prompt`, `store`, `tasks`, and `tools`. Six are functions: `call`, `jump`, `log`, `require`, `ui`, and `untrusted`. Two exist only in some VMs: `ui` when the caller supplied a snapshot, and `item` in the first section of a task whose spawn supplied one. The list `RESERVED_NAMES` adds the 19 Lua globals that the sandbox leaves in place and the 23 keywords of Lua 5.5. A Pack prelude, the Lua that the Engine runs for a Pack in each section VM, fails to install when it defines a reserved name.
 
 Other pages cover `models`, `messages`, and `compactors` ([Model calls and conversations](models-and-conversations.md)), `tools` and `untrusted` ([Tools and Packs](tools-and-packs.md)), `tasks` and `item` ([Tasks and fanout](tasks-and-fanout.md)), and `store` ([Files and the VFS](files-and-the-vfs.md)).
 
@@ -251,9 +257,9 @@ The owner's reason: "Simpler implementation. Simpler mental model for authors. T
 
 ### `var` is a guarded table of JSON data
 
-`var` is an empty proxy table over a hidden data table. The proxy checks each write at the assigning line: a function, a userdata, or a thread raises an error that says the value `must be JSON data`. Because the proxy is empty, `pairs(var)` ends at once and `#var` is 0, and an author reads `var` by key or with `ipairs`.
+`var` is an empty proxy table over a hidden data table, and each table that an author reads from it is a view of the same kind. The proxy checks each write at the assigning line: a function, a userdata, or a thread raises an error that says the value `must be JSON data`. A view measures and iterates like the table it stands for: `#` gives the length of the data, `pairs` and `next` visit its entries, and `var.items[#var.items + 1] = x` appends to a list.
 
-The empty iteration is documented behavior: the language guide lists `pairs` and `#` among the operations that see a `var` table as empty.
+The proxy is empty because Lua calls `__newindex` only for a key that a table lacks, so only an empty table sees every write. The Engine sets `__len` on each view, and its own `pairs` and `next` read through one, so that an author treats a `var` table as a plain table.
 
 ### `sys` is a sealed table of facts about the run and the section entry
 
@@ -273,13 +279,13 @@ The limits loosen only after examples from real prompt debugging establish a nee
 
 ### `pairs` and `next` visit keys in a fixed order
 
-The Engine replaces both functions. Each visits the array part of a table in index order, then the other keys sorted: booleans, then numbers, then strings. Two runs therefore walk a table the same way. A `__pairs` metamethod still applies, on a table and on a userdata.
+The Engine replaces both functions. Each visits the array part of a table in index order, then the other keys sorted: booleans, then numbers, then strings. Two runs therefore walk a table the same way. Both read through a view, so a walk of a `var` table or of a table inside `args` visits the entries of the data in that order, and the value it yields for a nested table is a view too. A `__pairs` metamethod still applies, on a table and on a userdata.
 
 Lua leaves the order of hash keys open, and the Lua binding sets the hash seed itself. The sort makes the order independent of that internal hash state.
 
-### One guard on `_G` answers reads of `argv`, `prose`, and `messages`, and `setmetatable` refuses finalizers
+### One guard on `_G` answers reads of `args`, `prose`, and `messages`, and `setmetatable` refuses finalizers
 
-The Engine puts one metatable on the globals table. It answers reads of `argv`, `prose`, and `messages` and raises on an assignment to any of the three. An author's `setmetatable(_G, mt)` records `mt` behind the guard, so the documented pattern of default values for globals works. Author code can overwrite every other Engine global for the rest of that VM.
+The Engine puts one metatable on the globals table. It answers reads of `args`, `prose`, and `messages` and raises on an assignment to any of the three. An author's `setmetatable(_G, mt)` records `mt` behind the guard, so the documented pattern of default values for globals works. Author code can overwrite every other Engine global for the rest of that VM.
 
 `setmetatable` raises for a metatable with a `__gc` field. Lua runs finalizers with hooks disabled, so a finalizer that loops would continue to run after a cancel.
 
@@ -369,7 +375,7 @@ Each question asks for the reason behind a part of the design.
 
 **The Lua environment**
 
-9. Why does a read of an unknown `sys` field raise, while a missing key of `var` or of `argv` reads nil?
+9. Why does a read of an unknown `sys` field raise, while a missing key of `var` or of `args` reads nil?
 
 ## 11. Method and limits
 

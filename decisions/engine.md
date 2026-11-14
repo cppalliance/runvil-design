@@ -74,13 +74,13 @@ A running section may name its siblings and its direct children by heading, and 
 
 ### A caller steps a run with four functions
 
-`Run::new(prompt, args, params)` builds a run. `Run::step` advances it until it needs an answer and returns a `Step`. `Run::resume(id, answer)` delivers the answer to one effect. `Run::deliver(text)` queues a message for the main chain's inbox ([The Harness and the Host API](harness-and-host.md)). `Run` is `Send` and owns its prompt through an `Arc`.
+`Run::new(prompt, args, params)` builds a run, and `args` is the text of the run's arguments, one JSON object. `Run::step` advances it until it needs an answer and returns a `Step`. `Run::resume(id, answer)` delivers the answer to one effect. `Run::deliver(text)` queues a message for the main chain's inbox ([The Harness and the Host API](harness-and-host.md)). `Run` is `Send` and owns its prompt through an `Arc`.
 
 The caller answers effects one at a time, in any order. Parallel work in a fanout depends on that: the caller resumes one arm while the effects of the other arms are in flight.
 
 ### `Run::new` always succeeds, and the first `step` checks that the run can start
 
-The first `Run::step` calls `check_start`, which makes three checks in order. The prompt declares `runvil: 0`. The params' file system declares a store whose backend passes a probe. The params meet what the prompt requires: each Pack under `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each declared role meets that role's requirements. A requirements failure has the code `requirements_unmet`, and its message names every gap.
+The first `Run::step` calls `check_start`, which makes four checks in order. The prompt declares `runvil: 0`. The arguments are one JSON object that matches the prompt's `args:` declaration ([The prompt language](prompt-language.md)): `Run::new` reads the text and keeps a mismatch for this check, which returns it with the code `args_invalid` and no location. The params' file system declares a store whose backend passes a probe. The params meet what the prompt requires: each Pack under `uses:` is `Usable` in the roster that the caller passed to `RunParams::with_packs`, and the model in each declared role meets that role's requirements. A requirements failure has the code `requirements_unmet`, and its message names every gap.
 
 ### A step returns its effects and its events as values
 
@@ -114,7 +114,7 @@ The two polls follow one rule: the Engine honors a cancel while a block runs and
 
 `Step::Done` has three fields: `result`, `events`, and `unread`. `result` is a `Result<String, Error>`: `Ok` is the run's final text, a canceled run ends with the error whose code is `canceled`, and any other error is a failure. `unread` lists the messages still in the main chain's inbox.
 
-A prompt declines its task by returning its reason from Lua, so the run completes and `result` is `Ok` with that text. A prompt that fails a check of its own, such as an `assert` on its input, raises a Lua error, and the run ends with the code `lua_runtime`, whichever section raised it ([The prompt language](prompt-language.md)). The code `requirements_unmet` belongs to the start checks alone.
+A prompt declines its task by returning its reason from Lua, so the run completes and `result` is `Ok` with that text. A prompt that fails a check of its own, such as an `assert` on the range of an argument, raises a Lua error, and the run ends with the code `lua_runtime`, whichever section raised it ([The prompt language](prompt-language.md)). The codes `requirements_unmet` and `args_invalid` belong to the start checks alone.
 
 ### A run where every chain waits ends as `stalled` or as `internal`
 

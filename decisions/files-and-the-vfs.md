@@ -87,7 +87,7 @@ The traits are synchronous because the backends are synchronous by nature: memor
 
 ### The Host builds each run's whole file system
 
-A Host sets `RunSetup.vfs` to one `VfsRef` for each run. The Harness writes the prompt's declared input into that handle's store and reads the declared output from it ([The Harness and the Host API](harness-and-host.md)). `RunSetup::new` sets `VfsRef::default()`, one in-memory mount at `/` that is the store.
+A Host sets `RunSetup.vfs` to one `VfsRef` for each run. The run works in that handle's store, and the Harness reads the prompt's declared output from it ([The Harness and the Host API](harness-and-host.md)). `RunSetup::new` sets `VfsRef::default()`, one in-memory mount at `/` that is the store.
 
 The Engine and the Harness find the store through the handle, so a Host is free to mount the store at any path.
 
@@ -143,9 +143,9 @@ A `glob` or an `exists` that runs before a sibling task creates a matching file 
 
 ### A scope is one acquire and its forks, and the run closes its scope at `Done`
 
-`VfsRef::acquire` starts a scope: a new identity plus every identity later forked from it. Accesses in two live scopes are always unordered, so a write in one conflicts with an overlapping access in the other. A run is one scope, and the Harness writes the input and reads the output in scopes of its own. The Engine closes the run's scope when the run ends: the table then ignores the scope's claims, and an `Access` of the scope refuses each operation with `ScopeEnded`. A backend that wraps another backend passes the `AcquireContext` of `Vfs::acquire` on unchanged, so a wrapped `VfsRef` joins the caller's scope.
+`VfsRef::acquire` starts a scope: a new identity plus every identity later forked from it. Accesses in two live scopes are always unordered, so a write in one conflicts with an overlapping access in the other. A run is one scope, and the Harness reads the output in a scope of its own. The Engine closes the run's scope when the run ends: the table then ignores the scope's claims, and an `Access` of the scope refuses each operation with `ScopeEnded`. A backend that wraps another backend passes the `AcquireContext` of `Vfs::acquire` on unchanged, so a wrapped `VfsRef` joins the caller's scope.
 
-Scopes let the Harness write the input before a run and read the output after it, and let concurrent runs share a base of real files.
+Scopes let a Host write files before a run, let the Harness read the output after it, and let concurrent runs share a base of real files.
 
 ### A tool call works under its own identity, which the Engine ends with the call
 

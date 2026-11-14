@@ -10,7 +10,7 @@
 
 A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
 
-A check of this page against the code found two gaps and left five questions about reasons for the owner. Section 8 describes the gaps, and section 9 lists the questions. The larger gap is in the language guide: chapter 15 lists the execution among the fields of the `TaskStarted` event, and the event in the code has the fields `section`, `provenance`, `task`, `target`, `input`, `item`, `index`, and `var`.
+A check of this page against the code found two gaps and left five questions about reasons for the owner. Section 8 describes the gaps, and section 9 lists the questions. The larger gap is in the language guide: chapter 15 lists the execution among the fields of the `TaskStarted` event, and the event in the code has the fields `section`, `provenance`, `task`, `target`, `args`, `item`, `index`, and `var`.
 
 Section 7 lists the planned work. Its largest item is replay: the Harness driver that runs a recorded run again from its seed, start time, and answers is still to be built.
 
@@ -42,7 +42,7 @@ They are methods of `Scheduler` because the owners depend on each other through 
 
 ### `tasks.spawn` starts a chain over a section and returns a handle at once
 
-`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has thirteen functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
+`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. `opts.args` gives the chain its own arguments, a table of named fields or a string, by the rule of the second argument of `call` ([The prompt language](prompt-language.md)), and a chain that gets none reads its spawner's `args`. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has thirteen functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
 
 ### The chain that spawns a task owns it
 
@@ -64,7 +64,7 @@ The owner's rule: "subagents spawned by Lua become a hard error on chain termina
 
 ### Every started task reports one start event and one terminal event
 
-The scheduler emits `TaskStarted` at admission, under the section that spawned the task. One terminal event follows: `TaskSucceeded`, `TaskFailed`, `TaskCanceled`, or `TaskAbandoned` with an `AbandonReason`. The scheduler skips both events for a task that ends while still queued.
+The scheduler emits `TaskStarted` at admission, under the section that spawned the task. Its `args` field has the chain's own arguments as JSON, a string as an object with the one field `text`, and it is null for a chain that reads its spawner's `args`. One terminal event follows: `TaskSucceeded`, `TaskFailed`, `TaskCanceled`, or `TaskAbandoned` with an `AbandonReason`. The scheduler skips both events for a task that ends while still queued.
 
 When a run ends as a whole, by a cancel or a fatal answer, `Scheduler::end` first abandons every live task. The reason is `run_terminated`, or `owner_aborted` for a task nested under another. If `Scheduler::end` skipped this step, `TaskStarted` would be the last event of such a task, and its record would read `running` forever.
 
@@ -76,7 +76,7 @@ When a run ends as a whole, by a cancel or a fatal answer, `Scheduler::end` firs
 
 ### The collection is a Lua table, and the shim lists its members in a fixed order
 
-`collection_members` lists the array part in index order and then the keyed part sorted by key. A keyed member becomes a pair table that the arm reads as `item.key` and `item.value`. Any other value in place of the table raises an error that points to `prompt.list(heading)`.
+`collection_members` lists the array part in index order and then the keyed part sorted by key. It reads a view through to its data, so a list from `args` or from `var` is a collection like any table. A keyed member becomes a pair table that the arm reads as `item.key` and `item.value`. Any other value in place of the table raises an error that points to `prompt.list(heading)`.
 
 A heading in place of the table is one of the refused values. `prompt.list(heading)` returns the items of a list section, so a heading as the argument would be a second way to do one thing, and a bare string is ambiguous against a section name. The sort of the keyed part makes every process spawn the arms in the same order.
 
@@ -94,7 +94,7 @@ Under the join rule of section 5, an arm spawned after a join would be ordered a
 
 ### Results return in collection order as objects with four fields
 
-`tasks.fanout` returns an array with one result at each member's position. `text` is the arm's final text, `ok` says whether the arm completed, `item` is the member, and `exhausted` says whether the arm ran out of model rounds. An assignment to a result raises an error that reads "tasks.fanout results are read-only".
+`tasks.fanout` returns an array with one result at each member's position. `text` is the arm's final text, `ok` says whether the arm completed, `item` is the member, and `exhausted` says whether the arm ran out of model rounds. Each result is a read-only view: `pairs` walks its four fields as it walks a plain table, and an assignment to a result raises an error that reads "tasks.fanout results are read-only".
 
 The caller combines the results itself. `item` lets the caller match each result with its member when the member is a rich value, such as a record.
 
@@ -199,7 +199,7 @@ Each of these items is still to be built.
 
 ### The guide lists `execution` among the fields of `TaskStarted`, and the code omits it
 
-Guide chapter 15, in its section on the `TaskStarted` event, says the event includes "the execution, the section, the provenance, the task id", the target, and the four spawn seeds. The `events!` macro in `runvil-internal/types/src/event.rs` adds `section` and `provenance` to every variant, and `TaskStarted` declares `task`, `target`, `input`, `item`, `index`, and `var`. The test `no_serialized_event_has_an_execution_key` in `event-tests.rs` asserts that every serialized event lacks an `execution` key. [The Harness and the Host API](harness-and-host.md) lists the other places where the guide names an execution.
+Guide chapter 15, in its section on the `TaskStarted` event, says the event includes "the execution, the section, the provenance, the task id", the target, and the four spawn seeds. The `events!` macro in `runvil-internal/types/src/event.rs` adds `section` and `provenance` to every variant, and `TaskStarted` declares `task`, `target`, `args`, `item`, `index`, and `var`. The test `no_serialized_event_has_an_execution_key` in `event-tests.rs` asserts that every serialized event lacks an `execution` key. [The Harness and the Host API](harness-and-host.md) lists the other places where the guide names an execution.
 
 ### A doc comment in `ids.rs` calls a run's depth unbounded, and the code caps it at 8
 

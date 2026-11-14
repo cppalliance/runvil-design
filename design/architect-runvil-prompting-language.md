@@ -39,11 +39,11 @@ Constructs described below are labeled active (changed by this plan), existing (
 ## Alphabetical construct index
 
 - A: `args`
-- C: `call(path, input?)`, `call_async(path, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
+- C: `call(path, args?)`, `call_async(path, input?)`, cold restore, deferred `compactor(messages, budget)`, `compactors.fail`, deferred `compactors.summarize(options)`
 - D: `description`
 - E: events, deferred `execute(path, input?)`, deferred `execute_async(path, input?)`
 - F: `tasks.fanout(worker, collection)`, `tasks.fanout(model, worker, collection)`, frontmatter
-- I: `include`, incarnation, inherited Lua, `input`
+- I: `include`, incarnation, inherited Lua
 - J: `jump(path)`
 - L: lifecycle, `local_include`, `log(message)`, `lua`, `lua inherit`
 - M: `markdown.parse`, `markdown.render`, `markdown.section`, `markdown.section_or`, `markdown.select`, `max_tool_iterations`, messages, `messages.new()`, model handles, model roles, `models.current`, `models.get`, `models.infer`, `models.loop`, `models.use`
@@ -69,7 +69,7 @@ runvil: 0
 
 ## Answer
 
-Answer {{ args }}.
+Answer {{ args.text }}.
 
 ```lua
 return models.infer(prose)
@@ -78,7 +78,9 @@ return models.infer(prose)
 
 **Frontmatter.** The file starts with YAML containing `name`, `description`, and exactly `runvil: 0`. Unknown keys fail.
 
-Optional `input` and `output` declarations contain `path` and `description`. Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to 24.
+An optional `output` declaration contains `path` and `description`. Optional `max_tool_iterations` is an integer from 1 through 1000 and defaults to 24.
+
+Optional `args` declares the run's arguments, one JSON object, in a subset of JSON Schema with the keywords `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`, `description`, and `default`. A `type` is `string`, `boolean`, `integer`, `number`, `array`, or `object`, and the root is an object. Any other keyword fails the parse. An object is closed unless it says `additionalProperties: true`. A prompt without `args` takes one optional string named `text`. The run's first step fills each missing field's default, checks the arguments against the declaration, and ends the run with `args_invalid` on the first mismatch.
 
 **Sections.** No heading is required. Every heading, H1 through H6, starts a section, and the headings form the section tree. The top level is the shallowest heading level in the file. A heading is exactly one level deeper than its parent, so levels cannot be skipped and a first heading deeper than a later one fails. A heading cannot be empty, and sibling names must be unique. A prompt has no title: its name is the frontmatter `name`.
 
@@ -96,7 +98,7 @@ Section end discards any remaining buffer without error or model invocation, so 
 
 **Prose capture.** Pairing is an implementation association, not a source-validity rule. Markdown before the most recent thematic break is commentary; Markdown after it is available to the next ordinary Lua fence. Unconsumed Markdown is inert, so prose without a following Lua fence is never an error. Runvil runs no model implicitly. Deferred inherit fences do not consume pending prose.
 
-**Substitution.** `{{ args }}`, `{{ var.key }}`, `{{ sys.key }}`, and a section-global name insert JSON-representable values. Dotted paths index nested data, tables render as compact JSON, and `\{{`, `\}}`, and `\\` escape delimiters and backslashes. The first runtime read of `prose` snapshots current section state, evaluates substitutions once, and memoizes the resulting string. Later reads in that fence return the same string even after state changes. Unread prose performs no substitution and raises no substitution error. Each later Lua fence receives and evaluates its own captured lazy value.
+**Substitution.** `{{ args.key }}`, `{{ var.key }}`, `{{ sys.key }}`, and a section-global name insert JSON-representable values. Bare `{{ args }}` inserts the whole arguments object. Dotted paths index nested data, tables render as compact JSON, and `\{{`, `\}}`, and `\\` escape delimiters and backslashes. The first runtime read of `prose` snapshots current section state, evaluates substitutions once, and memoizes the resulting string. Later reads in that fence return the same string even after state changes. Unread prose performs no substitution and raises no substitution error. Each later Lua fence receives and evaluates its own captured lazy value.
 
 ````markdown
 First value: {{ var.value }}
@@ -153,7 +155,7 @@ A Lua `local` belongs only to its fence or retained closure, while an ordinary g
 
 A section is active, compacting, or waiting before it becomes completed, failed, or cancelled.
 
-**`args`.** The deeply copied read-only JSON-representable run or child-task input. Omitted child input inherits the caller's current `args`; no mutable Lua reference crosses a VM boundary. Example: `var.request = args`
+**`args`.** The read-only table of the chain's arguments. For the run it is the caller's JSON object, checked against the `args` declaration, with each missing field's default. For a `call` or a task it is the table of named fields that the caller gave, or `{ text = string }` for a string, with no check against the declaration. A chain that gets none reads its caller's current `args`; no mutable Lua reference crosses a VM boundary. `#`, `pairs`, `next`, and `ipairs` read an `args` table as a plain table, and every write fails. Example: `var.request = args.text`
 
 **`prose`.** The read-only lazy Markdown template captured for the current fence, otherwise nil. Its first runtime read resolves and memoizes substitutions against current section state. Example: `messages[1] = { role = "user", content = prose }`
 
@@ -444,11 +446,11 @@ The top level is the preamble, when there is one, and the sections at the shallo
 
 **Effect:** The same read as `prompt.section`, in both forms. **Return:** What `prompt.section` returns, or nil when the section or the block is not there. **Failure:** Everything else `prompt.section` raises for. **Example:** `local extras = prompt.section_or("Extras") or ""`
 
-### `call(path, input?)`
+### `call(path, args?)`
 
 **Implementation status:** Active. Rename the current section-based `execute` operation to `call` as the first behavior change and preserve its synchronous execution semantics.
 
-**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally sets `args` to the input, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** A malformed path, a path from the top, a path that names no section, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("Worker", "new input")`
+**Effect:** Synchronously invokes a visible section as a contained fresh chain and resumes the caller. It optionally gives the chain its own `args`, a table of named fields or a string that the chain reads as `args.text`, clones `var`, creates a fresh target VM, and discards child clipboard writes. The child starts on a copy of the caller's current model. Deferred `lua inherit` later adds lexical initialization. **Return:** Final child text, or nil when it completed without a scalar result. **Failure:** A malformed path, a path from the top, a path that names no section, `args` that are a list or neither a table nor a string, recursion over depth eight, or child failure raises a typed Lua error. **Example:** `local answer = call("Worker", { topic = "allocators" })`
 
 ### `call_async(path, input?)`
 
@@ -567,7 +569,7 @@ description: Draft once and review in parallel
 runvil: 0
 ---
 ## Draft
-Draft {{ args }}.
+Draft {{ args.text }}.
 ```lua
 var.draft = models.infer(prose)
 ```
@@ -597,7 +599,7 @@ runvil: 0
 tools.bind("search", "search authoritative sources")
 ```
 ## Investigate
-Investigate {{ args }} and cite evidence.
+Investigate {{ args.text }} and cite evidence.
 ```lua
 models.use("strong")
 tools.add("search")
@@ -632,7 +634,7 @@ local history = messages.new():system(prose)
 local last_response = nil
 while true do
     local text, available = user_input()
-    if not available then if args == "" then return text end; text = args end
+    if not available then if not args.text then return text end; text = args.text end
     if text == "exit" then return last_response or "Done." end
     history:user(text)
     models.loop()

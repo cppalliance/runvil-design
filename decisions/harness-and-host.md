@@ -20,7 +20,7 @@ At startup a Host creates a `PackRegistry` and fills it. `insert_plugin_dir` loa
 
 For each run the Host calls `Host::parse` with the prompt's name. `Host::parse` finds the source, parses it, and checks its `uses:` list against the installed Packs. The Host then calls `RunSetup::new` with a recorder and a broker, sets the fields this run needs, and calls `Harness::new`. It takes a `RunControl` from `Harness::control` and awaits `Harness::run`.
 
-`Harness::run` first calls the recorder's `begin_run` with a `RunMeta`: a seed drawn from the operating system and the start time from the Host's timer. It asks the broker for its model list and picks the run's model. It writes `input_text` at the prompt's declared `input:` path, creates the run's Pack instances, and builds an Engine `Run`.
+`Harness::run` first calls the recorder's `begin_run` with a `RunMeta`: a seed drawn from the operating system and the start time from the Host's timer. It asks the broker for its model list and picks the run's model. It creates the run's Pack instances and builds an Engine `Run` with the arguments in `RunSetup.args`.
 
 The effect loop then calls `Run::step`. It appends the step's events to the recorder, then appends each effect and starts it. A `Chat` effect calls `InferenceBroker::chat`, a `ToolCall` or `Render` effect calls the run's Packs, a `Timer` effect calls `Timer::sleep`, and a `Vfs` effect runs at once on the same thread. When an answer is ready, the loop appends it and calls `Run::resume`. The same wait also ends on a cancel, a stop, or a sent message.
 
@@ -64,7 +64,7 @@ A Host's own parts may still need a runtime: the docs of `GatewayBroker` state t
 
 ### A Host builds one `Host` at startup and one `RunSetup` for each run
 
-`Host` is a struct with three public fields: `packs`, `prompts`, and `timer`. A Host builds one and shares it behind an `Arc`. `RunSetup` is a struct with ten public fields that the Host fills for each run. The two structs sort every input by lifetime: `Host` contains what every run of one Host shares, and `RunSetup` contains what one run gets on top of the Host.
+`Host` is a struct with three public fields: `packs`, `prompts`, and `timer`. A Host builds one and shares it behind an `Arc`. `RunSetup` is a struct with nine public fields that the Host fills for each run. The two structs sort every input by lifetime: `Host` contains what every run of one Host shares, and `RunSetup` contains what one run gets on top of the Host.
 
 ### `Harness::new` takes the `Host`, a parsed `Prompt`, and the `RunSetup`, and `run` consumes the Harness
 
@@ -76,19 +76,23 @@ A Host's own parts may still need a runtime: the docs of `GatewayBroker` state t
 
 ### `RunSetup::new` takes the recorder and the broker, and every other field has a default
 
-`RunSetup::new(recorder, broker)` sets the two required fields. The other eight start at defaults: a fresh in-memory store in `vfs`, empty values in `selected_model`, `workspace_roots`, `args`, and `input_text`, `RunLimits::default()` in `limits`, 10 in `max_tool_calls_in_flight`, and `false` in `has_user`. Workshop leaves `limits` and `max_tool_calls_in_flight` at their defaults, among them 24 loop rounds and 8 concurrent tasks.
+`RunSetup::new(recorder, broker)` sets the two required fields. The other seven start at defaults: a fresh in-memory store in `vfs`, empty values in `selected_model` and `workspace_roots`, the empty object `{}` in `args`, `RunLimits::default()` in `limits`, 10 in `max_tool_calls_in_flight`, and `false` in `has_user`. Workshop leaves `limits` and `max_tool_calls_in_flight` at their defaults, among them 24 loop rounds and 8 concurrent tasks.
+
+The default of `args` is `{}`, which is what a caller with nothing to pass sends. A Host that leaves the field alone therefore starts a valid run of every prompt that requires no argument.
 
 The broker is a required argument because every run needs inference. A Host that leaves it out fails to compile. With an optional broker, the Harness would refuse each run of such a Host as it prepares the run.
 
-### The Harness reads each `RunSetup` field once, and the input, the run, and the output use one file system
+### The Harness reads each `RunSetup` field once, and the run and its output use one file system
 
-The Harness reads each field once per run. This matters most for `vfs`, the run's whole file system: the Harness stages the input in it, the run works in it, and the Harness reads the declared output from it. A prompt reads `selected_model` and the first of `workspace_roots` through `ui()`.
+The Harness reads each field once per run. This matters most for `vfs`, the run's whole file system: the run works in it, and the Harness reads the declared output from it. A prompt reads `selected_model` and the first of `workspace_roots` through `ui()`.
 
 The Host chooses where a run's files are stored, because the Engine only executes the prompt and works in the file system that its caller supplies. [Files and the VFS](files-and-the-vfs.md) covers the file system.
 
-### The Harness writes `input_text` at the declared `input:` path and reads the declared `output:` file
+### The Harness passes `args` to the Engine as the Host set it and reads the declared `output:` file
 
-Before the first step, `stage_input` writes `RunSetup.input_text` at the path the prompt declares under `input:`. Text for a prompt that lacks the declaration ends the run with the reason `input_undeclared`. After a completed run, the Harness reads the declared `output:` path into `RunReport.output`. When that file is missing after the run, its result stands and `output` is a `NotFound` error.
+`RunSetup.args` is the text of one JSON object, and the Harness passes it to `Run::new` unread. The Engine parses and checks the text at the run's first step ([The prompt language](prompt-language.md)), so text that fails the check ends the run with the code `args_invalid`, and the Host reads that error in `RunReport.result`. After a completed run, the Harness reads the declared `output:` path into `RunReport.output`. When that file is missing after the run, its result stands and `output` is a `NotFound` error.
+
+The Harness leaves the check to the Engine so that one piece of code decides what arguments a prompt takes, whichever caller starts the run.
 
 ### `Harness::run` returns a `RunReport` for every run, and its one error is `RecorderFailed`
 
