@@ -149,7 +149,7 @@ Missing, null, malformed, unavailable, or non-JSON values fail at the first read
 
 **Packs.** The run holds every Pack the Host installed, one instance of each, whatever any of its prompts names. A prompt's `uses:` marks the Packs that prompt requires and whose preludes install in its own sections, and every other Pack is its extra. So a child's `uses:` changes nothing its caller sees. Each prompt has its own model set, because a role's thinking switch comes from that prompt's `models:`. The run's first step checks every prompt it holds: an unsupported `runvil:` version, an unmet declared Pack, or an unmet model role of any of them refuses the run, in a failure that names the linked prompt. A prelude that fails to load is found when its prompt's first section starts, as the error the `execute` raises.
 
-**Store.** Each execution gets a new store: empty, with its own claims ledger, and gone when the child ends. The child's `call` chains and tasks share it. The caller and the child see none of each other's store. A `Vfs` effect and its record name the store by a chain id: the root chain's, `0`, for the store the run starts with, and the child chain's for a store an `execute` made.
+**Store.** Each execution gets a new store: empty, with its own claims ledger, and gone when the child ends. The child's `call` chains and tasks share it. The caller and the child see none of each other's store. The `Vfs` effect of a `store` call and its record name the store by a chain id: the root chain's, `0`, for the store the run starts with, and the child chain's for a store an `execute` made.
 
 ### `execute_async(name, args?)`
 

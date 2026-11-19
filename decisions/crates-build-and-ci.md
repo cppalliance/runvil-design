@@ -4,6 +4,7 @@
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at `9369a7d`, and `runvil-plugin-api` at `63a2403`
 - Update: the two workspaces, the crate counts, the families, the dependency rules, the git dependencies, the place of each structural check, `default-members`, and the jobs of `ci.yml` describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9` (section 13)
 - Update: the reason for the pin on the two Rust Plugins and the dependency rule for Plugin crates, in section 2, describe `runvil-harness` at commit `18361d02`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980` (section 13)
+- Update: the count of serde crates in the entry on `cargo xtask api`, in section 4, describes `runvil-harness` at commit `ee199e3a` (section 13)
 - Paths: code paths start at the root of the `runvil` repository, and a path in another repository starts with that repository's name
 
 ## Summary
@@ -149,7 +150,7 @@ A re-export of a whole module or crate would expose every item that the module g
 
 ### `cargo xtask api` proves each surface closed and compares it with a listing
 
-The command belongs to the `build-xtask` of `runvil-harness`. It builds rustdoc JSON for `runvil-engine` and for `runvil`. Its closure check reports a surface item whose signature, fields, bounds, impls, or doc links name something outside the facade's re-exports, the standard library, and four serde crates. Its listing check compares one line per item with the `public-api.txt` in the facade's directory. `--check` fails on a violation or a difference, and `--bless` rewrites the listing.
+The command belongs to the `build-xtask` of `runvil-harness`. It builds rustdoc JSON for `runvil-engine` and for `runvil`. Its closure check reports a surface item whose signature, fields, bounds, impls, or doc links name something outside the facade's re-exports, the standard library, and three serde crates. Its listing check compares one line per item with the `public-api.txt` in the facade's directory. `--check` fails on a violation or a difference, and `--bless` rewrites the listing.
 
 A developer who adds a `pub use` therefore changes `public-api.txt`, so the change to the surface gets a review. The workspace uses its own command because the `cargo-public-api` tool leaves out the items inside cross-crate re-exports.
 
@@ -384,6 +385,7 @@ Each question asks for the reason behind a part of the design.
 - **Earlier update.** On 2026-11-11 the crate counts, the families, the family matrix, the Workshop tier tables, and the git dependencies were brought to `runvil` at commit `b0693699d`, after `std` became a library Plugin and the `shared-*` family left the matrix. The update of 2026-11-12 replaces that text.
 - **Still at `fa9936f64`.** The text on installers, releases, and the workflows that build them still describes `runvil` at `fa9936f64`: the sentences of the summary and of section 7 that name those workflows, the last paragraph of the walk-through, section 9, the first two items of section 10, gap 1, and questions 7 and 9. `runvil` at `48a4dbc08` has one workflow for installers, `installers.yml`. Each sentence outside the update of 2026-11-12 also describes `fa9936f64`.
 - **Update.** On 2026-11-13 two entries of section 2, on the pin and on the dependency rule for Plugin crates, were brought to `runvil-harness` at commit `18361d02`, `runvil-plugin-std` at `ee04d10`, and `runvil-plugin-bashkit` at `9c8e980`. The update states that the rule covers the two Rust Plugins, that a Plugin on the C contract depends on zero crates of `runvil-harness`, and that one Plugin API is planned work. That session read the code and left the build and the tests unrun.
+- **Update.** On 2026-11-19 the count of serde crates in the entry on `cargo xtask api`, in section 4, was brought to `runvil-harness` at commit `ee199e3a`. The surface check allows three serde crates, `serde`, `serde_core`, and `serde_json`, where the page named four: commit `0d938885` of that repository took `serde_yaml_ng` off the list. That session read the code and left the build and the tests unrun.
 - **Still to update.** Commit `25d19f3f6` of `runvil` removed Workshop and its build tooling, which are in the repository `runvil-workshop`. The text of the page on workspaces, crate counts, families, the pin, the git dependencies, and the place of Workshop's checks still describes Workshop inside `runvil`.
 
 *2026-11-10 16:47 - Claude Fable 5.2*

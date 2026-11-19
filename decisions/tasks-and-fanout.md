@@ -4,15 +4,16 @@
 - Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
 - Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 10)
 - Update: the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 10)
+- Update: the text on the inputs of a replay, on conflicts in a store and on the Host's files, on the calls of one model reply that change files, and on the value 8 of three limits describes `runvil-harness` at commit `ee199e3a` (section 10)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
 
 ## Summary
 
 A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, one for each `execute`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
 
-A check of this page against the code found one gap and left five questions about reasons for the owner. Section 8 describes the gap, and section 9 lists the questions. The gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
+A check of this page against the code found one gap and left four questions about reasons for the owner. Section 8 describes the gap, and section 9 lists the questions. The gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
 
-Section 7 lists the planned work. Its largest item is replay: the Harness driver that runs a recorded run again from its seed, start time, and answers is still to be built.
+Section 7 lists the planned work. Its largest item is replay: the Harness driver that runs a recorded run again from its seed, start time, answers, messages, and file requests is still to be built.
 
 ## From a `tasks.fanout` call to its results
 
@@ -90,7 +91,7 @@ An arm is normal flow: its chain follows the rules of every other chain.
 
 The shim yields a `spawn` request for every member before its first `join_any`.
 
-Under the join rule of section 5, an arm spawned after a join would be ordered after the arm that the join returned and could read that arm's files, so its result would depend on timing. With every arm spawned before the first join, the arms are unordered among themselves.
+Under the join rule of section 5, an arm spawned after a join would be ordered after the arm that the join returned and could read that arm's store files, so its result would depend on timing. With every arm spawned before the first join, the arms are unordered among themselves.
 
 ### Results return in collection order as objects with four fields
 
@@ -116,11 +117,13 @@ The form exists only in the shim: both forms of the call yield the same requests
 
 One limit covers the whole run. A limit inside each fanout would multiply when fanouts nest, since 8 arms that each run 8 arms are 64 live tasks, and it would leave tasks from `tasks.spawn` unbounded. The Harness has a separate limit of 10 Pack tool calls in flight ([Tools and Packs](tools-and-packs.md)), because one shared limit would couple the task limit and the call limit.
 
+The value 8 is arbitrary, here and for `max_idle_tasks` ([The Engine](engine.md)). No measurement chose it, and the owner did not pick it. The owner's rule is that each resource has a limit, and the value is secondary. The owner's view of the value: "8 sounds good". A value may change freely, because, in the owner's words, "this thing's not in production yet".
+
 ### A spawned task starts at admission, in spawn order, after the chains that resume
 
 A spawn forks the file identity, assigns the task id, and queues the chain. Admission is the moment the scheduler starts a queued chain. The chain gets its Lua VM then, and until then `tasks.status` reports `blocked` as `queued`. `drain` runs an admission pass each time the `ready` queue is empty. The pass admits chains that resume from a wait first, then new spawns in spawn order.
 
-A queued task costs very little, so the arms of a fanout over 500 members have at most as many Lua VMs at one time as the limit allows. The pass admits resumed chains first, which protects a resume from starving behind a long queue of spawns. Admission order changes timing only: the ids and the file system's decisions on conflicts (section 5) are the same under every admission order. A collection may be as large as the author likes, because a large collection only takes longer, and whether that is worth it is the author's call.
+A queued task costs very little, so the arms of a fanout over 500 members have at most as many Lua VMs at one time as the limit allows. The pass admits resumed chains first, which protects a resume from starving behind a long queue of spawns. Admission order changes timing only: the ids and each store's decisions on conflicts (section 5) are the same under every admission order. A collection may be as large as the author likes, because a large collection only takes longer, and whether that is worth it is the author's call.
 
 ### A task that waits on tasks or on its inbox releases its slots
 
@@ -140,11 +143,13 @@ A `call` child, an `execute` child, and a spawned task each run one level deeper
 
 A fanout arm counts as a level, so the depth of a recursion accumulates across a fanout, where it would otherwise start again in each arm. An `execute` counts as a level too, so the cap also ends a recursion between prompts that execute each other ([The prompt language](prompt-language.md)).
 
+The cap is 8 because that is more depth than the owner expects a prompt to need ([The Engine](engine.md)). The owner compares it with Cursor, which the owner recalls as allowing about five levels, a figure that nobody has checked, and says of nesting there: "I've only ever gone to three." The cap is a constant, where the other limits are fields of `RunLimits`, because no Host has needed to change it. The owner's reason: "I just don't see a need for it yet."
+
 ## 5. Determinism
 
 ### The same seed, start time, and answers produce the same run
 
-For each run the Harness generates a random seed, reads the clock, and passes both to the Engine in `RunParams`. With the same two values and the same answers in the same order, the Engine emits the same effects, events, and ids. The order of answers is an input. Among waiting tool calls, the Harness starts the one with the lowest effect id ([Tools and Packs](tools-and-packs.md)), and `Run` lacks a call that reports a start. That choice therefore affects the Engine only through the order of answers, so a replay (section 7) is independent of the Harness's start order. Three results depend on the order of answers: which task `tasks.join_any` returns, whether a timed wait runs out, and how far a canceled task got. The guide adds a fourth: where a `tasks.send` message applies in a task's work.
+For each run the Harness generates a random seed, reads the clock, and passes both to the Engine in `RunParams`. With the same two values, and the same answers, messages, and file requests delivered in the same order at the same steps, and with no cancel, the Engine emits the same effects, events, and ids. The order of answers is an input. So is the order of the file requests that the Harness reports for open tool calls with `Run::request_file`, each of which the Engine issues as an effect at its next step ([The Engine](engine.md)). So is each message that a Host sends the run, with its place among the answers and the steps ([The Harness and the Host API](harness-and-host.md)). Among waiting tool calls, the Harness starts the one with the lowest effect id ([Tools and Packs](tools-and-packs.md)), and `Run` lacks a call that reports a start. That choice therefore affects the Engine only through the order of answers and of file requests, so a replay (section 7) that repeats the answers, the messages, and the file requests in their order and at their steps is independent of the Harness's start order. Three results depend on the order of answers: which task `tasks.join_any` returns, whether a timed wait runs out, and how far a canceled task got. The guide adds a fourth: where a `tasks.send` message applies in a task's work.
 
 Because of this rule, replay is a job for the Harness: the Engine is deterministic, so the Harness can match a recorded run exactly. The rule covers Lua's table walks too. The Engine's `pairs` and `next` walk a table in sorted order, where the order of stock Lua's walk depends on a hash seed.
 
@@ -156,9 +161,9 @@ An id is a path of numbers, and paths can name any number of arms. The number of
 
 ### A spawn is a fork, and every delivery is a join
 
-Each task has a file identity, an `ExecId`, under which the file system records its reads and writes. A spawn orders everything the parent did before it ahead of the child's first step. A delivery orders everything the task did ahead of the owner's next step: `join_any` joins the task it returns, `join` joins each member, and a chain's end joins every task that the chain owns. The file system uses this order to decide whether two accesses conflict ([Files and the VFS](files-and-the-vfs.md)).
+Each task has a file identity, an `ExecId`, under which a store records the task's reads and writes. A spawn orders everything the parent did before it ahead of the child's first step. A delivery orders everything the task did ahead of the owner's next step: `join_any` joins the task it returns, `join` joins each member, and a chain's end joins every task that the chain owns. A store uses this order to decide whether two accesses conflict ([Files and the VFS](files-and-the-vfs.md)).
 
-The result is one rule: after a join, a chain can read what the task wrote. A wait that returned a task unjoined would be a second concept, and a trap: a caller could take a task's result and leave the task unjoined. Determinism here means that the file system's decisions on conflicts and the contents of the files depend only on program order and on explicit points of synchronization, and are independent of scheduling.
+The result is one rule: after a join, a chain can read what the task wrote to the store. A wait that returned a task unjoined would be a second concept, and a trap: a caller could take a task's result and leave the task unjoined. Determinism here means that a store's decisions on conflicts and the contents of its files depend only on program order and on explicit points of synchronization, and are independent of scheduling. The Host's files have no conflict check: two tasks may write one of them through their tool calls, and the later write is the content. Within one model reply the Engine orders the changes itself: it issues a call of a tool that sets `changes_files` once each call that the reply lists before it has its answer, and the calls that the reply lists after it once that call has its own, so the changes of one reply apply one at a time, in the order the model listed them ([Tools and Packs](tools-and-packs.md)).
 
 ## 6. Inboxes
 
@@ -184,13 +189,13 @@ A task can therefore return a result and remain open for follow-ups with its con
 
 `RunLimits::max_idle_tasks` is 8 by default. A reply that makes a ninth idle task closes another: the one idle longest among those whose own tasks have all ended, or the one idle longest of all. The closed task ends as `done` with its latest reply as its result.
 
-The cap bounds memory: an idle task still has its Lua VM, which the Engine is unable to rebuild from the task's conversation. The closed task ends as `done` because its owner is still alive and can still take that reply, while `abandoned` means that the owner ended.
+The cap bounds memory: an idle task still has its Lua VM, which the Engine is unable to rebuild from the task's conversation. The closed task ends as `done` because its owner is still alive and can still take that reply, while `abandoned` means that the owner ended. The value 8 is arbitrary, as it is for `max_concurrency`.
 
 ## 7. Planned work
 
 Each of these items is still to be built.
 
-- **Replay and resume.** A Harness driver that builds `RunParams` from a recorded run's seed and start time and passes the recorded answers to `Run::resume`, and a way to spawn a canceled task again under its original id. The Harness builds `RunParams` for every run from a new seed and the clock, and a spawn assigns the next child id.
+- **Replay and resume.** A Harness driver that builds `RunParams` from a recorded run's seed and start time and repeats the recorded answers, messages, and file requests, with `Run::resume`, `Run::deliver`, and `Run::request_file`, and a way to spawn a canceled task again under its original id. The Harness builds `RunParams` for every run from a new seed and the clock, and a spawn assigns the next child id.
 - **A read of task history.** A Lua call that returns the events that a task has reported. The design waits for a concrete use. A prompt reads a task's state at the time of the call with `tasks.status`.
 - **Task tools for models.** Tools with which a model starts tasks itself, as the tools of the Pack `runvil/subagents` ([Tools and Packs](tools-and-packs.md)). The Pack reserves the name, and only Lua starts a task, with `tasks.spawn` or `tasks.fanout`.
 - **Inbox messages other than text.** Images, files, audio, and video as inbox messages. An inbox message is a text string.
@@ -214,7 +219,6 @@ Each question asks for the reason behind a part of the design.
 
 3. Why does every task have an inbox?
 4. Why is the model-first form limited to `tasks.fanout`?
-5. Why is 8 the value of `max_concurrency`, of `max_idle_tasks`, and of the depth cap?
 
 ## 10. Method and limits
 
@@ -223,5 +227,6 @@ Each question asks for the reason behind a part of the design.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 - **Every heading is a section.** On 2026-11-13 the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass, which handed its tasks to the main walk and shared the main chain's inbox with it. The pass had entry `0.0`, so the first section of the main walk read `0.1`. That session ran the build and its tests.
+- **Update.** On 2026-11-19 the text on determinism and on file access was brought to `runvil-harness` at commit `ee199e3a`. At that commit a tool asks its caller for each file operation, the Harness reports the request to the run with `Run::request_file`, and the conflict check applies in a store only. The update covers two sentences of the summary, the entry on spawning every arm in section 3, the entries on the limit of 8, on admission, and on the depth cap in section 4, the entries on the same run and on fork and join in section 5, the entry on idle tasks in section 6, the item on replay in section 7, and the third Update bullet at the top of the page. It states that a Host's messages and the file requests of tool calls are inputs of a replay beside the answers, that the same inputs give the same run when no cancel is raised, that a store checks conflicts and the Host's files have no such check, and that the calls of one model reply that change files run one at a time, in the order the model listed them. It adds the owner's reasons for the value 8 of `max_concurrency`, of `max_idle_tasks`, and of the depth cap, as the decision pages of `runvil-harness` give them, and it removes question 5 of section 9, which those reasons answer. That session read the code and left the build and the tests unrun. The update leaves the rest of the page as it was.
 
 *2026-11-10 16:38 - Claude Fable 5.2*

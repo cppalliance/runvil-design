@@ -2,17 +2,17 @@
 
 - Scope: tools, Packs, Plugins, the Plugin C contract, and the Packs that ship with Runvil
 - Code: `runvil` at commit `fa9936f64`, `runvil-docs` at commit `cfd69a4`, and `runvil-plugin-api` at commit `63a2403`
-- Update: the text on library Plugins, the C contract, and the `std` Pack describes `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`, and the Paths bullet names the repositories as of `runvil` at `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 13)
-- Update: the text on the two Plugin APIs, the `bash` Pack, the planned work, and the gaps describes `runvil-harness` at commit `18361d02`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, `runvil-plugin-bashkit` at `9c8e980`, and `runvil-workshop` at `f386801b` (section 13)
+- Update: the gap on the language guide describes `runvil-harness` at commit `18361d02` and the guide as a session corrected it in the working tree of `runvil-docs` over commit `c03ec91` (section 13)
+- Update: the text on Plugins, the two Plugin APIs, the C contract, the files of a tool call, the `std` and `bash` Packs, the planned work, the other gaps, and the questions on the shipped Packs describes `runvil-harness` at commit `ee199e3a`, `runvil-plugin-api` at `52a4905`, `runvil-plugin-std` at `a806bf6`, `runvil-plugin-bashkit` at `f348f7a`, and `runvil-workshop` at `956e7800`, and the Paths bullet names the repositories as of those commits (section 13)
 - Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil-workshop`
 
 ## Summary
 
-A Plugin installs Packs, a Pack installs tools, and a section's Lua offers tools to its model. The Engine asks for each tool call as an effect, and the Harness runs it. Sections 1 to 9 describe that design and its reasons.
+A Plugin installs Packs, a Pack installs tools, and a section's Lua offers tools to its model. The Engine asks for each tool call as an effect, and the Harness runs it. A tool asks for each file operation that it needs, the Engine issues that operation as an effect of its own, and the Harness performs and records it. Sections 1 to 9 describe that design and its reasons.
 
-A check of this page against the code found five gaps, one of them in the language guide, and left sixteen questions about reasons for the owner. Section 11 lists the gaps, and section 12 lists the questions. The two largest gaps are in the code. Two trust rules overlap, and together they send MCP server text to a model without the untrusted envelope. Two APIs install Packs, the C contract and a Rust API, and each has abilities that the other lacks.
+A check of this page against the code found eight gaps, one of them in the language guide, and left eighteen questions about reasons for the owner. Section 11 lists the gaps, and section 12 lists the questions. The two largest gaps are in the code. Two trust rules overlap, and together they send MCP server text to a model without the untrusted envelope. Two APIs install Packs, the C contract and a Rust API, and each has abilities that the other lacks. Two tools of `std` change a file in more than one request, and another task can change that file between the requests.
 
-Section 10 lists the planned work. Its two largest items are one Plugin API, which moves `plugin-web` and `plugin-mcp` onto the C contract, and file changes through the C contract, which the `std` tools Write, StrReplace, and Delete and the `bash` shell wait for.
+Section 10 lists the planned work. Its largest item is one Plugin API, which moves `plugin-web` and `plugin-mcp` onto the C contract. Three items wait for a decision of the owner: a thread of its own for bash, a removal in the contract that takes a file only, and an edit that keeps another task's change.
 
 ## From a Plugin to a tool call
 
@@ -22,7 +22,11 @@ At startup the Host creates a `PackRegistry`, calls each `install` function with
 
 A prompt lists the Packs it requires under `uses:`. Each section's Lua then offers tools to its model with `tools.offer`. At the section's first `models.loop` round, the Engine builds the tool list from those offers and sends the same list with every later round.
 
-When the model calls a tool, the Engine emits a `ToolCall` effect and waits. The Harness finds the Pack from the first segment of the tool id and calls `Pack::call`. The Pack returns text marked trusted or untrusted. The Engine wraps untrusted text in an envelope and appends the result to the section's messages.
+When the model calls a tool, the Engine emits a `ToolCall` effect and waits. The Harness finds the Pack from the first segment of the tool id and calls `Pack::call`. The effect and the call hold the tool's id, its arguments, and the call's origin, and they hold no file access: a tool asks for each file operation, and the Harness performs it.
+
+Take a call of `std/read`, which the model sees as `Read`. `std` is a library Pack, so the loader runs the call as a series of steps and sends the Plugin one `RV_TOOL_CALL` for each. The first step asks what the path names: it calls the file function `file_stat`, which takes the request, and returns `RV_PENDING`. The loader makes the request through the files of the call, and the Harness reports it to the Engine with `Run::request_file`. The Engine's next step issues the operation as a `Vfs` effect that names the call. The Harness performs it on the run's file system, under the run's policy, records the effect and a receipt of its outcome, and hands the outcome to the call. The call's next step receives the answer and asks for the file's bytes with `file_read`, and the same round trip follows. The step after that calls `finish` with the file's numbered lines, marked untrusted, and returns `RV_OK`.
+
+The Pack returns text marked trusted or untrusted. The Engine wraps untrusted text in an envelope and appends the result to the section's messages.
 
 ## 1. Plugins, Packs, and names
 
@@ -66,7 +70,7 @@ The test for a new feature is whether it works on something outside the run. The
 
 ### A `uses:` entry requires a Pack and runs its prelude
 
-A prompt names Packs under `uses:` in its front matter. For each entry, `Host::parse` checks that the Host has the Pack and refuses the prompt when the Pack is missing. The Engine then runs the Pack's Lua prelude in every section of the prompt. A Rust Pack sets its prelude in its `PackInfo`. Contract 0.4 gives a Pack a name and a description, so a prelude for a library Pack is still to be built, and each shipped Pack leaves its prelude unset.
+A prompt names Packs under `uses:` in its front matter. For each entry, `Host::parse` checks that the Host has the Pack and refuses the prompt when the Pack is missing. The Engine then runs the Pack's Lua prelude in every section of the prompt. A Rust Pack sets its prelude in its `PackInfo`. Contract 0.5 gives a Pack a name and a description, so a prelude for a library Pack is still to be built, and each shipped Pack leaves its prelude unset.
 
 A prelude runs only for a declared Pack because it defines Lua globals, and so changes what a prompt's Lua can call. The Lua globals of a prompt therefore depend on its own `uses:` list and are the same on every Host.
 
@@ -142,7 +146,7 @@ Two tools that share a wire name across the two sets fail the section's model ca
 
 ### `Pack::render` lets a Pack shape its tools for each model
 
-At the first loop round, the Harness calls `render` on each Pack the section offered from. The Pack receives the offered tools and the round's model, and returns the tools the model will see. It may rename a tool, rewrite its description and schema, drop it, or add model-only tools. Each shipped Pack uses the default, which returns the tools unchanged. Contract 0.4 lacks a render verb, so the loader gives each library Pack the same default, and a render for a library Pack is still to be built.
+At the first loop round, the Harness calls `render` on each Pack the section offered from. The Pack receives the offered tools and the round's model, and returns the tools the model will see. It may rename a tool, rewrite its description and schema, drop it, or add model-only tools. Each shipped Pack uses the default, which returns the tools unchanged. Contract 0.5 lacks a render verb, so the loader gives each library Pack the same default, and a render for a library Pack is still to be built.
 
 One hook covers every Pack, so the Engine treats all tools the same way. The Engine requests the render as an effect: the Harness performs it, so the Engine is still pure, and the run log records it.
 
@@ -184,7 +188,7 @@ This split defines the Engine and the Harness. The Engine returns the work it ne
 
 ### The model calls offered tools, and Lua calls any Pack tool
 
-The model calls the tools in its section's two sets, by wire name. Lua calls any tool in the run's catalog by id with `tools.call`. A Rust Pack can flag a tool `model_only_call`, and a script's call of such a tool raises an error of kind `model_only_tool`. The flag is part of the catalog entry because Lua must be able to name the tool when it offers it. Contract 0.4 gives a tool a name, a wire name, a description, and a parameter schema, so the four flags are still to be built for a library Pack.
+The model calls the tools in its section's two sets, by wire name. Lua calls any tool in the run's catalog by id with `tools.call`. A Rust Pack can flag a tool `model_only_call`, and a script's call of such a tool raises an error of kind `model_only_tool`. The flag is part of the catalog entry because Lua must be able to name the tool when it offers it. Contract 0.5 gives a tool a name, a wire name, a description, a parameter schema, and one flag, which says that the tool changes files, so the other four flags of `ToolInfo` are still to be built for a library Pack.
 
 ### A Pack tool's failure returns to the model as text and raises in a script
 
@@ -192,15 +196,17 @@ When the model made the call, the Engine converts the failure into the call's re
 
 Two failures raise at `models.loop` itself. A model call to a name outside both sets fails the whole round with `out_of_scope_tool`. A call that the Harness drops, after a stop or a cancel, raises the canceled error.
 
-### The Engine issues one round's Pack tool calls together
+### The Engine issues one round's Pack tool calls together, and each call that changes files alone
 
-When one model reply asks for several Pack tools, the Engine issues all the calls in one step, so they run at the same time. The loop appends the round to the messages as a whole, in the order the model listed the calls. An adhoc tool or a discovery tool runs by itself, between batches.
+When one model reply asks for several Pack tools, the Engine issues the calls in one step, so they run at the same time. The loop appends the round to the messages as a whole, in the order the model listed the calls. An adhoc tool or a discovery tool runs by itself, between batches. So does a call to a tool whose `ToolInfo` sets `changes_files`: the Engine issues it once every call listed before it has its answer, and issues the calls listed after it once it has its own. Four shipped tools set the flag: Write, StrReplace, and Delete of `std`, and Shell of `bash` (section 9).
 
-The calls run at the same time because they are independent of each other, and the model would otherwise wait for them one at a time. The loop appends the whole round because model APIs reject a request unless every requested call has a result.
+The calls run at the same time because they are independent of each other, and the model would otherwise wait for them one at a time. A call that changes files is the exception, because a later call of the same reply can depend on the change. The Host's files have no conflict check, so this order is what keeps two changes of one reply from interleaving: each changing call finishes before the next one starts. The changes of one reply apply one at a time, in the order the model listed them, and a call listed before a change reads the files as they were. A script's `tools.call` is one call and waits for its answer, so the flag changes nothing for it. The loop appends the whole round because model APIs reject a request unless every requested call has a result.
 
 ### Each call works under its own file identity
 
-The Engine forks a file identity for each tool call when it issues the call, and joins it back when the Harness answers. The calls of one round therefore count as concurrent. When two of them touch the same path and one writes, the file system returns `VfsError::Conflict` to the operation that ran second, and the run continues ([Files and the VFS](files-and-the-vfs.md)). A Rust Pack receives that error, and the loader hands a library Pack the kind `RV_FILE_ERROR_CONFLICT` with a sentence that names the path. Concurrent calls that shared one identity would race, and the file system would miss the conflict. Each shipped tool reads files only: `web` and `mcp` leave the access unused, and contract 0.4 has three file functions, which stat, list, and read (section 8).
+The Engine forks a file identity for each tool call when it issues the call, and ends it when the Harness answers the call or the Engine aborts it. Every file operation of the call runs under that identity, and the file system refuses one that arrives after the end ([Files and the VFS](files-and-the-vfs.md)). The Host's files have no conflict check: the calls that one round runs together, and the calls of two tasks, may read and write one path, and the later write is the content. Only a conflict in a store ends a run, and a store is the prompt's own memory. The owner's reason: "maybe the determinism error should only apply to store operations? and we should otherwise try to behave like regular harnesses, so that two subagents which conflict on file access can just work it out". Of the shipped Packs, `web` and `mcp` ask for no file, and the tools of `std` and `bash` ask through the file functions of the C contract (section 8).
+
+Each call has an identity of its own so that the end of one call stops that call's operations and no other's. A call that the Harness dropped can then change no file afterward.
 
 ### The Harness runs at most 10 calls at once and starts waiting calls oldest first
 
@@ -248,11 +254,11 @@ Lua reads `tool.description`, `tool.parameters`, and a Pack's `name` and `tools`
 
 ### The shipped Packs mark outside text as untrusted
 
-`web/fetch` and `web/search` return untrusted output. `std` marks file content and file names as untrusted. It marks as trusted its fixed stub text, and a Grep answer for zero matches that holds only fixed text and counts. `bash/shell` marks the output of each command as untrusted. A discovery listing is untrusted because Packs and their servers write the descriptions. `tasks.receive()` returns the operator's messages as plain text, because a wrapped answer would hide the operator's own words from the script.
+`web/fetch` and `web/search` return untrusted output. `std` marks file content and file names as untrusted. It marks as trusted its fixed stub text, the answers of Write, StrReplace, and Delete, which hold fixed text and counts, and a Grep answer for zero matches that holds only fixed text and counts. `bash/shell` marks the output of each command as untrusted. A discovery listing is untrusted because Packs and their servers write the descriptions. `tasks.receive()` returns the operator's messages as plain text, because a wrapped answer would hide the operator's own words from the script.
 
 ### The `mcp` Pack marks its output by caller
 
-The `mcp` Pack reads the caller from its `ToolContext`. For a call the model made, it marks the server's text untrusted. For a script's `tools.call`, it marks the same text trusted, so the script receives the raw string and can decode the listing JSON. The cost is that a script that forwards MCP text into a prompt sends it unwrapped, and that is the script author's decision. Section 11 describes a conflict between this rule and the Engine's rule for tool listings. Only a Rust Pack receives the call's origin: the loader passes a library Pack the tool's name, the arguments, and the file access, so the contract needs the origin before `mcp` can move to it (section 10).
+The `mcp` Pack reads the caller from its `ToolContext`. For a call the model made, it marks the server's text untrusted. For a script's `tools.call`, it marks the same text trusted, so the script receives the raw string and can decode the listing JSON. The cost is that a script that forwards MCP text into a prompt sends it unwrapped, and that is the script author's decision. Section 11 describes a conflict between this rule and the Engine's rule for tool listings. Only a Rust Pack receives the call's origin: the loader passes a library Pack the tool's name, the arguments, and the file functions, so the contract needs the origin before `mcp` can move to it (section 10).
 
 ## 7. Writing a Pack
 
@@ -282,27 +288,41 @@ The Harness calls `new_pack` while it prepares the run, so a factory returns qui
 
 `tools()` returns the Pack's tool list, which the Harness reads once per run. `call()` performs one tool call. `ready()` resolves when the tool list is complete. `render()` shapes the offered tools for a model.
 
-### `ToolContext` lends each call the tool id, a file access, and the call's origin
+### `ToolContext` lends each call the tool id, its files, and the call's origin
 
-`cx.tool()` returns the id of the called tool. `cx.access()` returns the call's file access, rooted at `/` of the file system that the Host gave the run. It reaches no store, so a tool sees no file that `store.write` wrote ([Files and the VFS](files-and-the-vfs.md)). `cx.origin()` says which section and which caller made the call. The context's fields are borrows that end with the call, so the Rust compiler rejects a Pack that stores the access.
+`cx.tool()` returns the id of the called tool. `cx.files()` returns the call's files, a `ToolFiles`: the call asks for one operation of the `VfsOp` list with `request` and awaits its `VfsOutcome`. A request works under the call's own identity, on paths rooted at `/` of the file system that the Host gave the run. It reaches no store, so a tool sees no file that `store.write` wrote ([Files and the VFS](files-and-the-vfs.md)). The context holds no file access, so a request is the call's one way to the run's files. `cx.origin()` says which section and which caller made the call. The context's fields are borrows that end with the call, so the Rust compiler rejects a Pack that stores the files.
 
 The owner's rule: "The tool can't keep the access. ... it has to give it up, after the call is done". A Rust Pack reads the services it needs at `install` and stores them in its factory.
 
 ### `Pack::call` follows five rules
 
-1. Return to the poll quickly. A call sends blocking or CPU-heavy work to the Host's runtime, because the Harness polls every effect of a run on the same task.
+1. Return to the poll quickly. A call sends blocking or CPU-heavy work to the Host's runtime, because the Harness polls every effect of a run on the same task. A call awaits a file operation that it asks for through its files, and the Harness performs it between two polls of the call.
 2. Report failure as an `Error`. The Harness answers a panicking call as `Dropped` and logs the panic.
 3. Mark as untrusted any output that embeds data an attacker can influence.
 4. Expect to be dropped. The Harness drops the call's future on a stop, on a cancel, and when the calling task ends.
 5. Finish independently of the run's other calls. A call that waits for a sibling queued behind the limit of 10 can stall the run.
 
-### File operations through the access are synchronous
+### A tool keeps nothing from one call that changes what a later call returns
 
-A Rust Pack's tool reads and writes files through `cx.access()`, and each operation runs inside the call. The reason is that the Harness is independent of any particular async runtime, so each part of the context has to be independent of tokio. The shipped Rust Packs, `web` and `mcp`, leave the access unused. The shipped tools that touch files are in the library Plugins `std` and `bashkit`, and they read through the three file functions of the contract, which the loader answers from the same access (section 8). A long file job yields so that the Harness can cancel it. Grep, in the `std` library, ends its step after every 32 files or directories, or after 2 MiB read, so a stop or a cancel drops a long search between two steps.
+A tool's result depends on the call's arguments, the run's files, and what the tool reaches outside the run. Whatever one call would leave for a later call goes into the run's files, and the record holds each such change, because a tool changes a file of the run only by a request through the files of its call. A connection or a client that a Pack's factory shares between runs changes no result, so the rule leaves it alone.
+
+The owner's rule: "Tools are not allowed to have internal states, and if they do, they have to be recorded." The reason is replay, which is planned work ([The Harness and the Host API](harness-and-host.md)): a replay feeds each recorded tool result back to the Engine and runs no tool. The owner's words: "On a replay, the, the shell tool is not invoked. The shell tool never executes." A run that went on live after a replay would call a tool that holds none of the state its earlier calls left. The shell of the `bash` Pack follows the rule with a shell for each call: what a script leaves in its shell ends with the call, and the next call finds the run's files alone (section 9).
+
+### A tool asks for a file operation, and the Harness performs and records it
+
+A tool asks for a file operation and waits for the outcome. A Rust Pack's tool asks through `cx.files()` and awaits the outcome. A library Pack's tool asks through a file function of the C contract, and the loader makes the same request for it through the files of the call (section 8). The Harness reports the request to the Engine with `Run::request_file`, and the Engine issues it as a `Vfs` effect that names the call. The Harness performs the operation, records it and its answer, and wakes the call with the outcome ([The Harness and the Host API](harness-and-host.md)). The call stays in progress the whole time, and its one answer is still the tool's result. A request is made when the call first polls it, and it goes out when the Harness takes it, between two polls of the call, so a request that the call drops before then sends nothing. The Harness performs the requests of one call in the order the call made them, and it drops what a call that has ended still asks for. The owner's rule: "every VFS operation that's performed by a tool has to turn into an effect in the engine."
+
+A tool that changes files sets `changes_files` in its `ToolInfo`, and the Engine then runs each of its calls alone, in the order the model listed them (section 5).
+
+The operation itself is synchronous, because the storage underneath is synchronous ([Files and the VFS](files-and-the-vfs.md)): the Harness performs it with one blocking call. The Harness is also independent of any particular async runtime, so each part of the context has to be independent of tokio. A request is a future that the Harness itself wakes, so a tool awaits it on any runtime.
+
+The shipped Rust Packs, `web` and `mcp`, ask for no file operation. The shipped tools that touch files are in the library Plugins `std` and `bashkit`, and they ask through the nine file functions of the contract, so the record holds each of their file operations.
+
+A long file job yields so that the Harness can cancel it. Each file request of a library Pack's tool ends a step of its call, and Grep, in the `std` library, also ends its step after every 32 files or directories, so a stop or a cancel drops a long search between two steps.
 
 ### The run's mode policy decides each file change that a tool makes
 
-A tool performs every file operation on the call's access, and the file system applies the run's mode policy to each one. In Ask mode it refuses each change, and in Plan mode it accepts changes to markdown paths. The check is in the file system because every operation passes through the access, so the check covers every tool, including each tool written later. A `store` call is outside the policy, because the run's store is no part of the file system that tools work in. Workshop's runs use the file system's default policy, `AllowAll`, and tests are the callers of `ModePolicy` ([Files and the VFS](files-and-the-vfs.md)).
+The Harness performs every file operation of a tool on the file access of its call, and the file system applies the run's mode policy to each one. In Ask mode it refuses each change, and in Plan mode it accepts changes to markdown paths. The check is in the file system because every operation passes through the access, so the check covers every tool, including each tool written later. A `store` call is outside the policy, because the run's store is no part of the file system that tools work in. Workshop's runs use the file system's default policy, `AllowAll`, and tests are the callers of `ModePolicy` ([Files and the VFS](files-and-the-vfs.md)).
 
 ### Host services are named, typed objects that `install` reads
 
@@ -314,29 +334,43 @@ For a prompt that declares the Pack, the Engine runs the Pack's prelude in each 
 
 ## 8. The C contract
 
-### Contract 0.4 has six verbs
+### Contract 0.5 has six verbs
 
 A dynamic library exports one function, `runvil_plugin`, and each call passes an `RvCall` struct that names a verb. Verbs 1 and 2 load and unload the Plugin, and a load names the Plugin and inserts its Packs. Verbs 3 and 4 create and delete one run's instance of a Pack, and the instance lists its tools when it is created. Verb 5 runs one step of a tool call, and verb 6 frees the state of a call that the Host abandoned. Numbers 7 and 8 are reserved for later versions.
 
-A single function means one exported symbol, and a new version of the contract adds verbs. Contract 0.2 had the first two verbs, which proved the loading mechanism before the rest was designed. Version 0.3 added Packs and tool calls, and version 0.4 added the file functions.
+A single function means one exported symbol, and a new version of the contract adds verbs. Contract 0.2 had the first two verbs, which proved the loading mechanism before the rest was designed. Version 0.3 added Packs and tool calls, and version 0.4 added the three file functions that read. Version 0.5 added the six file functions that change files, the answer to a file request in the call's next step, and a flag for a tool that changes files, all inside the six verbs.
 
 ### The contract has its own repository, and each 0.x version is a separate contract
 
-`runvil-plugin-api` contains the C header, the Rust mirror `runvil-plugin-sys`, and a safe SDK, `runvil-plugin-sdk`. While the major version is 0, a Plugin built for 0.4 loads only in a Host that reports 0.4. The Plugin reads the Host's version first in `RV_PLUGIN_LOAD` and answers any other version with `RV_ERR_UNSUPPORTED`. The contract has a repository of its own so that a Plugin depends on that repository only.
+`runvil-plugin-api` contains the C header, the Rust mirror `runvil-plugin-sys`, and a safe SDK, `runvil-plugin-sdk`. While the major version is 0, a Plugin built for 0.5 loads only in a Host that reports 0.5. The Plugin reads the Host's version first in `RV_PLUGIN_LOAD` and answers any other version with `RV_ERR_UNSUPPORTED`. The contract has a repository of its own so that a Plugin depends on that repository only.
 
 ### Each callback belongs to one verb and takes a `ctx`
 
-The functions a Plugin may call back are fields of a verb's arguments struct. For a load, `RvLoadArgs` has `ctx`, `refuse`, `describe_plugin`, and `insert_pack`. `RvPackNewArgs` has `refuse` and `add_tool`, and `RvToolCallArgs` has `finish` and three file functions. Each function takes the `ctx` first and answers only while its call runs, on that call's thread. A callback belongs to one verb because each verb has its own lifetime and thread rules.
+The functions a Plugin may call back are fields of a verb's arguments struct. For a load, `RvLoadArgs` has `ctx`, `refuse`, `describe_plugin`, and `insert_pack`. `RvPackNewArgs` has `refuse` and `add_tool`, and `RvToolCallArgs` has `finish`, nine file functions, and `answer`, a pointer to the answer to the file request that the step before made. Each function takes the `ctx` first and answers only while its call runs, on that call's thread. A callback belongs to one verb because each verb has its own lifetime and thread rules.
 
-A tool call is a series of steps. The Host sends `RV_TOOL_CALL` once for each step, a step that returns `RV_PENDING` asks for another, and a step ends the call by calling `finish` once with its result. The call has steps because a step that blocked would stall its run, and the Host can abandon a call only between two steps. A step reads the run's files through `file_stat`, `file_list`, and `file_read`, so the run's policy applies to every read. Functions that change a file are still to come: contract 0.4 reads only.
+A tool call is a series of steps. The Host sends `RV_TOOL_CALL` once for each step, a step that returns `RV_PENDING` asks for another, and a step ends the call by calling `finish` once with its result and returning `RV_OK`. The call has steps because a step that blocked would stall its run, and the Host can abandon a call only between two steps.
+
+### A file function takes a request, and the call's next step receives the answer
+
+A step reaches the run's files through the nine file functions of its arguments: `file_stat`, `file_list`, and `file_read` read, and `file_write`, `file_append`, `file_mkdir`, `file_remove`, `file_rename`, and `file_copy` change the files. A file function takes one request and fills nothing. The step returns `RV_PENDING`, the Harness performs the operation, and the call's next step receives the answer, an `RvFileAnswer`: what the request asked for, a status alone for a change, or the error of an operation that failed. The Host sends the call no step in between. A call has one request outstanding, so a second request in one step is a misuse, and so is a request in a step that calls `finish`. An operation that fails leaves the call running, and the tool decides what its result says. A write or an append takes at most 16 MiB, the constant `RV_MAX_WRITE`, and a tool writes a longer file as one write and then one append for each further part. The contract has no function that asks whether a path exists, because a stat answers that.
+
+The loader makes each request through the files of the call, as a Rust Pack's tool does (section 7). Each file operation of a library Pack's tool, a read as well as a change, is therefore a `Vfs` effect that the Harness performs under the run's policy and records ([Files and the VFS](files-and-the-vfs.md)). The owner's rule: "every VFS operation that's performed by a tool has to turn into an effect in the engine." The answer waits for the next step because the Harness performs each operation as an effect of the run, between two steps of the call. A function that returned its result inside the step would perform the operation there, outside the run's record.
+
+The nine functions ask for nine of the 15 operations of `VfsOp`. The other six have no file function, and `StrReplace`, which replaces a text in a file in one operation, is one of them. A library Pack's tool therefore edits a file as a read and then a write (section 9).
+
+The SDK puts a future over each request. A file method of the SDK's `ToolCall`, such as `read_range` or `write`, returns a `FileFuture`, and a tool awaits it inside the future that its `Pack::call` returned. The first poll of a `FileFuture` queues its request. The step that polled it hands the oldest queued request of the call to the Host and returns `RV_PENDING`, and the next step copies the answer out of the Host's memory before it polls the tool's future again. A tool may wait on several requests at once, and the SDK sends them one with each step, in the order of their first polls.
+
+The contract has an error kind for a conflict between two tool calls, `RV_FILE_ERROR_CONFLICT`, and the Harness sends it to no tool, because the files that a tool reaches have no conflict check (section 11).
+
+A tool whose calls change files sets the flag `RV_TOOL_CHANGES_FILES` when its Pack instance adds it. The loader then sets `changes_files` in the tool's `ToolInfo`, and the Engine runs each call of the tool alone and in order (section 5).
 
 ### A library Plugin and a C entry point compiled into the Host receive the same calls
 
-The loader has two functions: `insert_plugin_dir` loads every dynamic library in a directory, and `insert_plugin` loads a C entry point that is compiled into the Host. The loader names the two kinds `PluginSource::Library` and `PluginSource::Linked`. Each entry point gets the same calls, so one path loads both kinds. The owner's rule: "those have to be treated exactly the same. In other words ... the entry point has the same shape". For each Pack that a Plugin inserted, the loader puts a factory in the registry. The factory sends `RV_PACK_NEW` for each run, the instance sends one `RV_TOOL_CALL` each time a call's future is polled, and its drop sends `RV_PACK_DELETE`.
+The loader has two functions: `insert_plugin_dir` loads every dynamic library in a directory, and `insert_plugin` loads a C entry point that is compiled into the Host. The loader names the two kinds `PluginSource::Library` and `PluginSource::Linked`. Each entry point gets the same calls, so one path loads both kinds. The owner's rule: "those have to be treated exactly the same. In other words ... the entry point has the same shape". For each Pack that a Plugin inserted, the loader puts a factory in the registry. The factory sends `RV_PACK_NEW` for each run, the instance sends one `RV_TOOL_CALL` for each step of a call, and its drop sends `RV_PACK_DELETE`.
 
 `std` and `bashkit` are library Plugins, and tests are the only callers of `insert_plugin`. The shipped Plugins that are compiled into the Host, `plugin-web` and `plugin-mcp`, are a third kind. Each is a Rust `install` function written against `runvil-plugin` (section 7), which the Host calls itself, so the contract's calls go to `std` and `bashkit` alone. The docs of `runvil-plugin` call that third kind a linked Plugin as well. Section 11 describes the gap, and section 10 lists the move of the two Plugins onto the contract.
 
-A Pack from the contract has tools only, and a tool has a name, a wire name, a description, and parameters. The four `ToolInfo` flags, the prelude, `ready`, `render`, the call's origin, a configuration, Host services, and a Pack inserted as unavailable exist in the Rust API alone. The contract is still to gain the ones that a shipped Pack uses (section 10).
+A Pack from the contract has tools only, and a tool has a name, a wire name, a description, parameters, and the flag that says it changes files. The other four `ToolInfo` flags, the prelude, `ready`, `render`, the call's origin, a configuration, Host services, and a Pack inserted as unavailable exist in the Rust API alone. The contract is still to gain the ones that a shipped Pack uses (section 10).
 
 A loaded Plugin is reference counted. The `PluginReport`, each of its Packs in the registry, and each Pack instance of a run hold it, so it unloads after its last Pack instance is deleted. `insert_plugin_dir` records a library that fails to load in the `PluginReport` and continues with the next one.
 
@@ -346,17 +380,25 @@ Loading happens in the Harness, and the Engine receives data: the tool catalog, 
 
 ### `std` copies Cursor's file tools
 
-`std` is a library Plugin. Its code is in the `runvil-plugin-std` repository, written against `runvil-plugin-sdk`, and Workshop loads its library from the Plugin directory ([Workshop: how the app is built](workshop-app.md)). The Pack has seven tools. `std/read`, `std/dir`, and `std/grep` work. `std/write`, `std/replace`, `std/rm`, and `std/glob` answer a fixed text that says the tool is missing from this build. The model sees Cursor's names, such as `Read`, `Grep`, and `StrReplace`. Six definitions are Cursor's with the edits that `crates/plugin-std/schemas/EDITS.md` in that repository lists, and ListDir's is the crate's own. All seven are JSON files.
+`std` is a library Plugin. Its code is in the `runvil-plugin-std` repository, written against `runvil-plugin-sdk`, and Workshop loads its library from the Plugin directory ([Workshop: how the app is built](workshop-app.md)). The Pack has seven tools. `std/read`, `std/dir`, `std/grep`, `std/write`, `std/replace`, and `std/rm` work, and `std/glob` answers a fixed text that says the tool is missing from this build. The model sees Cursor's names, such as `Read`, `Grep`, and `StrReplace`. Six definitions are Cursor's with the edits that `crates/plugin-std/schemas/EDITS.md` in that repository lists, and ListDir's is the crate's own. All seven are JSON files.
+
+Write, StrReplace, and Delete change the run's files, and each sets `changes_files`, so the Engine runs each of their calls alone, in the order the model listed them (section 5). Write makes a file, or replaces the whole content of one, with one write, and the Host makes each absent directory on the way to the file. It refuses contents over 16 MiB, the most that one write of the contract takes.
+
+StrReplace reads a file and writes it back with one text in place of another. It loads the file as Read does, with a stat and then one read, so it refuses a directory, a pipe or a device, and a file over 16 MiB as Read does. The file must hold UTF-8 text, and the text to replace must occur exactly once unless the call sets `replace_all`. When the text occurs zero times, or more than once without `replace_all`, the failure states how many times it occurs. The count is of the occurrences that do not overlap, taken from the start of the file, and a call with `replace_all` replaces those. A text that starts at more than one place does not occur once, even where the places overlap, as `ana` starts at two places in `banana`. When the count for such a text is one, a call without `replace_all` is refused with a sentence that says the text starts at more than one place, and that failure states no count. StrReplace refuses an edit that would leave the file over 16 MiB, the most that one write takes, and it refuses before it builds the edited text, because a call with `replace_all` could otherwise ask for far more memory than the file and its arguments hold. The edit is a read and then a write, because the contract has no function that replaces text in one step, so it can lose a change that another task makes to the file between the two ([Files and the VFS](files-and-the-vfs.md), [runvil-plugin-std issue 4](https://github.com/cppalliance/runvil-plugin-std/issues/4)).
+
+Delete removes a file, or a link and not what the link leads to, and it refuses a directory. It asks what the path names before it asks for the removal, because the removal of the contract also takes an empty directory. The two are requests of their own, so a directory with no entries that another task puts at the path between them is removed. A directory with entries is never removed. A removal in the contract that takes a file only would close that gap ([runvil-plugin-std issue 3](https://github.com/cppalliance/runvil-plugin-std/issues/3)). Section 11 lists both windows as gaps.
 
 The Pack copies Cursor's text because the model was trained against that exact text, and a stored copy can be diffed against Cursor's. A stub answers as a success so that calls to the Pack exercise both success and failure from end to end. Walks skip `.git` and list the other dotfiles, because a model often needs to edit `.gitignore` and similar files. A walk leaves out a name that contains a control character and counts it, because a line feed in a name would forge a line of the answer. The shell is in a Pack of its own, `bash`, so a run that wants a shell declares it.
 
-### `bash` runs a shell inside the run, and the shell reads the run's files
+### `bash` runs a shell inside the run, and the shell reads and changes the run's files
 
 `bash` is the Pack of a library Plugin. The bashkit Plugin has a repository of its own, `runvil-plugin-bashkit`, and is written against `runvil-plugin-sdk`. It reports the name `bashkit` and inserts one Pack, `runvil/bash`. The Pack has one tool, `bash/shell`, and the model sees it as `Shell`, which is Cursor's name for its shell tool. The definition is Cursor's, with the edits that `crates/plugin-bashkit/schemas/EDITS.md` in that repository lists. Workshop pins the Plugin by commit, builds its library through the crate `workshop-plugin-bashkit`, and loads it from the Plugin directory, beside the library of `std` ([Workshop: how the app is built](workshop-app.md)). The built-in chat prompt requires `bash` under `uses:` and offers it.
 
-The shell is a bash interpreter from the `bashkit` crate, and it runs inside the run. Every command is built into bashkit, so the shell works without a child process and without a network. A run has one session, which the first call makes, and the working directory, variables, and functions that one command leaves are there for the next call. A call that the Host abandons takes the shell with it, and the next call starts a new session, because a script that is cut off partway may leave the shell in a state that an ordinary command would avoid. A command ends after 30 seconds, or after the `block_until_ms` of its call when that is less. The answer is the exit code and the output, marked untrusted.
+The shell is a bash interpreter from the `bashkit` crate, and it runs inside the run. Every command is built into bashkit, so the shell works without a child process and without a network. Each call builds a shell of its own, which starts at the root of the run's files and goes when the call ends. The working directory, variables, and functions of one call end with it, so a call finds the run's files as the earlier calls left them and nothing else of an earlier call. A tool keeps nothing from one call that changes what a later call returns (section 7), and a shell for each call is how the shell follows that rule. The owner's reason: "Its the easiest to implement and doesn't expand the API surface." A command ends after 30 seconds, or after the `block_until_ms` of its call when that is less. The answer is the exit code and the output, marked untrusted.
 
-The shell's files are the run's files. Bashkit keeps one `'static` file system for as long as the shell lives, and a tool call lends its files only while one of its steps runs. The Pack's file system, `RunFiles`, therefore holds a channel in place of a call: each read waits in the channel as a request, and the call that runs the script performs it through the contract's file functions and replies. Every read goes through the Host, so the run's policy applies. A step ends after 32 reads, as a Grep step ends after 32 files, so the Host can abandon a script between two steps. A command that changes a file fails with one fixed sentence, the constant `READ_ONLY` in `crates/plugin-bashkit/src/files.rs`, because contract 0.4 reads only (section 8). The Pack's plan calls this the first of two stages, and the second stage adds writing (section 10).
+The shell's files are the run's files. Bashkit holds its file system as a value that borrows nothing, and the SDK's `ToolCall` borrows from its call. The Pack's file system, `RunFiles`, therefore holds a channel in place of a call: each file operation of the shell, a read or a change, waits in the channel as a request, and the call that runs the script performs it through the contract's file functions and replies. Every operation goes through the Host: the run's policy applies to it, and the run's record holds it. Redirects, `tee`, `sed -i`, `cp -r`, `mv`, `rm -r`, `mkdir -p`, `touch`, and `mktemp` work. The tool sets `changes_files`, so the Engine runs the Shell calls of one reply one after another, in the order the model listed them (section 5). Each operation that goes to the Host ends a step of the call, so the Host can abandon a script between two operations, and a change that reached the Host before then has happened.
+
+The contract reports what a path names and how long a file is, and it has no function for a mode, a time, a link, or a named pipe. The shell answers those itself and keeps no state to do so: a directory shows mode 755 and every other path 644, `chmod` to another mode fails with the sentence of the constant `FIXED_MODE` in `crates/plugin-bashkit/src/files.rs`, a time that a command sets is not kept, and `ln` and `mkfifo` fail. No file has an execute bit, so a script runs as `bash script.sh`. The shell reads at most 16 MiB of one file and writes at most 16 MiB at a time, and a longer write or append fails with nothing written. On every platform it refuses a write or an append to a path under `/dev/`, with the sentence of the constant `NO_DEVICE` in the same file, because bashkit on Windows sends a redirect to `/dev/stdout` or `/dev/stderr` to its file system ([bashkit issue 2933](https://github.com/everruns/bashkit/issues/2933)), where the write would make a file of that name among the run's files. The Pack builds against `bashkit` 0.21 from crates.io. A redirect to `/dev/null` discards its output all the same, because bashkit answers that one itself. `mktemp` makes its file under `/tmp` among the run's files, and makes that directory when it is absent.
 
 ### `web` provides search and fetch together
 
@@ -404,23 +446,25 @@ The Pack uses `rmcp`'s own HTTP client, which refuses redirects, so the client s
 
 ## 10. Planned work
 
-Each of these items is still to be built.
+Each of these items is still to be built, and the three that begin with the word Undecided wait for a decision of the owner.
 
-- **One Plugin API.** The Rust Plugins `plugin-web` and `plugin-mcp` written against the C contract and inserted with `insert_plugin`, and the additions to the contract that they need first. Both are `install` functions written against `runvil-plugin` (section 7), Workshop calls both, and `insert_plugin` has tests as its only callers. The two Packs use seven things that contract 0.4 lacks. `mcp` uses a configuration, for its list of servers, the call's origin, to mark its output by caller, and the `describes_tools` flag, on its listing tool. `web` uses the Host's search provider. Both use the Host's runtime handle, a Pack inserted as unavailable with a reason, a call that waits on work outside its step, and error causes. After the move the `install` functions are removed, and a Pack that is compiled into the Host goes through the same contract as a Pack from a library (section 8).
-- **File changes through the C contract.** Functions with which a Plugin's tool writes, deletes, and renames the run's files. Contract 0.4 has three file functions, which stat, list, and read. Two shipped Packs wait for the rest. The `std` tools Write, StrReplace, and Delete answer a fixed stub text, and the `bash` shell refuses each change with one fixed sentence (section 9). The Rust API has the change operations on `cx.access()` (section 7), and the shipped Rust Packs, `web` and `mcp`, leave the access unused.
-- **The `std` tools that are stubs.** Write, StrReplace, Delete, and Glob. Each answers a fixed text that says the tool is missing from this build. The first three wait for the file changes above.
-- **Approval by a person.** The step that asks the operator to approve a file change. When the run's policy answers `Ask`, the file system refuses the operation with `VfsError::ApprovalRequired` and a reason. A Rust Pack's tool receives that error, and the loader hands a library Pack's tool a denied file error with the same reason. The shipped tools read files only, and Workshop's runs use `AllowAll`, so the error is out of reach of a run under Workshop.
+- **One Plugin API.** The Rust Plugins `plugin-web` and `plugin-mcp` written against the C contract and inserted with `insert_plugin`, and the additions to the contract that they need first. Both are `install` functions written against `runvil-plugin` (section 7), Workshop calls both, and `insert_plugin` has tests as its only callers. The two Packs use seven things that contract 0.5 lacks. `mcp` uses a configuration, for its list of servers, the call's origin, to mark its output by caller, and the `describes_tools` flag, on its listing tool. Both use Host services: `web` reads the Host's search provider, and both read the Host's runtime handle. Both also use a Pack inserted as unavailable with a reason, a call that waits on work outside its step, and error causes. After the move the `install` functions are removed, and a Pack that is compiled into the Host goes through the same contract as a Pack from a library (section 8).
+- **Glob in `std`.** A `std/glob` that finds files by a name pattern and returns their paths. The tool answers a fixed text that says it is missing from this build (section 9).
+- **Approval by a person.** The step that asks the operator to approve a file change. When the run's policy answers `Ask`, the file system refuses the operation with `VfsError::ApprovalRequired` and a reason. A Rust Pack's tool receives that error, and the loader hands a library Pack's tool a denied file error with the same reason. Workshop's runs use `AllowAll`, so the error is out of reach of a run under Workshop.
 - **Ignore files.** Applying `.gitignore`, so that Grep skips a folder such as `target/` and spends its budget of 100,000 files elsewhere. Walks skip `.git` and names that contain a control character.
-- **Writing and a thread of its own for the `bash` shell.** Shell commands that change the run's files, and bash on a thread of the Plugin's own, with a wake function in the contract. The `bash` Pack runs commands and reads the run's files (section 9). Bash runs inside the steps of its call: a heavy script holds its step, and the Stop button with it, until the script ends or reaches one of bashkit's limits, and while a script sleeps the Host steps the call with nothing to do. Writing waits for the file changes above.
+- **Shell state that lasts across calls.** A shell that saves its state to a file of the run and loads it at its next call. Each `bash/shell` call builds a new shell, so the working directory, variables, and functions of one call end with it (section 9).
+- **Undecided: a thread of its own for bash.** Bash on a thread of the Plugin's own, with a wake function in the contract. Bash runs inside the steps of its call: a heavy script holds its step, and the Stop button with it, until the script ends or reaches one of bashkit's limits, and while a script sleeps the Host steps the call with nothing to do. The owner has yet to decide on it.
+- **Undecided: a removal that takes a file only.** A removal in the contract that refuses a directory, so that Delete needs no stat before it ([runvil-plugin-std issue 3](https://github.com/cppalliance/runvil-plugin-std/issues/3)). Delete asks what the path names and then asks for the removal, so a directory with no entries that another task puts at the path between the two is removed (section 11). The owner has yet to decide on it.
+- **Undecided: an edit that keeps another task's change.** A way in the contract for a tool to edit a file without losing a change that another task makes to it, such as an edit as one operation or a write that fails when the file changed since the read ([runvil-plugin-std issue 4](https://github.com/cppalliance/runvil-plugin-std/issues/4)). StrReplace reads a file and then writes it back, so a change that another task makes to the file between the two is lost (section 11). The owner has yet to decide on it.
 - **Subagent tools.** The tools of `runvil/subagents`, and the wrapping of text that one model writes for another. The Pack only reserves its name (section 9).
 - **MCP in the Dynamic Set.** The `mcp` Pack rendering its servers' tools into the Dynamic Set, which retires its own two tools. Local servers and OAuth are still to be built as well. The Pack offers its own two tools, for remote servers.
-- **Filters and labels.** An offer narrowed by a hint such as read-only, and labels on `ToolInfo`, modeled on MCP's, for a future Ask mode. An offer names each tool or Pack, and `ToolInfo` has four flags: `structured_output`, `survives_stop`, `describes_tools`, and `model_only_call`.
+- **Filters and labels.** An offer narrowed by a hint such as read-only, and labels on `ToolInfo`, modeled on MCP's, for a future Ask mode. An offer names each tool or Pack, and `ToolInfo` has five flags: `structured_output`, `survives_stop`, `describes_tools`, `model_only_call`, and `changes_files`.
 - **Partial rounds.** Saving the finished results when a stop cuts a round short. The loop discards the whole round.
 - **Fetch settings.** A way for a Host to change the fetch limits. The fetch policy has a setter for each limit, and the Pack accepts `null` or `{}` as its configuration, so each Host runs the defaults.
 
 ## 11. Known gaps
 
-This section has five gaps: one conflict inside the code, two APIs that install Packs, one place where the language guide differs from the code, and a flag and a prelude that only tests set.
+This section has eight gaps: one conflict inside the code, two APIs that install Packs, two tools of `std` that change a file in more than one request, an error kind that only tests send, one place where the language guide differs from the code, and a flag and a prelude that only tests set.
 
 ### Two trust rules overlap, and the model receives MCP server text unwrapped
 
@@ -434,13 +478,30 @@ The evidence is a reading of `dispatch_body` in `runvil-internal/lua/src/dispatc
 
 A Pack enters a Host's registry in one of three ways. A Rust `install` function, written against `runvil-plugin`, inserts it: `plugin-web` and `plugin-mcp` work this way, and Workshop calls both functions. A C entry point that is compiled into the Host inserts it, when the Host hands the entry point to `insert_plugin`. A dynamic library that exports `runvil_plugin` inserts it, when the Host loads the library with `insert_plugin_dir`: `std` and `bashkit` work this way. The second and third ways are one API, the C contract, and one private function of the loader loads both. The first way is a second API, built from Rust types of the Engine and the Harness.
 
-The `web` and `mcp` Packs use seven things that contract 0.4 lacks (section 10). The contract has what `install` lacks: a Plugin reports a name and a version, and the `PluginReport` lists them. A call to `install` returns only a result, so Workshop's listing of the Plugins it loaded names `std` and `bashkit` and omits `web` and `mcp`. `insert_plugin` has tests as its only callers. Four more abilities of the Rust API have tests as their only users: the flags `structured_output` and `model_only_call`, and overrides of `Pack::ready` and `Pack::render`.
+The `web` and `mcp` Packs use seven things that contract 0.5 lacks (section 10). A Rust Pack's tool may also ask for any of the 15 operations of `VfsOp`, a replacement of text in one operation among them, where the nine file functions of the contract ask for nine (section 8). The contract has what `install` lacks: a Plugin reports a name and a version, and the `PluginReport` lists them. A call to `install` returns only a result, so Workshop's listing of the Plugins it loaded names `std` and `bashkit` and omits `web` and `mcp`. `insert_plugin` has tests as its only callers. Four more abilities of the Rust API have tests as their only users: the flags `structured_output` and `model_only_call`, and overrides of `Pack::ready` and `Pack::render`.
 
 The word "linked" has two meanings in the code. The docs of `runvil-plugin` use "linked Plugin" for the `install` function of a Plugin crate. The loader's `PluginSource::Linked` and `insert_plugin` mean a C entry point that is compiled into the Host. Section 8 uses the second meaning.
 
 The design is one API, and the move is planned work (section 10). A Pack written against the Rust API can use each ability that API gains, and a Pack from the contract waits for the contract to gain it, so the two sets of Packs drift apart with each addition.
 
 The evidence is a reading of the two `install` functions, in `plugin-web/src/web.rs` and `plugin-mcp/src/lib.rs`, of `with_plugins` in `workshop/server/src/agents.rs`, and of every struct of `runvil-plugin-sys`, and a search for the callers of `insert_plugin`, which finds the loader's unit tests alone.
+
+### StrReplace and Delete each take more than one request, and another task can change the file between them
+
+The Host's files have no conflict check (section 5), and each file request of a tool is an operation of its own. Two tools of `std` decide on one request and act on a later one.
+
+1. StrReplace. The tool reads the file, builds the edited text, and writes the whole file back. A change that another task makes to the file between the read and the write is lost, because the write holds the file as the read found it. The contract has no function that replaces text in one operation (section 8).
+2. Delete. The tool asks what the path names, refuses a directory, and then asks for the removal, which also takes a directory with no entries. A directory with no entries that another task puts at the path between the two requests is removed. A directory with entries stays, because the removal refuses it.
+
+The calls of one model reply are safe from both, because the Engine runs the changing calls of a reply one at a time (section 5). The window is open between the calls of two tasks. Each fix is a change to the contract, and the owner has yet to decide on either (section 10).
+
+The evidence is a reading of `crates/plugin-std/src/replace.rs` and `crates/plugin-std/src/rm.rs` in `runvil-plugin-std`, whose module docs state both windows, and of [issue 4](https://github.com/cppalliance/runvil-plugin-std/issues/4) and [issue 3](https://github.com/cppalliance/runvil-plugin-std/issues/3) of that repository. The tests of `std` in `crates/plugin-std/tests/it/changes.rs` step through each call, and they leave the file alone between the read and the write of a StrReplace call and between the stat and the removal of a Delete call. A test that changes the file there would confirm the behavior.
+
+### The contract's error kind for a conflict has tests as its only senders
+
+Contract 0.5 has the file error kind `RV_FILE_ERROR_CONFLICT`, for a path that another tool call of the run changed or is changing. The SDK hands it to a tool as `FileErrorKind::Conflict`, and `std` has text for it: a sentence that tells the model to call the tool again in its next message, and a count in Grep's line of skipped entries. The Harness sends the kind to no tool, because the files that a tool reaches have no conflict check (section 5). In the loader, `describe` gives the kind `RV_FILE_ERROR_OTHER` to each `VfsError` that the contract has no kind for, and a `VfsError::Conflict` from a Host's own backend is one of them. In `std`, the unit tests of the refusal sentences build the error themselves.
+
+The evidence is a reading of `describe` in `harness-internal/plugin-loader/src/file.rs`, of its test `each_error_the_contract_has_no_kind_for_reads_as_other_and_a_text_a_model_can_read`, and of `refusal` in `crates/plugin-std/src/refusal.rs` in `runvil-plugin-std`.
 
 ### The language guide differs from the code in one place
 
@@ -450,7 +511,7 @@ Chapters 4, 12, and 13 show the refusal of a missing Pack at the run's first ste
 
 A Rust Pack can flag a tool with `survives_stop`, and it can set a Lua prelude. The Engine and the Harness act on both, and each shipped Rust Pack leaves both unset. A Pack from the C contract has neither (section 8).
 
-1. `survives_stop`. `ToolInfo::survives_stop` in `runvil-internal/types/src/tools/info.rs` sets the flag, and the Engine copies it to each `ToolCall` effect. On a stop, the Harness drops every tool call except a flagged one, through `Reach::AllButSurvivors` in `harness-internal/runner/src/effect_loop.rs`. `ToolInfo::new` sets the flag to `false`, each tool of `web` and `mcp` leaves it at `false`, the loader builds each tool of `std` and `bash` with `ToolInfo::new` and a wire name alone, and tests are the only callers of the setter.
+1. `survives_stop`. `ToolInfo::survives_stop` in `runvil-internal/types/src/tools/info.rs` sets the flag, and the Engine copies it to each `ToolCall` effect. On a stop, the Harness drops every tool call except a flagged one, through `Reach::AllButSurvivors` in `harness-internal/runner/src/effect_loop.rs`. `ToolInfo::new` sets the flag to `false`, each tool of `web` and `mcp` leaves it at `false`, the loader builds each tool of `std` and `bash` with `ToolInfo::new`, the `changes_files` flag, and a wire name alone, and tests are the only callers of the setter.
 2. The Pack prelude. `PackInfo::prelude` in `runvil-plugin/src/pack.rs` sets the prelude. `RunPacks::preludes` in `harness-internal/runner/src/packs.rs` collects the preludes of the Packs that the run's prompts declare, and `install_preludes` in `runvil-internal/lua/src/prelude.rs` runs a prompt's own in each of its section VMs. `PackInfo::new` sets the prelude to `None`, the `PackInfo` values of `web`, `mcp`, `user`, and `subagents` leave it at `None`, the loader builds the `PackInfo` of `std` and of `bash` from a name and a description, and tests are the only callers of the setter.
 
 ## 12. Questions for the owner
@@ -465,22 +526,27 @@ Each question asks for the reason behind a part of the design.
 4. Why do events fire in the order of the answers while the messages are in call order?
 5. Why is a script's `tools.call` a single call, outside the batch path?
 6. Why is the default 24 rounds?
-7. Why does a file conflict inside a tool return to the model, while the same conflict in `store.*` ends the run?
-8. What is `survives_stop` for, when the shipped Packs leave it unset?
+7. What is `survives_stop` for, when the shipped Packs leave it unset?
 
 **Packs**
 
-9. Why does the registry leave a Plugin's Packs in place when its `install` fails partway?
-10. Why does `Host::parse` check `uses:` when the run's first step checks it too?
-11. Why is the need for a person expressed as a Pack?
-12. Why is every `uses:` entry required?
-13. Why do `web`, `std`, and `bash` wrap output for scripts while `mcp` returns it raw?
+8. Why does the registry leave a Plugin's Packs in place when its `install` fails partway?
+9. Why does `Host::parse` check `uses:` when the run's first step checks it too?
+10. Why is the need for a person expressed as a Pack?
+11. Why is every `uses:` entry required?
+12. Why do `web`, `std`, and `bash` wrap output for scripts while `mcp` returns it raw?
 
 **The C contract**
 
-14. Why do verbs 7 and 8 and status codes 1 to 3 stay reserved after the header dropped the uses that it named for them?
-15. What does a new Pack that is compiled into the Host use until the contract has what `web` and `mcp` need: a Rust `install` function, or a C entry point handed to `insert_plugin`?
-16. What happens to the `Pack` trait, `HostServices`, and `ToolContext` of `runvil-plugin` once `plugin-web` and `plugin-mcp` are on the contract?
+13. Why do verbs 7 and 8 and status codes 1 to 3 stay reserved after the header dropped the uses that it named for them?
+14. What does a new Pack that is compiled into the Host use until the contract has what `web` and `mcp` need: a Rust `install` function, or a C entry point handed to `insert_plugin`?
+15. What happens to the `Pack` trait, `HostServices`, and `ToolContext` of `runvil-plugin` once `plugin-web` and `plugin-mcp` are on the contract?
+
+**The shipped Packs**
+
+16. Why does the shell of `bash` refuse a write and an append under `/dev/` and send a copy, a move, and a new directory under `/dev/` to the Host?
+17. Why does `mktemp` make its file under `/tmp` among the run's files, where a Host that mounts a real directory at the root gains a `tmp` directory in it?
+18. Why does an argument error of `std` name its tool as `std_Read`, when the model calls the tool `Read` and Lua calls it `std/read`?
 
 ## 13. Method and limits
 
@@ -490,5 +556,6 @@ Each question asks for the reason behind a part of the design.
 - **Update.** On 2026-11-11 the text on library Plugins, the C contract, and the `std` Pack was brought to `runvil` at commit `b0693699d`, `runvil-plugin-api` at `03a9fa3`, and `runvil-plugin-std` at `782ad23`. Between the two `runvil` commits, `std` became a library Plugin in a repository of its own, and the contract went from 0.2 to 0.4. The update covers the summary, the walk-through, three entries of section 7, section 8, the `std` entry of section 9, three items of section 10, and question 14. The rest of the page still describes the commits above.
 - **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The two Rust Plugins, `plugin-web` and `plugin-mcp`, are among them, and Workshop takes both from that repository as git dependencies at a pinned commit ([Crates, build, and CI](crates-build-and-ci.md)). The text of the page still describes the code at the commits above, when those crates were in `runvil`.
 - **Update.** On 2026-11-13 the text on the two Plugin APIs, the `bash` Pack, the planned work, and the gaps was brought to `runvil-harness` at commit `18361d02`, `runvil-plugin-api` at `03a9fa3`, `runvil-plugin-std` at `ee04d10`, `runvil-plugin-bashkit` at `9c8e980`, and `runvil-workshop` at `f386801b`. Between the earlier update and these commits, the bashkit Plugin gained the Pack `runvil/bash`, Workshop began to ship that Plugin's library and to require `bash` in the built-in chat prompt, and Workshop's crates moved to the repository `runvil-workshop`. The update covers the Paths bullet, the summary, the walk-through, entries in each of sections 1 to 8, a new entry on `bash` and one sentence of the `std` entry in section 9, four items of section 10, a new gap, the gap on the language guide, and the gap on `survives_stop` and the prelude in section 11, and questions 13, 15, and 16. The earlier text listed seven places where the language guide differs from the code. The same session corrected six of them in chapters 11, 12, and 16 of the guide, in the working tree of `runvil-docs` over commit `c03ec91`, and the seventh is the one that section 11 keeps. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
+- **Update.** On 2026-11-19 the text on Plugins, the two Plugin APIs, the C contract, the files of a tool call, the `std` and `bash` Packs, the planned work, the gaps, and the questions was brought to `runvil-harness` at commit `ee199e3a`, `runvil-plugin-api` at `52a4905`, `runvil-plugin-std` at `a806bf6`, `runvil-plugin-bashkit` at `f348f7a`, and `runvil-workshop` at `956e7800`. Workshop pins `runvil-harness` at `4afed45f`, whose code is the code of `ee199e3a`, and the other three at the commits named here. Between the update of 2026-11-13 and these commits, a tool's file operation became an effect that the Harness performs and records, the contract went from 0.4 to 0.5 and gained six functions that change files and a tool flag, the `std` tools Write, StrReplace, and Delete began to do their work, each call of the `bash` shell got a shell of its own that changes files, and the conflict check came off the Host's files. The update covers the two Update bullets at the top, the summary, the walk-through, one sentence in each of sections 2 and 3, three entries of section 5 and two of section 6, five entries of section 7, one of them new, section 8, with one new entry, the `std` and `bash` entries of section 9, section 10, three new gaps and the gaps on the two APIs and on `survives_stop` in section 11, and section 12, where the question on a file conflict inside a tool is gone and three questions on the shipped Packs are new. The text that the updates of 2026-11-11 and 2026-11-13 brought to earlier commits describes these commits after this update, except the gap on the language guide, and the Update bullets at the top say so. That session read the code and left the build and the tests unrun. The update leaves the rest of the page as it was.
 
 *2026-11-10 16:46 - Claude Fable 5.2*
