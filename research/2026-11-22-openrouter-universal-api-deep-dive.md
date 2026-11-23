@@ -82,6 +82,7 @@ Each term has one meaning throughout.
 - **Provider:** a company that serves requests for a model. One model can have several: Claude is served by Anthropic, Amazon Bedrock, Google Vertex AI, and Microsoft Azure.
 - **Endpoint:** one provider's offering of one model under one account.
 - **Route:** one URL path of an API. OpenRouter has three for model requests: chat completions, Messages (Anthropic's format), and Responses (the format of OpenAI's newer API). The Gateway has one.
+- **Upstream:** the server a gateway forwards a request to: a vendor, a provider, or a local model server.
 - **Translator:** the code in a gateway that converts a request into one vendor's protocol and converts the reply back.
 - **Reasoning:** text a model writes for itself while it works out an answer. Anthropic and Google call it thinking.
 - **Block:** one element of a reply: a piece of text, a piece of reasoning, or a tool call.
@@ -153,14 +154,14 @@ Table 2 counts the features by option. "Needed" means for the planned work: a to
 | Gateway only | 65 | 52 | 13 | Translation, defaults, and common forms: reasoning settings, caching, tool formats, finish reasons, errors, usage, streaming, model discovery, routing |
 | Opaque field | 25 | 17 | 8 | Signed, redacted, and encrypted reasoning, thought signatures, block order, plain-text reasoning that a vendor wants back, blocks from vendor-run tools |
 | Compatibility code | 10 | 6 | 4 | Small fixes, every one of them in the Gateway (Table 3) |
-| Vendor branch in shared code | 0 | 0 | 0 | Two things that would need one are described below |
+| Vendor branch in shared code | 0 | 0 | 0 | Two cases come close: today's thinking switch, and joining OpenRouter's stream fragments in the standalone client |
 | Separate vendor path | 5 | 0 | 5 | Data or jobs kept on the vendor's servers (Table 4) |
-| Prompt must know the vendor | 0 | 0 | 0 | The features that come closest are described below |
+| Prompt must know the vendor | 0 | 0 | 0 | Closest: tools that only one vendor has, and settings in a vendor's own words |
 | Total | 105 | 75 | 30 | |
 
 Source: counted from the 105 feature sections in section 3.
 
-**New vendor-neutral settings.** Sixteen features need a new setting or field, and for six more one is optional. Two matter now: a reasoning-effort setting (feature 21) and a count of the tokens written to the cache (feature 38). The others come only with a feature Runvil has not adopted: a response schema, annotations, a flag that defers a tool, file, audio, and video parts, media in a reply, a pending tool result.
+**New vendor-neutral settings.** Sixteen features need a new setting or field, and for six more one is optional. Two matter now: a reasoning-effort setting (feature 21) and a count of the tokens written to the cache (feature 38). The others come only with a feature Runvil does not use today: a response schema, annotations, a flag that defers a tool, file, audio, and video parts, media in a reply, a pending tool result.
 
 **Confidence.** It is high for 55 features, medium for 43, and low for 7. The medium ones are mostly features where the evidence that the handling works is another project's code, or where the vendor's rule is weeks old.
 
@@ -183,14 +184,9 @@ The client, the Engine, and Lua stay as they are for all ten.
 | 51 (if adopted) | Wraps a freeform tool as a function call with one string argument | OpenAI | Responses translator | Small | The prompt sees the same result |
 | 56 (if adopted) | Emulates schema output with a forced tool call where the endpoint only writes free text | Claude on Bedrock, others | Each translator | Small | A weaker guarantee |
 
-### None of the features needs a vendor branch in shared code or a prompt that knows its vendor
+### The five features that would need a separate vendor path are all ones Runvil does not use today
 
-**The thinking switch, and reasoning sent straight to OpenRouter, would each need a vendor branch in the client.**
-
-- **Today's thinking switch.** The client sends `chat_template_kwargs.enable_thinking`, a field that only local servers such as llama.cpp and vLLM understand. That is vendor-specific code in the client today. The fix is for the client to send a standard field and for the Gateway to convert it (feature 22). This work is already planned.
-- **Code in the standalone client that joins `reasoning_details` fragments.** It is needed only if the standalone client (item 3 of the lesson plan) has to send reasoning back to OpenRouter or Vercel AI Gateway directly, with the Runvil Gateway left out. Those servers stream the data in fragments that the caller must join (feature 18). The alternatives: reach OpenRouter through the Gateway, where the joining is compatibility code, or accept that the bare client sends reasoning back only to servers that deliver it whole. This is decision 5 in section 8.
-
-**The features that would need a separate vendor path are all ones Runvil has not adopted.** There are five. In four the vendor keeps data or a job on its servers, which a request and reply that hold everything cannot express. The fifth uses a different transport.
+In four, the vendor keeps data or a job on its servers, so a request has to refer to something outside itself. The fifth is a WebSocket connection.
 
 *Table 4. The five features that would need a separate vendor path, and how each could be avoided.*
 
@@ -202,12 +198,19 @@ The client, the Engine, and Lua stay as they are for all ten.
 | 76 | Batch jobs | A separate asynchronous route | A vendor-neutral batch route in the Gateway, if ever wanted |
 | 83 | WebSocket transport | A second transport | Not examined |
 
+### The cases that come closest to a vendor branch in shared code, or to a prompt that knows its vendor
+
+**Two cases come close to a vendor branch in the client, and both can be avoided.**
+
+- **Today's thinking switch.** The client sends `chat_template_kwargs.enable_thinking`, a field that only local servers such as llama.cpp and vLLM understand. That is vendor-specific code in the client today. The fix is for the client to send a standard field and for the Gateway to convert it (feature 22). This work is already planned.
+- **Code in the standalone client that joins `reasoning_details` fragments.** It is needed only if the standalone client (item 3 of the lesson plan) has to send reasoning back to OpenRouter or Vercel AI Gateway directly, with the Runvil Gateway left out. Those servers stream the data in fragments that the caller must join (feature 18). The alternatives: reach OpenRouter through the Gateway, where the joining is compatibility code, or accept that the bare client sends reasoning back only to servers that deliver it whole. This is decision 5 in section 8.
+
 **What comes closest to making a prompt know its vendor: single-vendor tools, settings in a vendor's own words, requests that some models refuse, and one field in today's code.**
 
-- **Tools that only one vendor has (feature 73).** Maps grounding, X search, and Kimi's formula tools have a vendor-neutral form in none of the projects read. A prompt can ask for a capability by a vendor-neutral id and get "unavailable" on other models, and Runvil can decline these tools.
+- **Tools that only one vendor has (feature 73).** No project read has a vendor-neutral form of Maps grounding, X search, or Kimi's formula tools. A prompt can ask for a capability by a vendor-neutral id and get "unavailable" on other models, and Runvil can decline these tools.
 - **Settings in a vendor's own words (features 26, 72, 96, 97).** Gemini's safety thresholds, `reasoning.mode: "pro"`, Anthropic's beta header values, and `provider.options` all ask OpenRouter's caller for a vendor's own names. In OpenRouter the caller is a program. In Runvil it would be a prompt. The operator sets each one on a model entry in the Gateway's configuration, and a model role is mapped to that entry.
 - **Vendor-neutral requests that some models refuse (features 22, 28, 30, 44).** Thinking off, a temperature, a prefill, and a forced tool choice each fail or are ignored on some models. The prompt names only a model role, yet its author can see the difference. The prompt states a need and the Host picks a model that meets it, or the Gateway reports what it dropped.
-- **A field in today's code.** A model handle shows `provider` to Lua (`runvil-harness`, `decisions/models-and-conversations.md`), so a prompt can already branch on the vendor. Every feature in this report works with that field removed.
+- **A field in today's code.** A model handle shows `provider` to Lua (`runvil-harness`, `decisions/models-and-conversations.md`), so a prompt can already branch on the vendor. All 105 features work with that field removed.
 
 ## 3. The 105 vendor features: what OpenRouter does with each, and what Runvil needs
 
@@ -1587,7 +1590,7 @@ Source: evidence items Q30 to Q48, and their second reading, items VT1 to VT7.
 
 **A list of reasoning entries beside separate text and tool-call fields.** This is the main flaw of `reasoning_details` as an opaque field. It loses the order of blocks inside a reply, which Anthropic's prefix check and Gemini's part signatures both depend on. LLM Gateway had to add `block_index` and `google_part` to repair it [Q31, VT2]. Runvil's ordered block list keeps that order. Confidence: high - every open-source gateway read that uses the three-field format loses the order [J-table 2, VF16].
 
-**Data that the client joins from stream fragments.** OpenRouter streams `reasoning_details` in pieces and leaves the joining rule to the client. Its own SDK needed nine dated fixes in 2026 to this code, and one way to lose data is still open. That SDK joins by type change and says the `index` "cannot be used to reassemble the array", while rig and LangChain join by `index`: three clients, two rules [F1 to F3, F59, F60, VF6, VT9]. Runvil's Gateway should build the list and send it once, on the final chunk. Confidence: high - the fix history is in the SDK's own source.
+**Data that the client joins from stream fragments.** OpenRouter streams `reasoning_details` in pieces and leaves the joining rule to the client. Its own SDK needed nine dated fixes in 2026 to this code, and one way to lose data is still open. That SDK joins by type change and says the `index` "cannot be used to reassemble the array", while rig and LangChain join by `index` [F1 to F3, F59, F60, VF6, VT9]. Runvil's Gateway should build the list and send it once, on the final chunk. Confidence: high - the fix history is in the SDK's own source.
 
 **Readable entries that clients edit.** The entries have named types and readable fields, so clients change them. OpenRouter's own SDK strips unsigned Anthropic and Gemini text entries, removes duplicates across messages, and drops any entry whose `format` is outside the six values it knows, while the spec has twelve. LangChain's OpenRouter client removes the `id` of entries whose id starts with `rs_` [F6 to F8, F13, H42, VF6, VF9]. An opaque field that is one labeled value gives a client one thing to copy. Confidence: high - read in code and confirmed by running the SDK's schema.
 
@@ -1611,7 +1614,7 @@ Each case below is a place where the largest chat completions API over many vend
 - A changed prefix under Claude thinking that is sent back: "OpenRouter passes the upstream error through and does not drop thinking blocks for you" [R62].
 - `effort` together with `max_tokens`, `store: true`, a non-null `previous_response_id`, `tool_choice` with deferred tools, more than three `fallbacks` [R3, OA1, T12, AN74].
 
-*For Runvil:* thinking off, a temperature, a prefill, and a forced tool choice (features 22, 28, 30, 44). The Gateway needs a table of what each model accepts and a stated policy for each case: translate, downgrade and report, or refuse at the run's first step. Confidence: high - each case has a quoted error.
+*For Runvil:* the same requests can fail: thinking off, a temperature, a prefill, and a forced tool choice (features 22, 28, 30, 44). The Gateway needs a table of what each model accepts and a stated policy for each case: translate, downgrade and report, or refuse at the run's first step. Confidence: high - each case has a quoted error.
 
 **2. Behavior that depends on which provider served the request.** One model id covers several providers, and the documentation says "depends on the provider" in many places:
 
@@ -1622,19 +1625,19 @@ Each case below is a place where the largest chat completions API over many vend
 - YouTube links work on Google AI Studio and fail on Vertex [GG76].
 - Fast mode "is only served by the Anthropic first-party provider" [AN85].
 
-*For Runvil:* several providers for one model (feature 95). The Gateway has one endpoint per model entry today, which removes most of this. The problem returns on the day a model entry gets a second endpoint, and the entry will then need capability data per endpoint. Confidence: high - the differences are in OpenRouter's public endpoint data.
+*For Runvil:* the Gateway has one endpoint per model entry today, so most of this cannot happen yet (feature 95). The problem returns on the day a model entry gets a second endpoint, and the entry will then need capability data per endpoint. Confidence: high - the differences are in OpenRouter's public endpoint data.
 
 **3. Data that is valid only where it was made.** Here OpenRouter's caller ends up needing to know the provider. OpenRouter's SDK team confirmed on 2026-06-17 that a Gemini tool continuation that moves between Google AI Studio and Vertex returns a 400, and advised callers to name the provider with `provider: { order, allow_fallbacks: false }`. That comment is still the latest on the issue [F45, VT8]. Google's Vertex page scopes a signature to "the same conversation history, model, and Google Cloud project" [VV18]. Anthropic's newest thinking blocks work only in the organization that produced them [VV7]. OpenAI drops reasoning made under another organization [OA27]. OpenRouter writes the provider into each encrypted value and keeps the conversation on that provider, and it answers 400 when the caller's provider preferences exclude it [R63].
 
-*For Runvil:* reasoning data tied to an account (feature 5). The opaque field's label has to name the endpoint, and the Gateway has to keep a conversation on it. Confidence: medium - the vendors define "account" differently, and nobody has measured how often a mismatch occurs.
+*For Runvil:* the opaque field's label has to name the endpoint, and the Gateway has to keep a conversation on that endpoint (feature 5). Confidence: medium - the vendors define "account" differently, and nobody has measured how often a mismatch occurs.
 
-**4. Features that work only on a route in a vendor's format.** Section 4 lists the ten. The caller picks the route by vendor.
+**4. Features that work only on a route in a vendor's format.** Ten features work on only one or two of OpenRouter's three routes, among them vendor compaction, document citations, and asynchronous tools (section 4). A caller that wants one picks the route by vendor.
 
-*For Runvil:* this is what an opaque field that holds too little would cost. The ten are block types, item types, and request settings, and a list of reasoning entries has room for reasoning only. Confidence: high - OpenRouter's own guides say which route each needs.
+*For Runvil:* an opaque field that held only reasoning would force the same choice. The ten are block types, item types, and request settings, so the field has to hold every kind of block. Confidence: high - OpenRouter's own guides say which route each needs.
 
-**5. Vendor settings that the caller writes.** Cache markers that clients choose from the model id prefix [F19], `x-anthropic-beta` for strict tools and interleaved thinking [T21, R25], `provider.options` [O3], vendor-specific cache lifetimes [C22], the `x_search` object [P15].
+**5. Vendor settings that the caller writes.** OpenRouter's callers write cache markers chosen from the model id prefix [F19], `x-anthropic-beta` for strict tools and interleaved thinking [T21, R25], `provider.options` [O3], vendor-specific cache lifetimes [C22], and the `x_search` object [P15].
 
-*For Runvil:* cache markers and lifetimes, schema cleaning, beta headers, and vendor parameters (features 31, 33, 48, 96, 97). The Gateway can handle each one itself. Confidence: high - each answer is in use in at least one open-source project.
+*For Runvil:* the Gateway can handle each of these itself: cache markers and lifetimes, schema cleaning, beta headers, and vendor parameters (features 31, 33, 48, 96, 97). Confidence: high - each answer is in use in at least one open-source project.
 
 **6. Repairs that moved into client code.** OpenRouter's own SDK for the Vercel AI SDK creates an id when a provider sends an empty or repeated one, rewrites `stop` to tool calls for Gemini, and has fifteen special cases for reasoning [T18, O58, F67]. When a reply ends for a reason other than the model finishing, it drops the tool calls whose arguments are incomplete JSON [T28]. Across six TypeScript projects the first round of evidence gathering counted 187 special cases for OpenRouter, and across nine Rust, Python, and Go projects 90, with reasoning sent back as the largest group in both [F67, and the tally in the G evidence file]. Harnesses also keep rules for single model ids, for what the catalog leaves out [F35, F39], and match the phrase "Provider returned error" to decide on a retry [F64, F41].
 
@@ -1644,9 +1647,9 @@ Each case below is a place where the largest chat completions API over many vend
 
 **Kind 1: data kept on the vendor's servers.** OpenRouter rejects it. `store: true` and a non-null `previous_response_id` get a 400, the spec's only Responses path is the create call, `conversation` is outside the schema, and Google's Interactions API is not offered [OA1, OA2, OA24, GG79]. Background runs, polling, and webhooks are left out with it [OA57]. The six open-source gateways compared in the first round forward or drop a `previous_response_id` for a vendor that does not hold the conversation [J-table 2]. One project, LiteLLM, emulates it by rebuilding history from its own request log database, and emulates background runs with a Redis cache [CT43, CT44]. The three projects found to support Google's Interactions API each give it an entry point separate from ordinary chat requests, in the Vercel AI SDK through a second model object [GX64 to GX66].
 
-*What it shows:* a request and reply that hold everything cannot express data kept on a server, and the one project that offers it had to become a store. Everyone else sends the vendor's data back with each request, which is features 1 to 20. For Runvil this is good news, because the Engine keeps the whole conversation in its own list. Confidence: high - OpenRouter's spec and seven projects agree.
+*What it shows:* a format in which each request holds the whole conversation cannot refer to data kept on a server. LiteLLM, the one project that offers stored conversations anyway, had to add a database of its own. Every other project sends the vendor's data back with each request, as in features 1 to 20. That suits Runvil, because the Engine keeps the whole conversation in its own list. Confidence: high - OpenRouter's spec and seven projects agree.
 
-**Kind 2: blocks and settings that a chat message cannot hold.** These work on OpenRouter's Messages or Responses route and are absent from chat completions:
+**Kind 2: blocks and settings that a chat message cannot hold.** These work only on OpenRouter's Messages or Responses route:
 
 - Anthropic: `server_tool_use` and result blocks, `pause_turn`, compaction blocks, context editing, document citations, `tool_addition` and `tool_removal` blocks, the `clear_at` field, `between_tools`, the `drop_block` setting, `stop_details` [AN45, AN52, AN55, AN64, R62].
 - OpenAI: `phase` and several assistant messages per reply, asynchronous tool calls, custom tools, shell, apply patch, compaction items [OA41, OA43, OA54].
@@ -1662,23 +1665,83 @@ Each case below is a place where the largest chat completions API over many vend
 
 ## 7. What Runvil's Gateway, client, and Engine do today, and six defects that cost remote models their usage numbers, error details, and compaction
 
-Table 6 says what each part of Runvil does today, with the files. The code was read on 2026-11-22 at `runvil-harness` `22a0992f`, `runvil-gateway` `52fd92d`, and `runvil-cloud-providers` `50961b2`. It was read, and the build and the tests were not run, so every statement needs a test to confirm it. The 2026-11-17 report on Anthropic's Messages API described the same code at an older commit: every claim in its Table 3 and Appendix D still holds, and four line ranges moved.
+The list below says what each part of Runvil does today, area by area, with the files. The Gateway is the repository `runvil-gateway`. The client is `crates/harness-gateway-client` and the Engine is `crates/runvil-internal`, both in `runvil-harness`. The code was read on 2026-11-22 at `runvil-harness` `22a0992f`, `runvil-gateway` `52fd92d`, and `runvil-cloud-providers` `50961b2`. It was only read: the build and the tests were not run, so each statement still needs a test to confirm it. The 2026-11-17 report on Anthropic's Messages API described the same code at an older commit: every claim in its Table 3 and Appendix D still holds, and four line ranges moved.
 
-*Table 6. What each part of Runvil does today.*
+**Request fields**
 
-| Area | Gateway (`runvil-gateway`) | Client (`runvil-harness`, `crates/harness-gateway-client`) | Engine (`runvil-harness`, `crates/runvil-internal`) | What Lua can see or set |
-|---|---|---|---|---|
-| Request fields | Names `model`, `messages`, `stream`. Every other top-level field passes through. Rewrites `model` only (`protocol/src/wire.rs`, `protocol/src/upstream/openai.rs`) | The body has exactly nine keys: `model`, `messages`, `stream`, `stream_options`, `tools`, `tool_choice: "auto"`, `temperature`, `max_tokens`, `chat_template_kwargs.enable_thinking` (`wire/request.rs`) | `ModelInvocation` has `temperature`, `max_tokens`, `thinking` (`model-client/src/model/options.rs`) | `models.use(role, {temperature, max_tokens})`. The thinking switch comes from front matter. A handle exposes `provider`, read-only |
-| Message record | Messages are untyped JSON. Unknown message fields pass through in both directions | Builds the reply from the fields it accumulates, so any reply field outside that set ends at the client (`wire/parse.rs`, `wire/stream.rs`) | Wire `Message` has `role`, `content`, `tool_call_id`, `tool_calls`. The list record has `role`, `content`, `tool_calls`, `meta`, all Lua-visible. A hidden per-reply field is stated as intended in `decisions/engine.md` and is not in the record type yet | Five fields per record: `role`, `content`, `tool_calls`, `tool_call_id`, `meta` |
-| Reasoning | Passes `reasoning_content`, `reasoning`, `reasoning_details` through as the upstream wrote them | Reads a string from the first of `reasoning_content`, `reasoning`, `thinking`. Streams it to the Host. Never sends it back | One `Thinking` event per round, then discarded. The token estimate subtracts reasoning tokens (`lua/src/compactors.rs`) | `handle.thinking` only |
-| Text beside tool calls, block order | Passes through | Returns the tool calls and never reads the text beside them. Order between text, reasoning, and calls is gone | Appends an assistant record with empty content and the calls | The record with empty content |
-| Tools | `tools` and `tool_choice` pass through, except on the one emulated dialect | Function tools only, `tool_choice` fixed at `auto`. Fails a batch cut off by `length` or `content_filter` | Requires each call id to be unique across the whole list, and each batch to be answered directly (`lua/src/projection.rs`) | `tool_calls` records |
-| Streaming | Parses and re-writes each chunk. Unknown top-level, choice, and delta fields survive on a chunk that parses. A chunk with empty `choices` is skipped. Writes its own `[DONE]`. Stream limit: a 10 second connect timeout only (`protocol/src/upstream.rs`, `http_util.rs`, `app/src/relay.rs`) | Requires `[DONE]`. Skips comments. 120 seconds per receive, 16 MiB per reply | Gets one finished `Completion` per round | The round's outcome |
-| Usage | A `usage` object survives only on a chunk that has a choice | Reads `prompt_tokens`, `completion_tokens`, `total_tokens`, `cached_tokens`, `reasoning_tokens` | `Usage` has those five (`types/src/metrics.rs`) | Through the Host's events |
-| Finish reasons | Pass through | Compares `length` and `content_filter` in one place | Compares `stop` and `length` | Inside a caught `empty_model_reply` error |
-| Errors | Replaces the upstream body with `upstream returned {status}`. 4xx keeps its status, every 5xx becomes 502. `Retry-After` is set for `model_loading` only (`protocol/src/error.rs`) | Classifies by status and by phrases in the body (`wire/classify.rs`). One HTTP attempt per round | `ContextOverflow` calls the compactor. Other codes fail the call | `kind`, `code`, fixed `message` |
-| Model metadata | `GET /v1/models` publishes `thinking`, `max_output`, `effort_levels`, `default_effort`, `adaptive_thinking`, and more from `gateway.toml`. The code that handles a request does not read them (`app/src/models.rs`) | Reads `id`, `description`, `context`, `thinking`, `provider` | Checks `min_context` and `thinking` at the run's first step | `min_context` and `thinking` per role |
-| Translation seam | `Upstream::send` and `stream` get the request and the upstream model name. `Protocol` has one variant, matched in `Routing::from_config`. The one emulated dialect, `gemma3_tool_code`, is three pure functions around the upstream call (`app/src/dialect.rs`) | `build_request_body` and `read_completion_stream` are public | `InferenceBroker::chat` | Not applicable |
+- **Gateway:** Names `model`, `messages`, `stream`. Every other top-level field passes through. Rewrites `model` only (`protocol/src/wire.rs`, `protocol/src/upstream/openai.rs`).
+- **Client:** The body has exactly nine keys: `model`, `messages`, `stream`, `stream_options`, `tools`, `tool_choice: "auto"`, `temperature`, `max_tokens`, `chat_template_kwargs.enable_thinking` (`wire/request.rs`).
+- **Engine:** `ModelInvocation` has `temperature`, `max_tokens`, `thinking` (`model-client/src/model/options.rs`).
+- **What Lua sees or sets:** `models.use(role, {temperature, max_tokens})`. The thinking switch comes from front matter. A handle exposes `provider`, read-only.
+
+**Message record**
+
+- **Gateway:** Messages are untyped JSON. Unknown message fields pass through in both directions.
+- **Client:** Builds the reply from the fields it accumulates, so any reply field outside that set ends at the client (`wire/parse.rs`, `wire/stream.rs`).
+- **Engine:** Wire `Message` has `role`, `content`, `tool_call_id`, `tool_calls`. The list record has `role`, `content`, `tool_calls`, `meta`, all Lua-visible. A hidden per-reply field is stated as intended in `decisions/engine.md` and is not in the record type yet.
+- **What Lua sees or sets:** Five fields per record: `role`, `content`, `tool_calls`, `tool_call_id`, `meta`.
+
+**Reasoning**
+
+- **Gateway:** Passes `reasoning_content`, `reasoning`, `reasoning_details` through as the upstream wrote them.
+- **Client:** Reads a string from the first of `reasoning_content`, `reasoning`, `thinking`. Streams it to the Host. Never sends it back.
+- **Engine:** One `Thinking` event per round, then discarded. The token estimate subtracts reasoning tokens (`lua/src/compactors.rs`).
+- **What Lua sees or sets:** `handle.thinking` only.
+
+**Text beside tool calls, block order**
+
+- **Gateway:** Passes through.
+- **Client:** Returns the tool calls and never reads the text beside them. Order between text, reasoning, and calls is gone.
+- **Engine:** Appends an assistant record with empty content and the calls.
+- **What Lua sees or sets:** The record with empty content.
+
+**Tools**
+
+- **Gateway:** `tools` and `tool_choice` pass through, except for the one tool format that the Gateway emulates.
+- **Client:** Function tools only, `tool_choice` fixed at `auto`. Fails a batch cut off by `length` or `content_filter`.
+- **Engine:** Requires each call id to be unique across the whole list, and each batch to be answered directly (`lua/src/projection.rs`).
+- **What Lua sees or sets:** `tool_calls` records.
+
+**Streaming**
+
+- **Gateway:** Parses and re-writes each chunk. Unknown top-level, choice, and delta fields survive on a chunk that parses. A chunk with empty `choices` is skipped. Writes its own `[DONE]`. Stream limit: a 10 second connect timeout only (`protocol/src/upstream.rs`, `http_util.rs`, `app/src/relay.rs`).
+- **Client:** Requires `[DONE]`. Skips comments. 120 seconds per receive, 16 MiB per reply.
+- **Engine:** Gets one finished `Completion` per round.
+- **What Lua sees or sets:** The round's outcome.
+
+**Usage**
+
+- **Gateway:** A `usage` object survives only on a chunk that has a choice.
+- **Client:** Reads `prompt_tokens`, `completion_tokens`, `total_tokens`, `cached_tokens`, `reasoning_tokens`.
+- **Engine:** `Usage` has those five (`types/src/metrics.rs`).
+- **What Lua sees or sets:** Through the Host's events.
+
+**Finish reasons**
+
+- **Gateway:** Pass through.
+- **Client:** Compares `length` and `content_filter` in one place.
+- **Engine:** Compares `stop` and `length`.
+- **What Lua sees or sets:** Inside a caught `empty_model_reply` error.
+
+**Errors**
+
+- **Gateway:** Replaces the upstream body with `upstream returned {status}`. 4xx keeps its status, every 5xx becomes 502. `Retry-After` is set for `model_loading` only (`protocol/src/error.rs`).
+- **Client:** Classifies by status and by phrases in the body (`wire/classify.rs`). One HTTP attempt per round.
+- **Engine:** `ContextOverflow` calls the compactor. Other codes fail the call.
+- **What Lua sees or sets:** `kind`, `code`, fixed `message`.
+
+**Model metadata**
+
+- **Gateway:** `GET /v1/models` publishes `thinking`, `max_output`, `effort_levels`, `default_effort`, `adaptive_thinking`, and more from `gateway.toml`. The code that handles a request does not read them (`app/src/models.rs`).
+- **Client:** Reads `id`, `description`, `context`, `thinking`, `provider`.
+- **Engine:** Checks `min_context` and `thinking` at the run's first step.
+- **What Lua sees or sets:** `min_context` and `thinking` per role.
+
+**Where a translator would attach**
+
+- **Gateway:** `Upstream::send` and `stream` get the request and the upstream model name. `Protocol` has one variant, matched in `Routing::from_config`. The one emulated tool format, `gemma3_tool_code`, is three pure functions around the upstream call (`app/src/dialect.rs`).
+- **Client:** `build_request_body` and `read_completion_stream` are public.
+- **Engine:** `InferenceBroker::chat`.
 
 Source: evidence items L1 to L121.
 
@@ -1688,7 +1751,7 @@ Source: evidence items L1 to L121.
 - **A failed stream can look complete.** A bare `{"error": ...}` object from the upstream fails the Gateway's chunk check and is skipped, and the Gateway then writes a clean `[DONE]` [L85].
 - **A vendor's "prompt too long" error does not start compaction.** The client recognizes an overflow by phrases in the error body, and the Gateway replaces that body with `upstream returned {status}`. So the Engine is not told that the request was too long and does not call the compactor in response. The Engine's own estimate, made before a request is sent, can still call it. Spent quota and a content refusal are misclassified the same way [L74 to L81]. The 2026-11-17 report found this for Anthropic, and it holds for every remote upstream.
 - **A slow stream has two time limits that disagree.** The Gateway swallows the upstream's keep-alive comments and waits on a silent stream indefinitely. The client gives up after 120 seconds of silence [L54, L60, L61].
-- **Tool-call ids must be unique across the whole conversation.** The Engine's projection enforces it, while the metrics type notes that providers reuse ids such as `call_1`, and the Gateway's own emulated tool format restarts its ids at 0 on every reply [L46].
+- **Tool-call ids must be unique across the whole conversation.** The Engine enforces it when it builds a request from its list, while the metrics type notes that providers reuse ids such as `call_1`, and the Gateway's own emulated tool format restarts its ids at 0 on every reply [L46].
 - **Every OpenRouter model in the model sheet is marked as lacking tools and thinking.** The program that builds the sheet reads ten values from each catalog entry and leaves out `supported_parameters` and the `reasoning` object, so a model added from the Gateway's Cloud page gets `thinking = "never"` [L94, M58, M59].
 
 **The client already has one piece of vendor-specific code.** It sends the thinking switch as `chat_template_kwargs.enable_thinking`, a field that only llama.cpp and vLLM understand. The fix is for the client to send a standard field and for the Gateway to convert it for each upstream. The Gateway's decision page (`runvil-design`, `decisions/gateway.md`) already lists that work as "The thinking switch for remote providers".
@@ -1732,7 +1795,7 @@ The current plan: the client keeps speaking chat completions, the Gateway gains 
 1. **Whether the opaque field's label names the endpoint** as well as the protocol and model. Recommended: yes. Confidence: medium - three vendors bind data to an account.
 2. **Whether the `openai` protocol uses the opaque field** for plain-text reasoning that a vendor wants back. Recommended: yes. Confidence: high - DeepSeek's rule is documented and fails today.
 3. **Whether the opaque field gets a name of Runvil's own or OpenRouter's `reasoning_details`.** Recommended: Runvil's own, with `reasoning_details` accepted on input. Confidence: medium - OpenRouter's format loses block order (section 4).
-4. **Whether the second translator is for OpenAI's Responses API or for Gemini.** Recommended: OpenAI's, because tool calling on GPT-6 depends on it. Confidence: medium - it depends on which models the class wants to run.
+4. **Whether the second translator is for OpenAI's Responses API or for Gemini.** Recommended: OpenAI's, because tool calling on GPT-6 depends on it. Confidence: medium - it depends on which models the students who do the lesson plan want to run.
 5. **What the standalone client does when it talks to OpenRouter directly.** To send reasoning back there, the client needs code that joins `reasoning_details` stream fragments, which is a vendor branch in shared code. The alternative is one general rule: the client keeps every non-standard field of the final assistant message and of each tool call, unread and labeled with endpoint and model, and sends it back to the same endpoint and model. That rule covers DeepSeek's `reasoning_content`, Google's `extra_content`, and Runvil's own opaque field. Recommended: the general rule only. Confidence: low - it is an untested proposal.
 6. **What happens when a prompt asks for something the model cannot do** (change 7). Recommended: refuse at the first step for a declared requirement, and drop with a warning otherwise. Confidence: medium - it depends on how much a prompt author should be told.
 7. **Which vendor-neutral names to add now** (change 6). Recommended: the reasoning-effort setting and the cache-write count. Confidence: high - both are OpenAI's own field names.
@@ -1742,14 +1805,14 @@ The current plan: the client keeps speaking chat completions, the Gateway gains 
 
 ## 9. OpenRouter's published material says how it handles 85 of the 105 features, and other projects or vendor documentation cover the rest
 
-Table 7 counts the features by where the account of OpenRouter's handling comes from.
+Table 6 counts the features by where the account of OpenRouter's handling comes from.
 
-*Table 7. Where the account of each feature comes from.*
+*Table 6. Where the account of each feature comes from.*
 
 | Source | Features | What it covers |
 |---|---|---|
 | Stated by OpenRouter | 85 | Field names and formats on all three routes, the rule for sending reasoning back, reasoning settings, cache markers and their conversion, usage fields, the list of vendor-run tools, error types, routing, the catalog's flags, the documented rejections |
-| Inferred about OpenRouter | 7 | The loss of block order (from the spec's format), tool-call ids passed through (from recorded traffic), DeepSeek's rule left to the caller (from issue reports and recorded traffic), the finish reason for tool calls (from the official SDK's fixes), a system message in the middle of a conversation, Gemini safety settings (a field missing from the spec), token counting (a route missing from the spec). Several features in the first group also have one inferred part, named in the row, such as the provider written into encrypted values (feature 5) |
+| Inferred about OpenRouter | 7 | The loss of block order (from the spec's format), tool-call ids passed through (from recorded traffic), DeepSeek's rule left to the caller (from issue reports and recorded traffic), the finish reason for tool calls (from the official SDK's fixes), a system message in the middle of a conversation, Gemini safety settings (a field missing from the spec), token counting (a route missing from the spec). Several features in the first group also have one inferred part, named on the feature's Source line, such as the provider written into encrypted values (feature 5) |
 | From other open-source projects | 6 | Features where OpenRouter's material is silent or does not apply: the Gemini placeholder signature, the model switch, schema output on a model that lacks a schema mode, and three local-server features |
 | Stated by the vendor | 7 | Features where OpenRouter is silent and the vendor's rule decides: tool calling on OpenAI's newest models, Qwen's encrypted reasoning, Mistral's chunk lists, cache diagnostics, skills and programmatic tool calling, the paused turn, the OpenAI-style routes that differ from OpenAI |
 | Earlier Runvil research | 0 | Fifteen features name an earlier Runvil document as a second source. Twelve statements taken from such documents were not read again on 2026-11-22 (section 10) |
@@ -1766,7 +1829,7 @@ Source: counted from the Source lines of the 105 feature sections.
 - **Pydantic AI** records the endpoint for server ids, continues a paused turn inside the library, and has vendor-neutral tool classes (features 5, 63, 73).
 - **Gemini CLI** runs search as an ordinary tool that makes its own request (feature 61).
 - **pi and opencode** send plain-text reasoning back and rewrite ids (features 14 and 46). On a model switch pi drops the other model's reasoning and opencode passes it on as text (feature 19).
-- **llama.cpp and vLLM**, in their own source (features 17, 103, 104, 105).
+- **llama.cpp and vLLM** show the local-server behavior in their own source (features 17, 103, 104, 105).
 
 **What every open-source translator gets wrong or leaves out.** Each case is evidence that translation alone is too little, or that a different mechanism is needed:
 
@@ -1776,17 +1839,17 @@ Source: counted from the Source lines of the 105 feature sections.
 - **Conversations stored by another vendor.** One project emulates them, with a database (feature 74).
 - **Safety settings and Maps grounding.** None of the projects read offers a vendor-neutral form of either (features 72 and 73).
 
-**What is still unknown about OpenRouter** is listed at the end of section 11. What Runvil has to build stays the same either way: for each open question, either an open-source project shows a translation that works, or the feature is one Runvil has not adopted.
+**The open questions about OpenRouter leave what Runvil has to build unchanged.** For each question, an open-source project shows a translation that works, or the feature is one Runvil does not use today. Section 11 lists the questions.
 
 ## 10. Earlier Runvil documents: what was taken from each, and what is now wrong or out of date in them
 
-Runvil's repositories already hold research on vendor APIs. Evidence file W groups it into 43 sources, which cover about 60 documents, and has 250 evidence items from them [W]. Table 8 lists the documents used here, with what was taken from each and whether it was read again in a live source on 2026-11-22.
+Runvil's repositories already hold research on vendor APIs. Evidence file W groups it into 43 sources, which cover about 60 documents, and has 250 evidence items from them [W]. Table 7 lists the documents used here, with what was taken from each and whether it was read again in a live source on 2026-11-22.
 
-*Table 8. Earlier Runvil documents used.*
+*Table 7. Earlier Runvil documents used.*
 
 | Document | Date | What was taken from it | Read again on 2026-11-22 |
 |---|---|---|---|
-| `runvil-design`, `research/2026-10/2026-10-28-survey-proprietary-inference-apis.md` | 2026-10-28 | The first account of OpenRouter as "the reference implementation" of the aggregator role, nineteen claims about it (sixteen of them from this survey), and the twelve axes | Yes. All nineteen were checked, and five corrections to the survey are listed below |
+| `runvil-design`, `research/2026-10/2026-10-28-survey-proprietary-inference-apis.md` | 2026-10-28 | The first account of OpenRouter as "the reference implementation" of the aggregator role, nineteen claims about it (sixteen of them from this survey), and its twelve points of comparison | Yes. All nineteen were checked, and five corrections to the survey are listed below |
 | Finished report "How agent harnesses handle Anthropic's Messages API, and what Runvil should build" | 2026-11-17 | The opaque block-list design, the Anthropic contract, the per-model thinking table, the map of Runvil's code, and the survey of 21 harnesses and 5 gateways | Yes for the code map and the points used here. Five corrections below |
 | `runvil-design`, `research/2026-09/2026-09-20-model-tool-differences.md` | 2026-09-20 | The replay and tool-call id rules per vendor (Table 2, Appendix B), and the llama-server duties (Appendix C) | Yes for DeepSeek, Mistral, Kimi, Gemini, OpenAI. Three corrections below |
 | `runvil-design`, `research/2026-09/2026-09-30-compaction-exhaustion-signals.md` | 2026-09-30 | OpenRouter's overflow and in-stream error signals, and the finding that Runvil's stream reader classes an in-stream error as a transport failure | Yes. One correction below |
@@ -1794,7 +1857,7 @@ Runvil's repositories already hold research on vendor APIs. Evidence file W grou
 | `runvil-design`, `decisions/gateway.md` and `runvil-gateway`, `crates/gateway/README.md` | 2026-11-10 and 2026-11-15 | The Gateway's rule on standards and extensions, "zero dialects", the planned work list, and the statement that "an Anthropic-shaped request is outside the API" | Code facts re-read at today's head |
 | `runvil-harness`, `decisions/models-and-conversations.md` and `decisions/engine.md` | 2026-11-20 and 2026-11-22 | The five record fields, the model roles, what a prompt may set, and the project owner's words on data in the list that "Lua can't see" | Code facts re-read at today's head |
 | `runvil-classroom`, `lesson-plans/2026-11-17.md` and `lesson-plans/2026-11-11.md` | 2026-11-17 and 2026-11-11 | Items 2 and 3, their open questions, and the eight decisions for the standalone client | Not applicable |
-| Finished report "Could LiteLLM substitute for Runvil Gateway?" | 2026-11-16 | That LiteLLM's chat translation is still Python, and its release cadence | No. LiteLLM's source was read again at today's commit for this report |
+| Finished report "Could LiteLLM substitute for Runvil Gateway?" | 2026-11-16 | That LiteLLM's chat translation is still Python, and its release cadence | No. LiteLLM's source was read again at today's commit |
 | `runvil-design`, `research/2026-11-09-port-unsloth-gateway.md` | 2026-11-09 | That llama-server already serves `/v1/messages` and `/v1/responses`, and a recommendation to pass those routes through | Yes for llama.cpp's routes |
 | `runvil-design`, `research/2026-10/2026-10-21-compaction-in-agent-harnesses.md` | 2026-10-21 | Vendor-side compaction (`compact_20260112`, the Responses compact endpoint) | Yes |
 | `runvil` and `runvil-gateway`, `vibe/2026-09/2026-09-14-2-provider-model-sheets.md`, and `runvil-cloud-providers`, `crates/gateway-cloud-providers/src/providers/` | 2026-09-14, code at `50961b2` | What the model sheet reads from each vendor's model list, the seven providers that lack an OpenAI-compatible base URL, and the rule "normalize the knob, never the settings" | The OpenRouter catalog was fetched again. One correction below |
@@ -1809,7 +1872,7 @@ Source: evidence file W, items W1 to W250.
 - **"Reasoning is replayed verbatim or dropped".** The documentation supports "replayed verbatim". On the chat completions route the documented results of a mismatch are requests kept on one provider and 400s, and the general case is undocumented. The survey said each entry has "a vendor `format` tag such as `anthropic-claude-v1`". The array has four entry types and twelve `format` values, and OpenRouter's reasoning guide still says three types [R32 to R34, V2].
 - **Cache marker translation "on the OpenAI route".** The conversion follows the model that serves the request, whichever route was called. Lifetimes are dropped in both directions [C19 to C22, V9].
 - **Google's OpenAI-compatible route "loses thought signatures" and cache handles.** It keeps both: signatures in `tool_calls[].extra_content.google.thought_signature`, and `cached_content` through `extra_body`. `missing_thought_signature` is a finish reason and an Interactions API error code, and the HTTP 400 for a missing signature has `status: "INVALID_ARGUMENT"` [GG6, GG25, VV13, VV16].
-- **Smaller ones.** Hugging Face Inference Providers has routed language models through OpenRouter since 2026-11-16, so it has stopped being an independent example. vLLM renamed `reasoning_content` to `reasoning`. The survey's remark that the `in_flight_budget_exhausted` string is gone has itself gone out of date. From GPT-6.2, a system prompt sent as top-level `instructions` loses the cache. Mistral's `/v1` route is now described as its native format [VT4, VV23, O37, OA62, VV20].
+- **Smaller corrections.** Hugging Face Inference Providers has routed language models through OpenRouter since 2026-11-16, so it has stopped being an independent example. vLLM renamed `reasoning_content` to `reasoning`. The survey's remark that the `in_flight_budget_exhausted` string is gone has itself gone out of date. From GPT-6.2, a system prompt sent as top-level `instructions` loses the cache. Mistral's `/v1` route is now described as its native format [VT4, VV23, O37, OA62, VV20].
 
 **Corrections to the 2026-11-17 report on Anthropic's Messages API.**
 
@@ -1829,7 +1892,7 @@ Confidence: high for the label, the attributions, the field name, and the stop r
 
 Confidence: high - each was read in the vendor's live documentation or code on 2026-11-22.
 
-**Other notes.**
+**Corrections to other documents and to one code comment.**
 
 - The 2026-09-30 report's table of exhaustion signals groups OpenRouter with OpenAI's 429 quota codes. OpenRouter's own signals are a 402 with `error_type: "payment_required"` and a 403 for budget rejections [O76].
 - The 2026-10-14 report says most proxies do not forward `tool_reference` blocks. OpenRouter now documents its own handling: it passes the block through where the endpoint defers tools itself, and elsewhere the block "reaches the provider as text" [P46].
@@ -1846,7 +1909,7 @@ Confidence: high - each was read in the vendor's live documentation or code on 2
 
 **Only public pages were read.** Two OpenRouter routes need a key and were left unread: `GET /api/v1/tools`, which has the per-tool names and prices, and `GET /api/v1/models/user`.
 
-**OpenRouter's translator is closed source.** Section 9 says how much of the account comes from OpenRouter's own material and how much from other projects. Another project's code shows how that project solves a problem. It is evidence for what Runvil needs, and it leaves OpenRouter's internals unknown.
+**OpenRouter's translator is closed source.** For 20 of the 105 features, the account of OpenRouter's handling is inferred or comes from another project or the vendor (section 9). Another project's code shows how that project solves a problem. It is evidence for what Runvil needs, and what OpenRouter does internally stays unknown.
 
 **Every source was read on one day, 2026-11-22.** OpenRouter's changelog shows changes on most days of November, its `format` list grew five times since July, and three of the vendor rules used here are less than a month old: Anthropic's API version of 2026-10-21, OpenAI's GPT-6.2 rules of 2026-11-17, and Hugging Face's move to OpenRouter on 2026-11-16. Some of this will be out of date within weeks.
 
@@ -1856,9 +1919,9 @@ Confidence: high - each was read in the vendor's live documentation or code on 2
 
 **The classification is a judgment.** Each feature's option was assigned from the evidence, under the rules in section 1. Every feature listed under the opaque field depends on a field that Runvil has designed and has yet to build. A reader who separates Gateway-only work from compatibility code differently can re-sort the features from each one's "Work in Runvil" line.
 
-**The second round covered a sample.** It re-read 128 claims, the ones the conclusions depend on most and the most surprising ones, out of about 1,950 evidence items. Table 9 gives the result. Its corrections are in the feature sections and in section 10.
+**The second round covered a sample.** It re-read 128 claims, the ones the conclusions depend on most and the most surprising ones, out of about 1,950 evidence items. Table 8 gives the result. Its corrections are in the feature sections and in section 10.
 
-*Table 9. The second round: 128 verdicts.*
+*Table 8. The second round: 128 verdicts.*
 
 | What was re-checked | Confirmed | Confirmed with a correction | Not confirmed | Conflict between sources | Overstated |
 |---|---|---|---|---|---|
@@ -1876,26 +1939,26 @@ Source: the four verification evidence files, keys V, VV, VF, VT. Three of the f
 
 ### What is still unknown about OpenRouter, and why what Runvil has to build stays the same
 
-A third round took the 36 questions that OpenRouter's closed source left open and looked for answers in recorded traffic, open-source translators and client libraries, vendor documentation, and other gateways' documentation. Most now have an answer, or another project's code that shows a translation that works. The few that remain concern things only OpenRouter has, such as its records of vendor-run tools. Table 10 lists what is still unknown about OpenRouter's own behavior, with what was tried.
+A third round took the 36 questions that OpenRouter's closed source left open and looked for answers in recorded traffic, open-source translators and client libraries, vendor documentation, and other gateways' documentation. Most now have an answer, or another project's code that shows a translation that works. The few that remain concern things only OpenRouter has, such as its records of vendor-run tools. Table 9 lists what is still unknown about OpenRouter's own behavior, with what was tried.
 
-*Table 10. What is still unknown about OpenRouter.*
+*Table 9. What is still unknown about OpenRouter.*
 
 | Still unknown about OpenRouter | What was tried | What other projects do |
 |---|---|---|
 | What it does with reasoning entries in a foreign format after a model or provider switch | Its docs, spec, and SDKs, and about 1,600 recorded exchanges from seven projects. None of the recordings exercises it, because the recording clients strip reasoning before a switch | pi and Goose drop another model's reasoning, and rig and opencode pass it on as text; Bifrost strips and retries once |
 | How it rebuilds the order of thinking, text, and tool calls for Anthropic | Docs, and the two published examples of a translated request. All 67 recorded Claude thinking replies have one block | Every open gateway with the same shape loses the order; rig, Hermes Agent, and Agno keep the block list |
 | Its rule for tying a Gemini signature entry back to a part | Five recorded shapes. A function-call signature has an `id` equal to the tool-call id, and a text-part signature has only its place in the array | Six transports in open projects (feature 10) |
-| What happens when a value that names one endpoint reaches a different endpoint, and whether it now keeps a Gemini tool continuation on one upstream | 34 recorded replays all came back from the endpoint the value names, and none shows a mismatch. The latest advice from OpenRouter staff, on 2026-06-17, is to name the provider and forbid any other | LiteLLM pins or strips; Bifrost strips and retries; three projects report that Google AI Studio and Vertex reject each other's signatures |
+| What happens when a value that names one endpoint reaches a different endpoint, and whether it now keeps a Gemini tool continuation on one upstream | 34 recorded replays all came back from the endpoint the value names, and none shows a mismatch. The latest advice from OpenRouter staff, on 2026-06-17, is to name the provider and forbid any other | LiteLLM keeps the request on one provider or strips the data; Bifrost strips and retries; three projects report that Google AI Studio and Vertex reject each other's signatures |
 | Whether it drops unsigned Claude reasoning or lets Anthropic reject it | Two accounts that disagree: a code comment in OpenRouter's own client library and a user's comment on an issue report. None of the recordings sends it | Not needed: Runvil's opaque field holds signed thinking only |
 | Its server-side rule for removing repeated reasoning entries | Only the SDK's client-side copy of a key rule | Not needed |
 | Whether it fills a vendor's required `reasoning_content` for a caller that dropped it, and what it writes upstream | Issue reports from April and May 2026 show DeepSeek's 400 reaching callers. None of the recordings sends reasoning back to these models | LiteLLM pads the field; pi and opencode return it |
 | How it sends a chat system message to OpenAI, and which `store` and `include` values it sends | A search of docs, issues, and the web found such examples for Claude only. Recordings do show which models are served through the Responses API | LiteLLM's bridge and Codex |
 | Whether a caller's `prompt_cache_key` reaches OpenAI, whether `x-grok-conv-id` is set, what a cache marker does on Gemini 4, and which sticky lifetime is real | Docs (two pages give two lifetimes) and recordings (clients strip markers before sending) | pi sends the key itself; LiteLLM's cache code treats Gemini 4 like any other model |
-| Whether the prompt-template tool emulation still runs | One code comment in the docs. A recorded request to a model without tool endpoints got a 404 | Runvil's own `gemma3_tool_code` dialect |
+| Whether the prompt-template tool emulation still runs | One code comment in the docs. A recorded request to a model without tool endpoints got a 404 | Runvil's own `gemma3_tool_code` tool format |
 | Whether it rewrites tool-call ids on the way in | Recordings show one vendor's ids accepted by another, and third-party captures show Mistral's rejection relayed. An employee wrote on 2026-03-31 that a fix was coming, and no page reports that it shipped | Bifrost, opencode, pi, and Roo Code rewrite |
 | Which server tools leave a `reasoning.server_tool_call` entry on the chat route, and whether it must be returned | The spec (the entry appears there and in none of the guides), every tool guide, both SDKs, and the recordings (none has such an entry). The per-tool table is behind `GET /api/v1/tools`, which needs a key | This field exists in OpenRouter alone |
 | Whether Anthropic's code execution, memory, and MCP connector work through its `/messages` route, and what `background` and `item_reference` do on `/responses` | The spec and guides. It needs a live request | LiteLLM emulates background runs and stored history with a database |
-| Whether it resends a turn that Anthropic paused (`pause_turn`) or hands the pause to the caller, and which finish reason the chat route shows | Guides, spec, changelog, and both SDKs. The value is in the Messages stop-reason enum and in none of the guides | Pydantic AI and Anthropic's own SDKs resend automatically; LiteLLM hands it to the caller |
+| Whether it resends a turn that Anthropic paused (`pause_turn`) or hands the pause to the caller, and which finish reason the chat route shows | Guides, spec, changelog, and both SDKs. The value is in the stop-reason list of the Messages route and in none of the guides | Pydantic AI and Anthropic's own SDKs resend automatically; LiteLLM hands it to the caller |
 | Whether `[DONE]` always follows an error chunk, the keep-alive interval, and any timeout | Two recordings from 2025-11, one with `[DONE]`. Fixtures store only the bytes, not their arrival times | Not needed: Runvil's client should treat any chunk with `error` as a failure |
 | The allowlists behind `x-anthropic-beta` and `provider.options`, and the safety thresholds it sends to Gemini by default | Docs and spec. Both lists are unpublished | Anthropic tells gateways to forward beta values as written; new-api and one-api send an operator default for safety |
 
@@ -1907,9 +1970,9 @@ A third round took the 36 questions that OpenRouter's closed source left open an
 
 ## 12. Sources and evidence files
 
-**How to read an evidence item.** A code such as `R36` is item 36 in the evidence file whose items start with `R`. Each item has the exact quote, the URL or the repository, commit, file, and line, and the date it was read. Table 11 lists the 26 evidence files, which are in the `evidence/` folder beside this report. All were produced on 2026-11-22.
+**How to read an evidence item.** A code such as `R36` is item 36 in the evidence file whose items start with `R`. Each item has the exact quote, the URL or the repository, commit, file, and line, and the date it was read. Table 10 lists the 26 evidence files, which are in the `evidence/` folder beside this report. All were produced on 2026-11-22.
 
-*Table 11. The evidence files, by the letters their items start with.*
+*Table 10. The evidence files, by the letters their items start with.*
 
 | Keys | Evidence file | Items | Sources |
 |---|---|---|---|
@@ -1995,4 +2058,4 @@ A third round took the 36 questions that OpenRouter's closed source left open an
 - `runvil-cloud-providers` at `50961b2`: `crates/gateway-cloud-providers/src/providers/`.
 - `runvil-design`: `decisions/gateway.md` and the research reports named in section 10. `runvil-classroom`: `lesson-plans/2026-11-17.md`, `lesson-plans/2026-11-11.md`.
 
-*2026-11-22 19:10 - Claude Fable 5.2*
+*2026-11-22 19:14 - Claude Fable 5.2*
