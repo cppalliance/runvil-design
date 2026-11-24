@@ -1,6 +1,6 @@
 ---
 produced: 2026-11-24
-title: Streaming model replies through Runvil's InferenceBroker - an on_piece callback on chat, a supports_streaming flag, RunSetup.streaming, a per-round latch that stops a slow stream at a prefix, replay and reload, the Workshop agent_delta wire, pull request 73 and issue 72, and how LangChain, OpenAI Agents SDK, Vercel AI SDK, async-openai, genai, and rig stream
+title: Streaming model replies through Runvil's InferenceBroker - an on_piece callback on chat, a supports_streaming flag, RunSetup.streaming, a prefix rule for Hosts that lag, replay and reload, the Workshop agent_delta wire, pull request 73 and issue 72, and how LangChain, OpenAI Agents SDK, Vercel AI SDK, async-openai, genai, and rig stream
 ---
 
 # Streaming a model reply to a Host: a callback on `InferenceBroker::chat`
@@ -15,25 +15,24 @@ title: Streaming model replies through Runvil's InferenceBroker - an on_piece ca
 
 **Background.** The design question is how a Host application receives a model's reply piece by piece while the reply is still forming. Runvil runs prompts, which are Markdown files that hold text for a model plus Lua code. The Harness is the part that performs each step a prompt needs, including each model request. A Host is an application that runs prompts through the Harness, such as Workshop, Runvil's desktop app. The Host supplies a broker, the object that sends each model request to a model and returns the reply. The Gateway is Runvil's server that forwards such a request to a model vendor.
 
-**Recommendation.** Put streaming on the `InferenceBroker` trait. Its method `chat` takes an optional callback, `on_piece`, which the broker calls once for each piece of the reply as the model produces it, and the trait gains a required method, `supports_streaming()`, which reports whether the broker streams. A Host turns streaming on for one run with `RunSetup::streaming(callback)`. `RunSetup` is the struct the Host builds for each run, and the new setter joins the setters for that run's limits, arguments, and model. The Harness passes `on_piece` to the broker only for a prompt section's own model rounds, because only the finished reply of a nested `models.infer` round is used, and it wraps the Host's callback in a latch for each round. The latch is a flag that closes when the Host's callback returns `ControlFlow::Break` and keeps the Harness from calling the callback again for the rest of that round. The Host keeps its own queue behind the callback, so it chooses how much to buffer. Confidence: high that the callback belongs on `chat`, because the Harness already dispatches every model round through that one method; medium-high on the latch, because the latch rule follows from the Harness polling a whole run inside one future but nothing is built.
+**Recommendation.** Put streaming on the `InferenceBroker` trait. Its method `chat` takes an optional callback, `on_piece`, which the broker calls once for each piece of the reply as the model produces it, and the trait gains a required method, `supports_streaming()`, which reports whether the broker streams. A Host turns streaming on for one run with `RunSetup::streaming(callback)`. `RunSetup` is the struct the Host builds for each run, and the new setter joins the setters for that run's limits, arguments, and model. The Harness passes the Host's callback to the broker as `on_piece`, with the round added to each call, and only for a prompt section's own model rounds, because only the finished reply of a nested `models.infer` round is used. The callback is synchronous and returns at once. A Host that buffers pieces keeps its own queue and decides what to do when the queue fills, and a Host that does not want pieces ignores them. Confidence: high that the callback belongs on `chat`, because the Harness already dispatches every model round through that one method.
 
 **Streaming works today through one method on `GatewayBroker`.** The trait says the Harness takes only the finished reply, and a broker "that shows the reply as it forms streams it on its own." The one way to stream is `GatewayBroker::chat_streaming`, a method of `GatewayBroker` itself and not of the trait. A Host that holds the broker only as `Arc<dyn InferenceBroker>`, the type `RunSetup` stores, cannot call it. Workshop wraps the Gateway broker in a per-run `RunBroker` to call it, and the `runvil` facade's own tests contain a second copy of the wrapper. Pull request 73, an open change to the Gateway client that fixes issue 72, attaches a channel sender to the broker, and every clone of the broker shares that sender.
 
 - **The setting belongs on `RunSetup`.** A callback set there is scoped to one run, because the Host's launch code builds one `RunSetup` for each run and every optional field has a setter of its own name. Round ids count from 0 within a run, so two runs that share one sender produce pieces that cannot be told apart.
-- **A slow Host must never block the run.** The Harness polls every effect of a run inside one future and starts no task. A callback that waited for the Host would stall tool calls, timers, and cancel handling, so the callback the Harness gives to the broker returns at once.
-- **Libraries disagree about a slow consumer.** Of the six libraries read (LangChain, the OpenAI Agents SDK, the Vercel AI SDK, async-openai, genai, and rig), a slow consumer makes LangChain's callbacks, the Vercel AI SDK, genai's stream, and rig's bounded queue of 32 run events block the producer. A queue grows without limit in the OpenAI Agents SDK, async-openai, and LangChain's event stream, and genai's channel sink drops pieces and counts the drops. The design's fourth behavior is to stop one response at a prefix and leave the rest to the finished reply.
+- **A slow Host must never block the run.** The Harness polls every effect of a run inside one future and starts no task. A callback that waited for the Host would stall tool calls, timers, and cancel handling, so the callback must return at once. The Harness cannot enforce that, so the trait documents it.
+- **Libraries disagree about a slow consumer.** Of the six libraries read (LangChain, the OpenAI Agents SDK, the Vercel AI SDK, async-openai, genai, and rig), a slow consumer makes LangChain's callbacks, the Vercel AI SDK, genai's stream, and rig's bounded queue of 32 run events block the producer. A queue grows without limit in the OpenAI Agents SDK, async-openai, and LangChain's event stream, and genai's channel sink drops pieces and counts the drops. In this design, the Host decides what to do when it lags: it can buffer, stop at a prefix, or ignore the pieces, and the finished reply supplies whatever it missed.
 - **The finished reply fills in whatever the Host did not receive.** The broker still returns the whole `Completion`, and the Harness still records it as an `assistant_reply` event. A Host that stopped receiving pieces replaces its partial text with that reply, or prints the missing tail.
-- **Replay and reload leave streaming idle.** A reattach replays the durable log, which records only durable events. A reload would re-run an agent from its recorded history, and the code for that, the run-replay driver, is still to be built and feeds recorded answers to the run without calling the broker. To turn streaming off for rounds that the model answers live, a Host returns `Break` at the first piece of each round.
+- **Replay and reload leave streaming idle.** A reattach replays the durable log, which records only durable events. A reload would re-run an agent from its recorded history, and the code for that, the run-replay driver, is still to be built and feeds recorded answers to the run without calling the broker. To ignore pieces for rounds that the model answers live, a Host's callback returns without using them.
 - **The change breaks every `InferenceBroker` implementation once.** Fifteen implementations in 13 files, in `runvil-harness`, `runvil-workshop`, and `runvil-classroom`, gain a parameter and a method. The `runvil-classroom` repository holds student programs that implement the trait. Four decision pages in `runvil-design` change: two quote the rule that the Harness knows nothing about streaming, one describes `RunBroker`, and one describes test brokers. Workshop deletes `RunBroker`, whose job the Harness takes over, and adds a per-round sequence number, `seq`, to `agent_delta`, so that the browser, the last step from broker to reader, can detect a gap in a round's pieces and stop appending.
 
-**Evidence.** The code was read at pinned commits and six libraries at pinned versions, all on 2026-11-24. Nothing is built, so the latch rule and the sequence number are untested. The growth of async-openai's channel and of a Vercel AI SDK stream-splitting buffer is inferred from their types.
+**Evidence.** The code was read at pinned commits and six libraries at pinned versions, all on 2026-11-24. Nothing is built, so the callback contract and the sequence number are untested. The growth of async-openai's channel and of a Vercel AI SDK stream-splitting buffer is inferred from their types.
 
 **Open decisions for the project owner.**
 
 - Whether to approve this recommendation. It gives the Harness's public API a streaming callback, which changes the rule, recorded on two decision pages, that the Harness knows nothing about streaming.
 - Whether `supports_streaming` is required, as proposed, so that every broker author must answer it, or defaulted, so that existing brokers keep compiling.
 - Whether to rework pull request 73 and issue 72 to match this design, or merge the pull request as a stopgap.
-- Whether the Harness crate ships a ready-made queue for Hosts that want one.
 - When Workshop adds the sequence number.
 
 ## Contents
@@ -44,13 +43,13 @@ title: Streaming model replies through Runvil's InferenceBroker - an on_piece ca
 - 3. A callback on `chat` beats the alternatives
 - 4. Libraries block, buffer, or drop when the consumer is slow
 - 5. The interface and the prefix rule
-- 6. What a Host sees in six cases
+- 6. What a Host sees in seven cases
 - 7. The change touches every broker and four decision pages
 - 8. The work splits into four jobs
 - 9. Limits and open decisions
 - References
 - Appendix A. New acceptance criteria for issue 72
-- Appendix B. Tests for the prefix rule
+- Appendix B. Tests for the callback contract
 
 ## Terms used throughout
 
@@ -81,12 +80,11 @@ Each term has one meaning.
 - **Compile break:** a change that stops existing code from compiling until it is updated.
 - **`RunSetup`:** the struct the Host's launch code builds for each run. It holds the recorder, the broker, a timer, and per-run settings such as limits and arguments, and each optional setting has a setter named after it.
 - **`on_piece` and `PieceSink`:** the new optional callback on `chat`, and its type, `Arc<dyn Fn(Delta) + Send + Sync>`. The broker calls it once for each piece.
-- **Host callback and `HostSink`:** the function a Host passes to `RunSetup::streaming`, and its type, `Arc<dyn Fn(Round, Delta) -> ControlFlow<()> + Send + Sync>`. It receives each piece with its round and answers with the standard `ControlFlow` values, written `Continue` and `Break` below. `Break` means stop delivering pieces for the rest of this round.
+- **Host callback and `HostSink`:** the function a Host passes to `RunSetup::streaming`, and its type, `Arc<dyn Fn(Round, Delta) + Send + Sync>`. It receives each piece with its round and returns at once.
 - **`RunControl`:** the handle a Host uses to steer a running run. Its `send` delivers a message, `stop_round` drops the effects in flight, and `cancel` ends the run.
 - **`StreamDelta` and `Delta`:** the Gateway client's type for a piece, and the new Harness type. Both have `Text` and `Reasoning` variants.
 - **`WorkshopBroker` and `RunBroker`:** Workshop's two brokers. `WorkshopBroker` sends each round to the Gateway that Workshop is connected to at that moment. `RunBroker` wraps it for one run and streams that run's pieces into the run's conversation.
 - **`publish_delta`:** the `Conversation` method that puts one piece on the conversation's delta broadcast.
-- **`PieceQueue`:** an optional ready-made queue, a `Mutex<VecDeque>` with a waker, that the Harness crate could ship for Hosts that want one.
 - **`seq`:** the per-round sequence number this design proposes to add to `agent_delta`.
 - **Pending item:** the browser's in-progress reply or thought, built from deltas and replaced when the matching durable event arrives.
 
@@ -96,7 +94,6 @@ Each term has one meaning.
 - **Piece:** one live fragment of a reply, either answer text or reasoning text. The code also calls a piece a delta.
 - **Finished reply:** the complete `Completion` that a round returns. The Harness records it as an `assistant_reply` event.
 - **Recorder:** the Host's store for a run's history. It receives each finished reply and never a piece.
-- **Latch:** a flag the Harness keeps for one round. It starts open, closes when the Host asks to stop, and stays closed until the round ends.
 - **Prefix:** an unbroken run of pieces from the start of a reply, in order.
 - **Pulled stream:** a stream that the consumer polls for the next item, such as a Rust `Stream` or an async iterator.
 - **Wire:** the JSON messages that Workshop's server and its browser exchange over a socket.
@@ -133,9 +130,9 @@ Hosts include command-line tools and programs written outside the project, and H
 - **Pieces are scoped to one run.** Round ids repeat across runs, so pieces from two runs must never share a destination, such as one channel, that cannot tell them apart.
 - **The Harness stays runtime-agnostic and transport-agnostic.** A transport is the network layer, such as HTTP. The module header of `harness.rs` says the Harness "starts no task and names no runtime", and the runner crate, the Harness crate that holds the effect loop, depends on `futures-util`, with `tokio` only as a dev-dependency (`harness.rs`, line 12; the runner crate's `Cargo.toml`, lines 14 and 41) [1]. The HTTP code is in the Gateway client, a separate crate.
 - **The Engine stays unchanged.** It already tags each round `Chat` or `Infer`, which is all the Harness needs to choose the `Chat` rounds for streaming. A `Chat` round is the kind whose live pieces a Host can stream, and for an `Infer` round only the finished reply is used, by the Lua code that called `models.infer` (`effect.rs`, lines 80 to 83) [1].
-- **A slow Host must not stall the run.** The Harness polls each round inside the run's one future, so a callback that blocks would also block tool calls, timers, and the handling of `RunControl::cancel`. The Host's callback therefore returns at once, and the Host buffers the pieces.
-- **A Host never loses the reply.** The finished reply reaches the recorder as it does today, as an `assistant_reply` event, even after the Host's callback has returned `Break`.
-- **A Host that lags still sees a prefix.** A Host lags when the queue it keeps behind its callback is full. The callback then returns `Break`, the later pieces of that round are not delivered, and the pieces it did receive are the first pieces of the reply, in order.
+- **A slow Host must not stall the run.** The Harness polls each round inside the run's one future, so a callback that blocks would also block tool calls, timers, and the handling of `RunControl::cancel`. The Host's callback therefore returns at once, and a Host that buffers does so behind the callback. The Harness cannot detect a callback that blocks, so the trait documents the rule.
+- **A Host never loses the reply.** The finished reply reaches the recorder as it does today, as an `assistant_reply` event, even when the Host stops receiving pieces.
+- **A Host that lags can keep a prefix.** A Host lags when the queue it keeps behind its callback is full. If it then stops pushing pieces for the rest of that round, the pieces it did receive are the first pieces of the reply, in order.
 
 ## 3. A callback on `chat` beats the alternatives
 
@@ -147,7 +144,7 @@ The chosen design has three parts. `chat` gains an optional callback, `on_piece`
 | Per-run Host wrapper plus a Host-side trait | Yes | Yes, if each broker implements the trait | Yes | Workable; each Host rewrites it |
 | Defaulted trait method for streaming | Yes | Yes | No | Fallback if a compile break is unwelcome |
 | Callback parameter on `chat` | Yes | Yes | No | Chosen |
-| Broker returns a stream | Yes | Yes | No | Rewrites every broker and the client |
+| Broker returns a stream | Yes | Yes | No | Brokers must buffer, and the pacing benefit goes unused |
 | Task-local context | Yes | Only brokers that run on the task that polls the round | Yes | Hidden dependency |
 | Recorder receives pieces | Yes | Yes | No | Pieces do not belong in the record |
 | Queue owned by the Harness | Yes | Yes | No | A second queue in front of Workshop's broadcast |
@@ -160,7 +157,7 @@ The chosen design has three parts. `chat` gains an optional callback, `on_piece`
 
 **Defaulted trait method.** A second trait method, for example `chat_with_sink(.., sink)`, whose default implementation calls `chat` compiles for every existing implementation. The Harness then chooses between two methods, a broker can implement one and forget the other, and the Host cannot see which brokers stream. It is the fallback if the project decides that a compile break is unacceptable.
 
-**Broker returns a stream.** A `chat` that returns a `Stream` of events that ends in the `Completion` is the most idiomatic async shape. The Harness would poll it, backpressure would be natural, and cancel would mean dropping the stream. It changes the return type of every broker, and the Gateway client's transport is callback-based (`on_delta: impl Fn(StreamDelta)`), so the client would need rewriting too.
+**Broker returns a stream.** A `chat` that returns a `Stream` of events that ends in the `Completion` is the most idiomatic async shape, and cancel would mean dropping the stream. It has two costs. A stream's strength is that the consumer sets the pace, and the design relies on the opposite: a slow Host must never slow the read of the model's reply. And a broker whose transport decodes with a callback, as the Gateway client's does (`on_delta: impl Fn(StreamDelta)`), has to buffer pieces in a channel to return a stream. In the design, each hop is as simple as it can be: the broker calls a function, the Harness calls a function, and the Host chooses whether to buffer, limit, or ignore the pieces. A Host that wants a stream builds one from the callback with a channel. A variant returns a stream of pieces plus a future of the finished reply, which keeps one `Completion` by type but needs both handles polled together.
 
 **Task-local context.** The Harness could set a thread-local or task-local sink while it polls a round, and brokers could read it. That avoids a trait change. A broker that spawns a task loses the context, and no function signature shows that a broker depends on it.
 
@@ -168,7 +165,7 @@ The chosen design has three parts. `chat` gains an optional callback, `on_piece`
 
 **Queue owned by the Harness.** The Harness would own a bounded queue and give the Host a reader, so every Host would get the same behavior when it lags. To avoid depending on a runtime such as `tokio`, the Harness crate would need its own queue and a way to wake the reader. Workshop already has a 256-slot broadcast that every attached socket reads, so a Harness queue would sit in front of it, need a Workshop task to move pieces from one queue to the other, and buffer every piece twice.
 
-The callback parameter meets the ten requirements. Streaming is in the broker interface, because the Harness dispatches every round through `chat`. A required `supports_streaming()` answers the Host's question. A broker that never calls the callback stays valid. The setting is on `RunSetup`, and the Harness builds a new closure for each round, so the latch state belongs to that round alone. Confidence: high - the Harness already dispatches every model round through `chat`, and a compile break costs least while few brokers exist (15 implementations in `runvil-harness`, `runvil-workshop`, and `runvil-classroom` today, most of them test or placeholder brokers).
+The callback parameter meets the ten requirements. Streaming is in the broker interface, because the Harness dispatches every round through `chat`. A required `supports_streaming()` answers the Host's question. A broker that never calls the callback stays valid. The setting is on `RunSetup`, and the Harness adds the round to each call. Confidence: high - the Harness already dispatches every model round through `chat`, and a compile break costs least while few brokers exist (15 implementations in `runvil-harness`, `runvil-workshop`, and `runvil-classroom` today, most of them test or placeholder brokers).
 
 ## 4. Libraries block, buffer, or drop when the consumer is slow
 
@@ -189,7 +186,7 @@ All six attach the hook to a call, and LangChain and rig also accept one for a w
 
 A slow consumer produces three behaviors: the producer blocks, a queue grows without limit, or pieces are dropped. The Vercel AI SDK documents the first with "The stream processing will pause until the callback promise is resolved." genai's documentation says "a slow sink stalls the stream." Pieces are dropped only in genai's `ChannelSink`, which drops a frame, genai's word for a piece, when its channel is full and counts the drops. Blocking cannot work for Runvil, because the callback runs inside the one future that also polls tool calls, timers, and cancel. An unbounded queue grows with the reply. Dropping leaves a gap in the middle of the text, which a reader sees as corrupted output until the finished reply replaces it.
 
-A Host that lags should keep a prefix of the reply and receive the rest in the finished reply. The nearest behaviors come from three libraries, and in each the consumer decides what to keep. genai delivers the full text in its final `StreamEnd` event when its capture option, which keeps the full text, is on, so a consumer that lost frames still receives the whole text. rig lets a consumer drop the event stream while the run still resolves with the final response. The Vercel AI SDK's `consumeStream` drains the remaining output after a client disconnects. In this design the Host triggers the stop by returning `Break`. Its callback runs inline and returns at once, so it can always give that answer, and the finished reply replaces the missing text.
+A Host that lags should keep a prefix of the reply and receive the rest in the finished reply. The nearest behaviors come from three libraries, and in each the consumer decides what to keep. genai delivers the full text in its final `StreamEnd` event when its capture option, which keeps the full text, is on, so a consumer that lost frames still receives the whole text. rig lets a consumer drop the event stream while the run still resolves with the final response. The Vercel AI SDK's `consumeStream` drains the remaining output after a client disconnects. In this design the Host chooses to stop by itself: its callback runs inline and returns at once, so it can stop pushing pieces whenever it likes, and the finished reply replaces the missing text.
 
 For a model that cannot stream, LangChain's default `stream` calls `invoke` and yields one chunk, so its `on_llm_new_token` callback is never called, and its `disable_streaming` setting forces the same fallback. The Vercel AI SDK simulates a single-chunk stream through opt-in middleware. For async-openai, genai, and rig the answer was not verified. A callback that is never called is the right behavior for Runvil, because the Harness then needs no special case for a broker that cannot stream, and LangChain ships it. The method `supports_streaming()` is new in the design: it lets a Host tell the person using it that nothing will stream.
 
@@ -197,12 +194,11 @@ For a model that cannot stream, LangChain's default `stream` calls `invoke` and 
 
 ```mermaid
 flowchart LR
-  Broker["Broker"] -->|"on_piece (sync)"| Latch["Round latch"]
-  Latch -->|"Round, Delta"| HostCb["Host callback"]
-  HostCb --> HostQ["Host queue"]
-  HostQ --> Ui["UI or CLI"]
+  Broker["Broker"] -->|"on_piece (sync)"| Harness["Harness"]
+  Harness -->|"Round, Delta"| HostCb["Host callback"]
+  HostCb --> Out["Stdout or queue"]
   Broker -->|"finished reply"| Rec["Recorder"]
-  Rec -->|"reply event"| Ui
+  Rec -->|"reply event"| Out
 ```
 
 *How a piece and the finished reply reach the Host.*
@@ -238,7 +234,7 @@ pub trait InferenceBroker: Send + Sync {
 ```
 
 - The broker calls `on_piece` synchronously, inline from its read loop, once for each piece, in the order the model produced them.
-- The callback returns at once. A broker skips per-piece work when `on_piece` is `None`.
+- The callback returns at once, and the Harness cannot enforce that. A write to a terminal or a file returns at once. A blocking write to a pipe whose reader has stopped, or a sleep, stalls the run. A broker skips per-piece work when `on_piece` is `None`.
 - The finished `Completion` still holds the whole reply, and `chat` returns it as it does today.
 - `supports_streaming()` is a hint for Hosts. The Harness passes the callback whatever the answer, so a wrapper broker that forgets to forward the flag misleads a Host's display and affects nothing else. A required method makes every broker and every wrapper answer, because code that omits it does not compile, and Workshop's `WorkshopBroker` forwards both the callback and the flag to the `GatewayBroker` it wraps.
 - `Delta` is `#[non_exhaustive]` and is defined in the Harness crate, so the Engine does not change and later variants, such as image parts, do not break callers. `GatewayBroker` maps the client's `StreamDelta` to `Delta` with a two-arm match. If the research report's plan moves `GatewayBroker` into a Harness adapter, the same mapping fits there [6].
@@ -249,15 +245,15 @@ pub trait InferenceBroker: Send + Sync {
 The doc comment on `RunSetup::new` says that each optional field has a method of its own name that sets it and returns the setup (`setup.rs`, lines 133 to 138) [1]. Streaming follows that pattern.
 
 ```rust
-pub type HostSink = Arc<dyn Fn(Round, Delta) -> ControlFlow<()> + Send + Sync>;
+pub type HostSink = Arc<dyn Fn(Round, Delta) + Send + Sync>;
 
 impl RunSetup {
     /// Turns streaming on for the run. `sink` is called for each piece of a
-    /// section's own model round, in order, and must not block.
+    /// section's own model round, in order, and must return at once.
     #[must_use]
     pub fn streaming(
         mut self,
-        sink: impl Fn(Round, Delta) -> ControlFlow<()> + Send + Sync + 'static,
+        sink: impl Fn(Round, Delta) + Send + Sync + 'static,
     ) -> RunSetup {
         self.streaming = Some(Arc::new(sink));
         self
@@ -265,54 +261,64 @@ impl RunSetup {
 }
 ```
 
-`std::ops::ControlFlow<()>` is the standard type for the answer "keep going" or "stop", so the design needs no new type for that answer. A Host's calling code looks like this:
+A command-line Host's calling code looks like this:
 
 ```rust
 // endpoint and key come from wherever the Host finds the Gateway
 let broker = GatewayBroker::new(endpoint, key);
 // recorder and timer are the run's other two services
-let setup = RunSetup::new(recorder, broker, timer)
-    .streaming(|round, delta| publish(round, delta)); // the Host's own publish returns Continue or Break
+let setup = RunSetup::new(recorder, broker, timer).streaming(|_round, delta| {
+    if let Delta::Text(text) = delta {
+        let _ = write!(std::io::stdout(), "{text}"); // a terminal write returns at once
+    }
+});
 // host and prompt are the Host and the parsed prompt that Harness::new takes
 let harness = Harness::new(host, prompt, setup);
 ```
 
-### The Harness wraps the Host's callback in a latch for each round
+### The Harness adds the round to each call
 
 ```rust
 // where the effect loop dispatches Effect::Chat; `self.streaming` is the
 // Host's callback from RunSetup, and `round.origin` is Chat or Infer.
 // An Infer round uses only the finished reply, so it gets None.
-let on_piece = match (&self.streaming, round.origin) {
-    (Some(host), ReplyOrigin::Chat) => Some(latched(Arc::clone(host), round)),
+let on_piece: Option<PieceSink> = match (&self.streaming, round.origin) {
+    (Some(host), ReplyOrigin::Chat) => {
+        let host = Arc::clone(host);
+        Some(Arc::new(move |delta| host(round, delta)))
+    }
     _ => None,
 };
 let completion = broker.chat(binding, messages, tools, options, round, on_piece).await;
-
-fn latched(host: HostSink, round: Round) -> PieceSink {
-    let open = AtomicBool::new(true);
-    Arc::new(move |delta| {
-        if open.load(Ordering::Acquire) && host(round, delta).is_break() {
-            open.store(false, Ordering::Release);
-        }
-    })
-}
 ```
 
-The callback type is `Fn`, so the closure cannot change a captured boolean, and the latch is an atomic flag. The Harness builds a new closure for each round, so every round starts open. Pieces arrive from one round's read loop, one at a time, so the atomic is uncontended.
+`Round` is `Copy`, so each closure captures it by value. The closure's only state is the round and a shared reference to the Host's callback.
 
-### A Host sees a prefix, then the finished reply
+### A Host that lags keeps a prefix
 
-- For each round, the Host receives an unbroken run of pieces from the start of the reply, in order. The run ends at the whole reply or at the piece after which the Host's callback returned `Break`.
-- Text and reasoning stop at the same piece, because the latch belongs to the round.
-- Streaming never resumes inside a round, because resuming would leave a gap in the middle of the text. The callback receives the next round's first piece.
+- A Host that receives every piece holds the whole reply, in the order the model produced it.
+- A Host that cannot keep up should stop pushing for the rest of that round. The pieces it holds are then an unbroken run from the start of the reply, a prefix. Pushing again inside the round would leave a gap in the middle of the text. The Host can start again with the next round's first piece.
 - A Host learns that a round ended normally from its recorder, which receives the finished reply as an `assistant_reply` event.
-- A graphical Host replaces its prefix with the finished reply. A terminal Host prints `reply[received..]`, where `reply` is the answer text of the finished reply and `received` is the number of bytes of answer text it already printed. Pieces are whole strings, so the cut falls on a character boundary.
+- A graphical Host replaces its prefix with the finished reply. A Host that appends, such as a terminal that chose to stop printing, prints `reply[received..]`, where `reply` is the answer text of the finished reply and `received` is the number of bytes of answer text it already printed. Pieces are whole strings, so the cut falls on a character boundary.
 - A cancelled or failed round ends without a finished reply, so a Host drops its prefix when the `RunReport` that `Harness::run` returns, or its recorder, shows the cancel or the error. Workshop drops it today at the next message from the person using the agent window, or once a later round settles, that is, once that round's finished event arrives (`agent-session.ts`, lines 8 to 11) [2].
 
 ### The Host owns the queue
 
-Workshop's callback calls `Conversation::publish_delta`, which feeds the 256-slot broadcast that every attached socket and the status reporter read [2]. The status reporter is the task that turns deltas into the status bar's activity light. A broadcast `send` never reports a slow receiver, so Workshop's callback gets no such signal and always returns `Continue`, and lag is handled on the last hop, the step from Workshop's server to the browser. A command-line Host with a bounded channel returns `Break` when `try_send` reports the channel full. Each Host chooses its capacity, its fan-out, and what "full" means. The Harness crate could ship a small `PieceQueue`, a `Mutex<VecDeque>` with a waker, for Hosts that want a ready-made queue, and the design does not depend on it.
+Workshop's callback calls `Conversation::publish_delta`, which feeds the 256-slot broadcast that every attached socket and the status reporter read [2]. The status reporter is the task that turns deltas into the status bar's activity light. A broadcast `send` never reports a slow receiver, so Workshop's callback has no lag to react to, and lag is handled on the last hop, the step from Workshop's server to the browser. A command-line Host writes to the terminal inside the callback, so nothing is buffered. A Host that does buffer owns its channel, its capacity, and what "full" means. The callback below stops pushing for a round once its channel is full, so the Host keeps a prefix. A bounded channel's `send` is async and `blocking_send` blocks, so a synchronous callback uses `try_send`.
+
+```rust
+let (tx, mut rx) = tokio::sync::mpsc::channel(256);
+let gave_up = AtomicU64::new(u64::MAX); // the round the Host stopped pushing for
+let setup = RunSetup::new(recorder, broker, timer).streaming(move |round, delta| {
+    let id = round.id.get();
+    if gave_up.load(Ordering::Relaxed) == id {
+        return;
+    }
+    if tx.try_send((round, delta)).is_err() {
+        gave_up.store(id, Ordering::Relaxed); // channel full or closed
+    }
+});
+```
 
 ### Workshop's last hop needs a sequence number
 
@@ -322,17 +328,19 @@ The fix is a `seq` field on `agent_delta`, a counter for each round that starts 
 
 ### Replay and reload leave streaming idle
 
-- **Reattach.** The socket subscribes to deltas when it attaches and then sends the durable log from index 0 (`socket.rs`, lines 406 to 441) [2]. The log holds only durable events, so a reattach replays no pieces, and deltas flow only for rounds that are live. Under this design the callback exists only for live rounds.
-- **Run replay and reload.** A reload would re-run an agent from its recorded history. The driver that re-executes a recorded run is still to be built (`harness-and-host.md`, lines 16, 36, and 284; the Workshop plan `2026-11-08-3-run-inbox-fixes.plan.md` lists "A replay driver for run logs" as out of scope) [3][4]. As the decision page describes it, the driver passes recorded answers to `Run::resume`, the Engine call that returns an effect's answer to the run, in their recorded order, without the effect loop's broker call. No round reaches a broker, so the callback is never built and nothing needs turning off. If the driver later switches a replayed run to live execution, the first live `Chat` round dispatches with the callback when the run's setup has one.
-- **Streaming held off for live rounds.** To turn streaming off for a while, a Host returns `Break` at the first piece of each round and discards that piece. That closes the round's latch, and the finished reply arrives as usual. The Host stops returning `Break` when it wants streaming back, and streaming resumes at the next round.
+- **Reattach.** The socket subscribes to deltas when it attaches and then sends the durable log from index 0 (`socket.rs`, lines 406 to 441) [2]. The log holds only durable events, so a reattach replays no pieces, and deltas flow only for rounds that are live. The Harness passes `on_piece` only for live rounds.
+- **Run replay and reload.** A reload would re-run an agent from its recorded history. The driver that re-executes a recorded run is still to be built (`harness-and-host.md`, lines 16, 36, and 284; the Workshop plan `2026-11-08-3-run-inbox-fixes.plan.md` lists "A replay driver for run logs" as out of scope) [3][4]. As the decision page describes it, the driver passes recorded answers to `Run::resume`, the Engine call that returns an effect's answer to the run, in their recorded order, without the effect loop's broker call. No round reaches a broker, so the callback is never called and nothing needs turning off. If the driver later switches a replayed run to live execution, the first live `Chat` round dispatches with the callback when the run's setup has one.
+- **Pieces ignored for live rounds.** To ignore pieces for a while, a Host keeps a flag that its callback checks, and the callback returns at once while the flag is set. The finished reply arrives as usual, and the callback resumes by itself when the flag clears. Clearing the flag between rounds avoids a gap in the middle of a reply.
 
 A replay does cost work today, but that work is in the browser on a reattach and comes from rendering. `AgentSessionService`, the browser's session model, fires a transcript change for each event (`agent-session.ts`, line 574), and the view responds by rebuilding the whole transcript model (`agent-session-view.ts`, lines 154 and 263 to 269) [2]. A long log therefore costs work proportional to its length for each event. A marker frame sent after the last replayed event, to tell the browser it has caught up, with rendering batched until the marker arrives, would fix it. That is a separate change, and the cost was not measured.
 
-## 6. What a Host sees in six cases
+## 6. What a Host sees in seven cases
 
-**A full stream.** The Host sets `streaming` on `RunSetup`. The effect loop dispatches a `Chat` round, builds a closure that holds a fresh latch, and passes the closure to `chat` as `on_piece`. `GatewayBroker` maps each `StreamDelta` to a `Delta` and calls the closure, which calls the Host's callback. Workshop's callback publishes to the `Conversation` broadcast and returns `Continue`. The socket frames an `agent_delta` with the round's `reply` id and its `seq`, and the browser appends the text to its pending item. When the round ends, the Harness records the `assistant_reply` event, Workshop frames it as an `agent_message` event with the same `reply` id, and the browser replaces the pending text with the finished reply.
+**A full stream.** The Host sets `streaming` on `RunSetup`. The effect loop dispatches a `Chat` round, builds a closure that adds the round to each piece, and passes the closure to `chat` as `on_piece`. `GatewayBroker` maps each `StreamDelta` to a `Delta` and calls the closure, which calls the Host's callback. Workshop's callback publishes to the `Conversation` broadcast. The socket frames an `agent_delta` with the round's `reply` id and its `seq`, and the browser appends the text to its pending item. When the round ends, the Harness records the `assistant_reply` event, Workshop frames it as an `agent_message` event with the same `reply` id, and the browser replaces the pending text with the finished reply.
 
-**A stalled Host.** A command-line Host's callback calls `try_send` on a channel of 64 pieces, and its reader has stopped. Once 64 pieces fill the channel, the next `try_send` fails and the callback returns `Break`, so the latch closes. The broker keeps reading and calling the closure, which now returns after one atomic load of the latch. The round ends, the finished reply reaches the recorder, and the Host prints the rest of the answer text, `reply[received..]`. The next round's latch starts open, and the Host receives that round's pieces again if its reader has resumed.
+**A command-line Host.** The callback writes each text piece to stdout and returns, so the Host never lags. If stdout is a pipe whose reader has stopped, the write blocks and stalls the run, and the Harness cannot prevent that.
+
+**A Host that lags.** A Host that buffers in a bounded channel uses a callback like the one shown earlier, and its reader has stopped. Once the channel is full, the next `try_send` fails, and the callback records that it gave up on the round. The broker keeps reading, and the callback returns at once for every later piece of that round. The round ends, the finished reply reaches the recorder, and the Host replaces its prefix with it. The next round's first piece goes into the channel again if the reader has resumed.
 
 **A nested `Infer` round.** A prompt calls `models.infer` inside a section. The round's origin is `Infer`, so the Harness passes `None` as `on_piece`. The broker skips per-piece work, and the Host sees the reply only when the round finishes.
 
@@ -340,7 +348,7 @@ A replay does cost work today, but that work is in the browser on a reattach and
 
 **A broker that cannot stream.** `supports_streaming()` returns false and the broker ignores `on_piece`. A Host that called `supports_streaming()` shows nothing live, and a Host that did not call it receives no pieces. Workshop's window shows the whole reply when the `agent_message` event arrives, because the browser's event handler adds the finished reply to the transcript whether or not a pending item exists (`agent-session.ts`, lines 503 to 517) [2].
 
-**A reload.** Once the run-replay driver exists, a Host can replay a recorded run and then continue it. The replayed rounds never reach the broker. The first round that the model answers live dispatches with the callback, and the callback starts receiving pieces. To skip streaming for that round, a Host returns `Break` at the round's first piece. On a reattach, Workshop's server replays durable events only, so pieces start with the next round that the model answers live.
+**A reload.** Once the run-replay driver exists, a Host can replay a recorded run and then continue it. The replayed rounds never reach the broker. The first round that the model answers live dispatches with the callback, and the callback starts receiving pieces. To skip streaming for that round, the Host's callback ignores its pieces. On a reattach, Workshop's server replays durable events only, so pieces start with the next round that the model answers live.
 
 ## 7. The change touches every broker and four decision pages
 
@@ -348,7 +356,7 @@ The new `on_piece` parameter and the new `supports_streaming` method are a compi
 
 | Repository | Where | What changes |
 |---|---|---|
-| `runvil-harness` | Trait, `RunSetup`, effect loop | Add `Delta`, `PieceSink`, `streaming`, the latch |
+| `runvil-harness` | Trait, `RunSetup`, effect loop | Add `Delta`, `PieceSink`, `HostSink`, `streaming` |
 | `runvil-harness` | Gateway client `broker.rs` (1 implementation) | Map `StreamDelta`; remove `chat_streaming` |
 | `runvil-harness` | 8 test brokers and the built-in `OfflineBroker` (9 implementations, 8 files) | Add the parameter and the method |
 | `runvil-workshop` | `agents/broker.rs` (2 implementations) | Adapt `WorkshopBroker`; delete `RunBroker` |
@@ -359,7 +367,7 @@ The new `on_piece` parameter and the new `supports_streaming` method are a compi
 
 The facade's public API snapshot, `crates/runvil/public-api.txt`, is a committed list of the crate's public names, and `cargo xtask api` compares it with the code in CI [1]. It changes with the new names and the trait signature. The Engine's snapshot, `crates/runvil-engine/public-api.txt`, is unchanged because `Delta` is defined in the Harness crate.
 
-After the project owner accepts this design, four decision pages change. `harness-and-host.md` (lines 166 to 182) describes the trait and quotes the rule that the Harness knows nothing about streaming, which this design changes. `models-and-conversations.md` (lines 245 to 249) quotes the rule again. `workshop-app.md` (lines 25, 175, and 193) describes `RunBroker`. `testing-and-debugging.md` (line 77) says Harness tests supply a broker through the trait, which now takes the new parameter [3].
+After the project owner accepts this design, four decision pages change. `harness-and-host.md` (lines 166 to 182) describes the trait and quotes the rule that the Harness knows nothing about streaming, a rule that changes under the design. `models-and-conversations.md` (lines 245 to 249) quotes the rule again. `workshop-app.md` (lines 25, 175, and 193) describes `RunBroker`. `testing-and-debugging.md` (line 77) says Harness tests supply a broker through the trait, which now takes the new parameter [3].
 
 On the Workshop wire, a shared JSON file of example frames, `tests/fixtures/agent-frames.json`, and the tests on both sides pin each frame shape, so `seq` changes the fixture, the Rust frame tests, and the browser suite together (`wire.rs`, lines 39 to 42) [2].
 
@@ -367,22 +375,24 @@ Pull request 73 and issue 72 need rework. The pull request adds `with_streaming`
 
 ## 8. The work splits into four jobs
 
-The prefix rule is that a Host receives an unbroken run of pieces from the start of a reply, and the finished reply, which the Host receives through its recorder, supplies the rest. The sizes below are rough comparisons of effort, from reading the code alone. Confidence: medium - nothing is built.
+The prefix rule is guidance for Hosts: a Host that stops receiving stops for the rest of the round, so it holds an unbroken run of pieces from the start of the reply, and the finished reply, which the Host receives through its recorder, supplies the rest. The sizes below are rough comparisons of effort, from reading the code alone. Confidence: medium - nothing is built.
 
-1. **Harness (moderate).** Add `Delta`, `PieceSink`, `HostSink`, the `streaming` field and setter, the latch in the effect loop, and the trait change (`on_piece` and `supports_streaming`). Update the 9 other `InferenceBroker` implementations in `runvil-harness`. Regenerate the facade's `public-api.txt` snapshot, the committed list of its public names, and update the Harness crate's own docs.
+1. **Harness (moderate).** Add `Delta`, `PieceSink`, `HostSink`, the `streaming` field and setter, the closure in the effect loop that adds the round to each piece, and the trait change (`on_piece` and `supports_streaming`). Update the 9 other `InferenceBroker` implementations in `runvil-harness`. Regenerate the facade's `public-api.txt` snapshot, the committed list of its public names, and update the Harness crate's own docs.
 2. **Gateway client (small).** `GatewayBroker::chat` maps `StreamDelta` to `Delta` and passes `on_piece` to `GatewayBroker::round`. `supports_streaming` returns true, and `chat_streaming` is removed. Pull request 73 deleted the test helper `recording()`, which records each piece a callback receives, and wrote channel tests instead. Under this design the helper returns as the test double that records pieces, and the nested `Infer` test asserts that the callback is never called, because an `Infer` round gets `None` for `on_piece`.
 3. **Workshop (small to moderate).** Delete `RunBroker`. Set `RunSetup::streaming` in the Host's launch code so that the callback calls `publish_delta`. Adapt `WorkshopBroker` to the trait change. Add `seq` to the frame types in `wire.rs` and `protocol.ts`, to the frame fixture, and to `foldDelta`.
 4. **Decision pages and the other Hosts (small).** Edit `harness-and-host.md`, `models-and-conversations.md`, `workshop-app.md`, and `testing-and-debugging.md` in `runvil-design`, update the three student programs in `runvil-classroom`, and rewrite issue 72.
 
-Job 1 defines the types that jobs 2 and 3 use, and job 3 needs job 2 because `WorkshopBroker` wraps `GatewayBroker`. Job 4 can start once job 1 compiles. Two optional jobs can follow the four: the ready-made `PieceQueue` in the Harness crate, and batched rendering in the browser with the "caught up" marker. The tests in Appendix B pin the prefix rule.
+Job 1 defines the types that jobs 2 and 3 use, and job 3 needs job 2 because `WorkshopBroker` wraps `GatewayBroker`. Job 4 can start once job 1 compiles. One optional job can follow the four: batched rendering in the browser with the "caught up" marker. The tests in Appendix B pin the callback contract.
 
 ## 9. Limits and open decisions
 
-**Nothing was built or run.** Every count and every claim about behavior comes from reading code at the commits listed in the references. The trait change, the `RunSetup` setter, the latch, the `seq` field, and the ready-made queue are proposals, and the latch code is a sketch that was not compiled.
+**Nothing was built or run.** Every count and every claim about behavior comes from reading code at the commits listed in the references. The trait change, the `RunSetup` setter, and the `seq` field are proposals, and the code sketches were not compiled.
 
 **Some claims are inferred.** The unbounded growth of async-openai's channel and of the buffer that the Vercel AI SDK's `tee` creates when it splits a stream in two follows from the channel and stream types, and neither was measured. In the library survey, the answer to what happens with a model that cannot stream reads "not verified" for async-openai, genai, and rig. The browser's cost of rendering a long log on reattach is a reading of the code and was not timed. The statement that a panic in the Host's callback ends the round follows from the Harness polling the round's future under `catch_unwind` (`effect_loop.rs`, lines 89 to 91), and no test ran it. The survey is a sample of six libraries: LangChain, the OpenAI Agents SDK, the Vercel AI SDK, async-openai, genai, and rig.
 
-**Not checked.** Whether the fourteen agent programs that the research report of 2026-11-08 compares, such as Claude Code and OpenAI Codex, stream the same way; a survey of their streaming was not made [14]. The per-piece cost of the latch was not measured. It is one atomic load for each piece, plus the Host's callback while the latch is open.
+**The contract is not enforced.** The callback must return at once, and neither the Harness nor the compiler checks it. A callback that sleeps or blocks on a stalled pipe stalls the run. A Host that writes to a terminal or a file is safe, and a Host that buffers hands each piece to its queue and returns.
+
+**Not checked.** Whether the fourteen agent programs that the research report of 2026-11-08 compares, such as Claude Code and OpenAI Codex, stream the same way; a survey of their streaming was not made [14]. The per-piece cost of the extra closure call was not measured.
 
 **Where documents disagree, the project owner settles the point.**
 
@@ -396,10 +406,10 @@ Job 1 defines the types that jobs 2 and 3 use, and job 3 needs job 2 because `Wo
 | The Harness's public API gains a streaming callback | Yes; the Engine is unchanged | Project owner |
 | `supports_streaming` required or defaulted | Required, so every broker author must answer it | Project owner |
 | Pull request 73 and issue 72 | Rework both; merge the pull request only as a stopgap | Project owner |
-| A ready-made `PieceQueue` in the Harness crate | Later, optional | Project owner |
 | `seq` on `agent_delta` | When Workshop moves to the new trait | Whoever migrates Workshop |
 | Batched rendering for a long log on reattach | A separate change | Whoever migrates Workshop |
 | A panic in the Host's callback ends the round | Yes, as a panic in a broker does today | Project owner |
+| A guard against a callback that blocks | No guard; the trait documents the rule | Project owner |
 
 *The open decisions and the answer proposed for each.*
 
@@ -426,23 +436,21 @@ Each entry gives the source, the commit or version, and the kind of source. The 
 
 ## Appendix A. New acceptance criteria for issue 72
 
-Issue 72's four criteria ask that `Chat` rounds send each piece on a channel as a `(StreamDelta, Round)` pair, that `Infer` rounds send nothing, that `chat` still returns the full reply when no sender is set or the receiver has closed, and that `chat_streaming` is removed and `with_streaming` documented. These six replace them.
+Issue 72's four criteria ask that `Chat` rounds send each piece on a channel as a `(StreamDelta, Round)` pair, that `Infer` rounds send nothing, that `chat` still returns the full reply when no sender is set or the receiver has closed, and that `chat_streaming` is removed and `with_streaming` documented. These five replace them.
 
 - `InferenceBroker::chat` takes `on_piece: Option<PieceSink>`, and `InferenceBroker` has a required `supports_streaming()` method.
 - With streaming set on `RunSetup`, the Harness passes `on_piece` to the broker for each `Chat` round and `None` for each `Infer` round.
 - The Host's callback receives `(Round, Delta)` for each piece, in the order the reply arrives, for both text and reasoning.
-- When the callback returns `ControlFlow::Break`, the Harness makes no further call to it for that round, and the first piece of the next round still reaches it.
 - `GatewayBroker` returns true from `supports_streaming()`, maps `StreamDelta` to `Delta`, and returns the finished reply whether or not `on_piece` is set and whether or not the Host stopped early.
 - `GatewayBroker::chat_streaming` is removed, and the Harness crate's docs describe `RunSetup::streaming`.
 
-## Appendix B. Tests for the prefix rule
+## Appendix B. Tests for the callback contract
 
-The prefix rule says that a Host receives an unbroken run of pieces from the start of a reply, and the finished reply, which the Host receives through its recorder, supplies the rest.
+The callback contract says that the broker calls `on_piece` in order for `Chat` rounds only, and that the Host's callback returns at once.
 
 Harness tests, with a scripted broker that calls `on_piece` a known number of times:
 
-- A callback that returns `Break` after k pieces receives the first k pieces in order, and the finished reply holds all of them.
-- After a `Break` in one round, the first piece of the next round reaches the callback.
+- The Host's callback receives every piece in order, and the finished reply holds all of them.
 - A `Chat` round receives `Some` and an `Infer` round receives `None`.
 - On a setup that leaves `streaming` unset, every round receives `None`.
 - A broker whose `supports_streaming()` is false never calls the callback, and the run records the same events as a run without streaming.
@@ -453,5 +461,5 @@ Gateway client tests: pieces arrive in the order the mock reply sends them, reas
 
 Workshop tests: `seq` counts from 0 within each round. A gap in `seq`, meaning a piece whose `seq` skips a number, makes the browser ignore the rest of the round's pieces, so the pending item stops growing until the durable event arrives. A first-seen piece whose `seq` is above 0 is ignored. The durable event still replaces the pending item. The Rust tests and the browser tests read the same fixture file, `tests/fixtures/agent-frames.json`.
 
-*2026-11-24 08:26 - Claude Sonnet 5.5*
+*2026-11-24 09:47 - Claude Sonnet 5.5*
 
