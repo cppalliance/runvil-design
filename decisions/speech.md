@@ -1,14 +1,13 @@
 # Speech: design decisions and their reasons
 
 - Scope: speech to text and speech synthesis in the Gateway, and dictation in Workshop
-- Code: `runvil-gateway` at commit `9369a7d`, `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Paths: Gateway code paths start at `crates/gateway/` in `runvil-gateway`, and Workshop code paths at `crates/workshop/` in `runvil`
+- Paths: Gateway code paths start at `crates/gateway/` in `runvil-gateway`, and Workshop code paths at `crates/workshop/` in `runvil-workshop`
 
 ## Summary
 
-The Gateway turns speech into text with whisper.cpp. A realtime client streams audio over the WebSocket `/v1/realtime` and receives text while the person speaks, and a batch client uploads a file to `POST /v1/audio/transcriptions`. Two Whisper models share each recording: a fast one decodes every half second and shows its words, and an accurate one decodes each finished segment and replaces them. A third model, Silero, decides which audio is speech. `POST /v1/audio/speech` forwards a synthesis request to a remote provider and relays the audio. Workshop's voice feature is dictation: its server relays microphone audio to the Gateway, and the text appears in the chat box. Sections 1 to 8 describe these parts.
+The Gateway turns speech into text with whisper.cpp. A realtime client streams audio over the WebSocket `/v1/realtime` and receives text while the person speaks, and a batch client uploads a file to `POST /v1/audio/transcriptions`. Whisper models share each recording: a fast one decodes every half second and shows its words, and an accurate one decodes each finished segment and replaces them. Another model, Silero, decides which audio is speech. `POST /v1/audio/speech` forwards a synthesis request to a remote provider and relays the audio. Workshop's voice feature is dictation: its server relays microphone audio to the Gateway, and the text appears in the chat box. Sections 1 to 8 describe these parts.
 
-A check of this page against the code found seven gaps and left six questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. All seven gaps are in guide chapter 05, and the largest is speech detection: the chapter describes a loudness threshold, and the code classifies every frame with Silero.
+Section 10 lists the gaps between this page and the code, and section 11 lists the questions about reasons for the owner. Every gap is in guide chapter 05, and the largest is speech detection: the chapter describes a loudness threshold, and the code classifies every frame with Silero.
 
 Section 9 lists the planned work. Its largest item is a local engine for speech synthesis: a remote provider produces all audio, and the Gateway refuses a local model of the speech kind.
 
@@ -30,7 +29,7 @@ The Gateway loads the speech models, decodes audio, and answers both transcripti
 
 The Gateway loads the models because it budgets VRAM (section 2). A model that Workshop loaded itself would allocate VRAM that the Gateway is unaware of.
 
-### Four crates under `stt/` depend on each other in one direction
+### The crates under `stt/` depend on each other in one direction
 
 `gateway-stt`, in the folder `api/`, has the routes, the sessions, and the state of each recording. `gateway-stt-engine` defines the decoder and detector traits and runs the worker threads. `gateway-stt-backend-whisper` implements the traits with Whisper and Silero. `gateway-whisper-ffi` loads the whisper.cpp library and contains the subsystem's unsafe code. `api` depends on `engine` and `backend-whisper`, and `backend-whisper` depends on `engine` and `whisper-ffi`.
 
@@ -64,21 +63,21 @@ The owner's goal: "Low latency is important but it is more important to get the 
 
 The Gateway binds its listener first. Its queued boot command then calls `SpeechService::load_initial` once, which downloads the models and starts the workers. Each decoder runs one warm-up decode at load and discards the result. Until the load finishes, `/v1/realtime` answers 503. When it fails, speech is unavailable until a restart, and the Gateway continues to answer its other routes. A later profile switch saves the new speech selection, and the next start loads it.
 
-A switch leaves the running engine in place. Its replacement at run time would add five mechanisms to the transcription path: publication of the new engine, quiescence of the running one, rollback, reconstruction, and cancellation.
+A switch leaves the running engine in place. Its replacement at run time would add these mechanisms to the transcription path: publication of the new engine, quiescence of the running one, rollback, reconstruction, and cancellation.
 
 ### Every speech load downloads and opens the pinned Silero model
 
 `SILERO_VAD_MODEL` in the config crate names the Silero model's URL, digest, size, and license. The speech load downloads the file, checks the digest, and opens one detector as a test. The model is a constant in code, outside `[[stt_model]]`, because `SttRole` has only the roles `interim` and `final`.
 
-The speech load fails when any of the three steps fails, because a fallback to loudness detection would be worse in two ways. In a test on noise clips, dictation with loudness detection invented 84 lines of text, and dictation with Silero invented zero. A fallback would also degrade speech silently, and silent degradation can hide a bug.
+The speech load fails when any of these steps fails, because a fallback to loudness detection would be worse in two ways. In a test on noise clips, dictation with loudness detection invented 84 lines of text, and dictation with Silero invented zero. A fallback would also degrade speech silently, and silent degradation can hide a bug.
 
 ## 3. The realtime route
 
 ### Live transcription uses a strict subset of OpenAI's Realtime protocol
 
-The route is the WebSocket `/v1/realtime?intent=transcription`. A client sends four JSON events: `session.update`, `input_audio_buffer.append`, `input_audio_buffer.commit`, and `input_audio_buffer.clear`. Audio is Base64 text of mono 16-bit PCM at 24 kHz, and the Gateway converts it once to 16 kHz. The converter, `Resampler24To16`, is a low-pass polyphase filter, and the audio runs 1 ms behind its timeline. The Gateway answers an unknown field or an option outside the subset, such as a language or turn detection, with an `error` event whose code names the fault.
+The route is the WebSocket `/v1/realtime?intent=transcription`. A client sends these JSON events: `session.update`, `input_audio_buffer.append`, `input_audio_buffer.commit`, and `input_audio_buffer.clear`. Audio is Base64 text of mono 16-bit PCM at 24 kHz, and the Gateway converts it once to 16 kHz. The converter, `Resampler24To16`, is a low-pass polyphase filter, and the audio runs 1 ms behind its timeline. The Gateway answers an unknown field or an option outside the subset, such as a language or turn detection, with an `error` event whose code names the fault.
 
-The subset exists for standard clients of OpenAI's protocol. One optional extension, the hypothesis snapshot, exists for Runvil's live transcript in three parts (section 5).
+The subset exists for standard clients of OpenAI's protocol. An optional extension, the hypothesis snapshot, exists for Runvil's live transcript, which has finalized, agreed, and tentative parts (section 5).
 
 ### A commit ends the turn, and the Gateway finalizes the item in the background
 
@@ -90,7 +89,7 @@ The buffer copies the prompt so that a prompt change leaves the open buffer and 
 
 A client that puts `item.input_audio_transcription.hypothesis` in the `include` list of `session.update` receives `conversation.item.input_audio_transcription.hypothesis` events. Each one replaces the last: it has a `revision` number, the whole `transcript`, and its `finalized`, `agreed`, and `tentative` parts. A client with an empty list receives standard `conversation.item.input_audio_transcription.delta` events, built from the finalized text plus the agreed text less its last two words.
 
-The extension's two names are part of version one of the public wire format, and canonical fixtures pin them. The two-word margin exists because agreed text only grows, so append-only deltas are safe except near its end, where a rewrite by the final pass can still change words.
+The extension's names are part of version one of the public wire format, and canonical fixtures pin them. The two-word margin exists because agreed text only grows, so append-only deltas are safe except near its end, where a rewrite by the final pass can still change words.
 
 ### Realtime clients name `realtime-transcribe`, and batch clients name a configured model
 
@@ -178,7 +177,7 @@ The prompt has the form of a glossary because, in measurements, that form outper
 
 ### `[stt] whisper_backend` selects the CPU or the CUDA build of whisper.cpp
 
-The setting has three values: `auto`, the default, `cpu`, and `cuda`. The Gateway reads it once, at speech load, on Windows x86-64 and Linux x86-64, the two platforms with both builds. Under every setting the Gateway checks the CPU before it downloads a build, and an x86-64 CPU that lacks one of the builds' six instruction-set extensions fails the speech load with `LocalError::UnsupportedCpu`.
+The setting has the values `auto`, the default, `cpu`, and `cuda`. The Gateway reads it once, at speech load, on Windows x86-64 and Linux x86-64, the two platforms with both builds. Under every setting the Gateway checks the CPU before it downloads a build, and an x86-64 CPU that lacks an instruction-set extension that a build needs fails the speech load with `LocalError::UnsupportedCpu`.
 
 The CUDA build exists for speed: on Linux, a final pass takes 2.14 s with the CPU build and 0.13 s with the same sources built for CUDA. The CPU build exists because a Windows machine that lacks an NVIDIA driver fails to load the CUDA build.
 
@@ -227,7 +226,7 @@ OpenAI's API lacks a voice list. The route exists because off-the-shelf clients 
 
 ### The Gateway relays the provider's audio bytes unread, and a failed stream fails the client's read
 
-The Gateway sends the provider's audio to the client in chunks. A spawned task owns the provider's body and the queue permit, and four constants bound it: 60 minutes in total, 1 GiB, 30 seconds of provider silence, and 60 seconds of a client that stops reading. When the stream exceeds a bound or the provider fails after the 200 status, the task ends the body with an error, so the client's read fails.
+The Gateway sends the provider's audio to the client in chunks. A spawned task owns the provider's body and the queue permit, and these constants bound it: 60 minutes in total, 1 GiB, 30 seconds of provider silence, and 60 seconds of a client that stops reading. When the stream exceeds a bound or the provider fails after the 200 status, the task ends the body with an error, so the client's read fails.
 
 The task ends the body with an error because a normal end would look like a complete response. The Gateway is unable to validate audio chunk by chunk, and a JSON error is impossible after the 200 status and the first audio bytes. The limit on provider silence exists so that a dead provider releases the queue permit.
 
@@ -249,7 +248,7 @@ The capture service decides because there is one microphone, and the capture ser
 
 `setupStt` connects dictation to one text input and returns an `SttHandle`. `press()` starts a take when idle and stops it when recording, and `state` is `idle`, `recording`, or `blocked`. The agent view copies the state to the chat box and forwards the box's `mic-press` event to `press()`. The button is pressable in every state, and the handle writes the reason for a refused press on the status bar.
 
-The chat box draws the button because the button is part of the chat box, whose contract is events out and props in. [Workshop: what the user sees](workshop-ui.md) covers the button's three roles.
+The chat box draws the button because the button is part of the chat box, whose contract is events out and props in. [Workshop: what the user sees](workshop-ui.md) covers the button's roles.
 
 ### Dictation inserts at the cursor like typing, and the chat box is read-only during a take
 
@@ -279,13 +278,13 @@ The registry patches only the changed words because a rewrite of the whole take 
 
 Each of these items is still to be built.
 
-- **A local synthesis engine.** An engine that runs an Orpheus model on the machine. Two candidates await a trial: the prebuilt speech server CrispASR as a child process, and the existing llama-server child with a SNAC audio decoder inside the Gateway. The trial transcribes the audio or compares it with a reference recording, because a wrong decode fails silently, as silent audio. Output encoders, a priority lane for speech in the dominion queue, and sampling defaults wait for the engine. A remote provider produces all audio, and the Gateway refuses a `[[local_model]]` of the speech kind (section 7).
+- **A local synthesis engine.** An engine that runs an Orpheus model on the machine. Candidates await a trial: the prebuilt speech server CrispASR as a child process, and the existing llama-server child with a SNAC audio decoder inside the Gateway. The trial transcribes the audio or compares it with a reference recording, because a wrong decode fails silently, as silent audio. Output encoders, a priority lane for speech in the dominion queue, and sampling defaults wait for the engine. A remote provider produces all audio, and the Gateway refuses a `[[local_model]]` of the speech kind (section 7).
 - **Streaming from Together.** A decoder for the server-sent events in which Together streams speech under its `raw` format. The Gateway's closed format set refuses `raw`.
 - **Playback in Workshop.** A player for synthesized speech: an `AudioWorklet` that reads a streamed `pcm` response and buffers 400 to 600 ms before it plays. Workshop has yet to call the synthesis route.
 - **Interim windows that start at the last agreed word.** An interim window starts at the open segment (section 4). `DecodeOutput` has the word end times, and `next_window_snapshot` ignores them.
 - **A Windows CUDA archive with OpenMP off.** An archive that ends the crash of the Gateway at a graceful stop under an explicit `cuda`. It waits for the next whisper.cpp tag, and the workflow builds only the Windows CPU archive with OpenMP off.
 - **Decoder experiments.** A streaming interim model, AlignAtt, a rewind guard, look-ahead punctuation at segment joins, and stutter suppression. Both passes decode with whisper.cpp under the profiles of section 5.
-- **A fix for two panics.** `process_closed` panics at two calls when the audio of a queued range has left the buffer.
+- **A fix for panics.** `process_closed` panics at the calls that read or compact a queued range when its audio has left the buffer.
 - **Gateway-ended sessions in Workshop.** A change of Workshop's reaction to a session that the Gateway ends. Workshop rolls back the take that is recording, and for a dropped socket it writes the finalized and agreed text (section 8).
 - **Tests on real Silero.** A run of the native replay test and the long-speech test with the Silero model. Both tests detect speech by loudness. [Testing and debugging](testing-and-debugging.md) covers the replay test.
 
@@ -319,8 +318,7 @@ Each question asks for the reason behind a part of the design.
 
 ## 12. Method and limits
 
-- **Code.** The page describes `runvil-gateway` at commit `9369a7d`, `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 
 *2026-11-10 16:39 - Claude Fable 5.2*

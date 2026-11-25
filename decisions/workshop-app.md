@@ -1,17 +1,13 @@
 # Workshop: how the app is built: design decisions and their reasons
 
-- Scope: the desktop app, the Workshop server and its API, the wire protocol, the Workshop crates, stored state, the workspace document, running prompts through the Harness, calling the Gateway, and the UI's three TypeScript packages
-- Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`
-- Update: the tiers and the dependency checks of section 3 describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, and the text on Plugins describes `runvil` at `b0693699d` (section 12)
-- Update: the text of section 5 on Plugins, the Plugin directory, a run's Packs, a run's file system, and a `prompts:` list, and the planned item on a real folder describe `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f` (section 12)
-- Update: the walk-through's paragraph on a model round, the text of section 5 on the inference broker and on streaming, and question 5 of section 11 describe `runvil-workshop` at commit `1b33d9f8`, which pins `runvil-harness` at `5d9c7bf8` (section 12)
+- Scope: the desktop app, the Workshop server and its API, the wire protocol, the Workshop crates, stored state, the workspace document, running prompts through the Harness, calling the Gateway, and the UI's TypeScript packages
 - Paths: code paths start at the `crates/workshop/` folder of `runvil-workshop` unless they begin with `crates/`, `.cursor/`, or a repository name
 
 ## Summary
 
-Workshop is a desktop app that runs as one process. The desktop app, a Tauri program named `runvil-workshop`, starts the Workshop server on a thread and opens a window on the server's loopback URL. The server sends the UI bundle to the window, answers HTTP routes for files and saved state, and pushes frames over two WebSockets. For each chat the server runs a prompt through the Harness, and it calls the Gateway, a separate process, over HTTP. Sections 1 to 8 describe these parts.
+Workshop is a desktop app that runs as one process. The desktop app, a Tauri program named `runvil-workshop`, starts the Workshop server on a thread and opens a window on the server's loopback URL. The server sends the UI bundle to the window, answers HTTP routes for files and saved state, and pushes frames over WebSockets. For each chat the server runs a prompt through the Harness, and it calls the Gateway, a separate process, over HTTP. Sections 1 to 8 describe these parts.
 
-A check of this page against the code found eleven gaps and left nine questions about reasons for the owner. Section 10 lists the gaps, and section 11 lists the questions. The largest gap is the profile switch: the server runs it for a `switch_profile` frame, and the UI lacks a sender for that frame.
+Section 10 lists the gaps between this page and the code, and section 11 lists the questions about reasons for the owner. The largest gap is the profile switch: the server runs it for a `switch_profile` frame, and the UI lacks a sender for that frame.
 
 Section 9 lists the planned work. Its largest item is a real folder for a run: every run starts with an empty in-memory file system.
 
@@ -35,7 +31,7 @@ Workshop is a standalone program. The alternative, an extension of a code editor
 
 ### The desktop app is a Tauri v2 program, and one module contains its unsafe code
 
-`main.rs` builds a `tauri::Builder` with five plugins, among them a single running instance, dialogs, and updates ([Crates, build, and CI](crates-build-and-ci.md)). `bridge.rs`, compiled on Windows, is the crate's one module with unsafe code: through WebView2's COM interface it reads the paths of dropped files and grants the microphone ([Speech](speech.md)).
+`main.rs` builds a `tauri::Builder` with plugins, among them a single running instance, dialogs, and updates ([Crates, build, and CI](crates-build-and-ci.md)). `bridge.rs`, compiled on Windows, is the crate's one module with unsafe code: through WebView2's COM interface it reads the paths of dropped files and grants the microphone ([Speech](speech.md)).
 
 The owner's goal: "Workshop has to be a polished, finished product worthy of delivering to users as a packaged desktop application". Workshop's stack is Tauri, Rust, and CodeMirror, where the alternative is a fork of VS Code's open-source editor, because that stack and the agent panel are the product's advantage.
 
@@ -53,7 +49,7 @@ When the window closes, Tauri's exit event shuts down the Gateway supervisor and
 
 ### Workshop starts on built-in defaults when `workshop.toml` is absent
 
-`config::load` looks for `workshop.toml` beside the executable, then in the current directory, then in `<home>/.runvil`. `Config::load` replaces each `${VAR}` in a string value with the environment variable, or with an empty string for an unset one. When all three places are empty, `default_config` builds the config in code, with the state directory `<home>/.runvil` and the agents folder `<home>/.runvil/agents`. The file's tables are `[gateway]`, `[server]`, and `[agents]`.
+`config::load` looks for `workshop.toml` beside the executable, then in the current directory, then in `<home>/.runvil`. `Config::load` replaces each `${VAR}` in a string value with the environment variable, or with an empty string for an unset one. When all of those places are empty, `default_config` builds the config in code, with the state directory `<home>/.runvil` and the agents folder `<home>/.runvil/agents`. The file's tables are `[gateway]`, `[server]`, and `[agents]`.
 
 The owner's reason: "can you imagine if you install Photoshop.exe and you have to set some env vars first in order to run it? no way." The Gateway writes its own default config on its first run ([The Gateway](gateway.md)).
 
@@ -61,13 +57,13 @@ The owner's reason: "can you imagine if you install Photoshop.exe and you have t
 
 ### `spawn` checks the bind address, binds, reopens the last workspace, and then returns
 
-`spawn(config)` is the one function that starts the server. It returns an `InvalidInput` error for a bind address outside loopback before it starts a thread. The thread, named `workshop-server`, has its own tokio runtime: it builds the shared state, binds the listener, reopens the last workspace, and reports the URL. `ServerHandle::shutdown` waits up to 5 seconds for open requests. When some remain, it tears the runtime down and returns `Termination::Forced`.
+`spawn(config)` starts the server. It returns an `InvalidInput` error for a bind address outside loopback before it starts a thread. The thread, named `workshop-server`, has its own tokio runtime: it builds the shared state, binds the listener, reopens the last workspace, and reports the URL. `ServerHandle::shutdown` waits up to 5 seconds for open requests. When some remain, it tears the runtime down and returns `Termination::Forced`.
 
 `spawn` refuses an address outside loopback because the guard of the next entry checks the `Host` header, and a raw client on the local network can forge a loopback `Host` header. The thread binds before it reopens the workspace, because a failed bind after the reopen would leave the `.rvwork` file's `-wal` sidecar beside the file (section 7).
 
 ### A guard on the API routes refuses cross-site requests
 
-`cross_site::guard` wraps every API route. It answers 403 to a request that the browser marks `Sec-Fetch-Site: cross-site` and to a request whose `Host` header names an address outside loopback, and 415 to a POST, PUT, or PATCH whose content type differs from `application/json`. The three WebSocket upgrade handlers also check the `Origin` header.
+`cross_site::guard` wraps every API route. It answers 403 to a request that the browser marks `Sec-Fetch-Site: cross-site` and to a request whose `Host` header names an address outside loopback, and 415 to a POST, PUT, or PATCH whose content type differs from `application/json`. The WebSocket upgrade handlers also check the `Origin` header.
 
 The guard exists because any web page that the user visits can send requests to a loopback address, and these routes write workspace files and open WebSockets. The Gateway has a policy of its own for the same headers. The two policies are separate code, because a merge would change a trust boundary.
 
@@ -85,15 +81,15 @@ The build script runs the bundler so that a plain `cargo build` updates the exec
 
 ## 3. The Workshop crates and the registry
 
-### Fourteen of Workshop's sixteen Rust crates form four tiers, and each dependency points to a lower tier
+### Most of Workshop's Rust crates form tiers, and each dependency points to a lower tier
 
 `cargo test -p build-xtask` reads the tiers from `crates/build-xtask/src/tidy.rs` and fails when a crate depends on its own tier or a higher one.
 
 - Vocabulary: `workshop-protocol` (wire frames), `workshop-support` (atomic writes, backoff, deadlines, config, `RetainedBus`), `workshop-registry`, and `workshop-gateway-discovery` (the reader of the Gateway's discovery file).
-- Library Plugins, a second table of the lowest tier: `workshop-plugin-std` (the dynamic library of the `std` Plugin) and `workshop-plugin-bashkit` (the dynamic library of the bashkit Plugin). Each of the two crates depends only on crates outside the Workshop family, and `workshop-server` alone may depend on them.
+- Library Plugins, a second table of the lowest tier: `workshop-plugin-std` (the dynamic library of the `std` Plugin), `workshop-plugin-bashkit` (the dynamic library of the bashkit Plugin), and `workshop-plugin-web` (the dynamic library of the `web` Plugin). Each of these crates depends only on crates outside the Workshop family, and `workshop-server` alone may depend on them. The code of each Plugin is in a repository of its own, which the root `Cargo.toml` pins by commit.
 - Services: `workshop-gateway` (Gateway client, binding, heartbeat, progress), `workshop-menu` (the Model menu and model catalog), and `workshop-status` (the status bus).
 - Features: `workshop-agents` (conversations), `workshop-run-log` (the run log), `workshop-user-state` (`ui-state.json`), and `workshop-workspace` (granted folders and the `.rvwork` file).
-- Server: `workshop-server` (composition root, routes, and the two sockets).
+- Server: `workshop-server` (composition root, routes, and the sockets).
 
 `workshop-server-api` and the desktop app `workshop` are outside the tiers, and `workshop-registry` may depend on `workshop-protocol`.
 
@@ -101,19 +97,19 @@ The rule behind the tiers: the dependency graph has to point one way only, it ha
 
 ### Each subsystem registers its routes, state, sinks, and tasks in `workshop-registry`
 
-`Registry` has four collections: routes and background tasks as ordered lists, and state handles and push sinks as maps keyed by Rust type. A subsystem's `register` function adds its entries and returns a struct of guards, and dropping a guard removes the entry. A consumer reads a handle by type with `state::<T>()` and treats `None` as an absent feature. In `server/src/app/compose.rs`, `compose` calls `require::<T>()` for seven handle sets, and a missing one stops startup with `MissingContribution`. The registry also defines the traits that connect subsystems, such as `WorkspaceRoots` and `MenuSink`.
+`Registry` collects routes and background tasks as ordered lists, and state handles and push sinks as maps keyed by Rust type. A subsystem's `register` function adds its entries and returns a struct of guards, and dropping a guard removes the entry. A consumer reads a handle by type with `state::<T>()` and treats `None` as an absent feature. In `server/src/app/compose.rs`, `compose` calls `require::<T>()` for each handle set that startup needs, and a missing one stops startup with `MissingContribution`. The registry also defines the traits that connect subsystems, such as `StatusSink` and `MenuSink`.
 
 The owner's goal: "I want a central server that has an API that lets the sub-crates install themselves, so we don't have a cyclic dependency." The registry defines these traits because a trait in a subsystem's own crate would make one service crate depend on another, which the tier check forbids.
 
 ### Each public item has one path, through its crate root
 
-In `workshop-gateway`, `workshop-workspace`, and `workshop-server`, every production module is private, and the crate root re-exports the items that other crates use. Items for tests compile under the `test-fixtures` feature. The goal: each public item has exactly one public path and at least one user outside its crate, and the test items behind `test-fixtures` are the exception. Section 10 names two crates that differ.
+In `workshop-gateway`, `workshop-workspace`, and `workshop-server`, every production module is private, and the crate root re-exports the items that other crates use. Items for tests compile under the `test-fixtures` feature. The goal: each public item has exactly one public path and at least one user outside its crate, and the test items behind `test-fixtures` are the exception. Section 10 names the crates that differ.
 
 ### `workshop-server-api` is the desktop app's one Workshop dependency, and Workshop crates import the Engine through `runvil`
 
-`workshop-server-api` is a list of re-exports: the config types, `spawn`, `ServerHandle`, `GatewayUpdater`, and the `discovery` module. The check in `crates/build-xtask/src/product.rs` fails when the desktop app names another Workshop crate. The Engine and the Harness are in the `runvil-harness` repository, and the root `Cargo.toml` pins four of its crates by commit: `runvil`, `harness-gateway-client`, `plugin-web`, and `plugin-mcp`. The check in `crates/build-xtask/src/harness_pin.rs` fails when a crate here takes any other crate of that repository, so an Engine crate stays out of every Workshop manifest ([Crates, build, and CI](crates-build-and-ci.md)). `workshop-agents`, `workshop-run-log`, and `workshop-server` import the Engine, the Harness, and the Plugin contract from `runvil` ([The Harness and the Host API](harness-and-host.md)).
+`workshop-server-api` is a list of re-exports: the config types, `spawn`, `ServerHandle`, `GatewayUpdater`, and the `discovery` module. The check in `crates/build-xtask/src/product.rs` fails when the desktop app names another Workshop crate. The Engine and the Harness are in the `runvil-harness` repository, and the root `Cargo.toml` pins its crates `runvil`, `harness-gateway-client`, and `plugin-mcp` by commit. The check in `crates/build-xtask/src/harness_pin.rs` fails when a crate here takes any other crate of that repository, so an Engine crate stays out of every Workshop manifest ([Crates, build, and CI](crates-build-and-ci.md)). `workshop-agents`, `workshop-run-log`, and `workshop-server` import the Engine, the Harness, and the Plugin contract from `runvil` ([The Harness and the Host API](harness-and-host.md)).
 
-## 4. The two sockets and the wire protocol
+## 4. The sockets and the wire protocol
 
 ### The UI opens `/ws` for app state and one `/agents/ws` socket for each agent panel
 
@@ -129,7 +125,7 @@ The crate docs of `workshop-protocol` put each frame the server pushes into one 
 
 The contract has these two classes because a promise of exact delivery is too strong for a transport that disconnects.
 
-### Two hand-written files define the frames, and tests on both sides assert the same fixtures
+### Hand-written files define the frames, and tests on both sides assert the same fixtures
 
 The Rust types for the `/ws` frames and for the user's `input_response` frame are in `workshop-protocol`. The agent socket's other frames are in `server/src/agents/wire.rs`. The TypeScript types for both sockets are in `ui/src/services/protocol.ts`. Rust tests and UI tests assert the same two JSON fixtures, `workshop-frames.json` and `agent-frames.json`, so a change of shape on one side fails a test. In the UI, `narrowFrame` checks each inbound frame with a guard and drops a frame that fails.
 
@@ -159,17 +155,17 @@ The built-in exists so that a fresh install always has a working chat.
 
 ### `workshop-agents` owns conversations, and a conversation outlasts its socket
 
-A `Conversation` is a cloneable handle to one launched agent and its one run. It has a random 128-bit id, a transcript in memory, three broadcast channels for events, deltas, and failure reports, and the run's `RunControl`. `Conversations` is the table of the running ones. A socket that reconnects sends `attach` with the id, and the server replays the transcript from index zero. When the run ends, the conversation removes itself from the table. A server restart loses the transcript.
+A `Conversation` is a cloneable handle to one launched agent and its one run. It has a random 128-bit id, a transcript in memory, broadcast channels for events, deltas, and failure reports, and the run's `RunControl`. `Conversations` is the table of the running ones. A socket that reconnects sends `attach` with the id, and the server replays the transcript from index zero. When the run ends, the conversation removes itself from the table. A server restart loses the transcript.
 
 The conversation code is in Workshop because Workshop is the only chat Host, and the Harness only prepares and runs each run.
 
 ### The server builds one `Host` at startup and one `RunSetup` for each run
 
-`AgentSessions::new` builds the `Host` that every run shares: its Packs, a prompt finder over the agents folder, and a tokio timer. `with_plugins` first calls the `install` function of two Rust Plugins: `plugin_web`, and `plugin_mcp` with the servers from the file that `[agents] mcp` names. These two are compiled into the server and enter the registry through the Rust `install` API, with the Host's services. The move of the two onto the C contract, beside the two libraries, is planned work ([Tools and Packs](tools-and-packs.md)). `with_plugins` then loads each dynamic library in the directory that `[agents] plugins` names, through `insert_plugin_dir`. Two of those libraries ship with Workshop: `plugin_std`, whose Pack `runvil/std` has the file tools, and `plugin_bashkit`, whose Pack `runvil/bash` has the shell. The desktop app fills an unset `[agents] plugins` with the `plugins` directory of its own installation, and `runvil-workshop --plugins` lists the library Plugins that directory loads. The listing omits `web` and `mcp`, which are outside the directory. When the registry lacks `runvil/std` or `runvil/bash`, the server emits a `tracing` warning for that Pack, and `Host::parse` refuses a prompt that requires it. The built-in chat prompt requires both ([Prompts that ship](shipped-prompts.md)). Each run holds every Pack of the registry, which also has the built-ins `subagents` and `user`, and makes its own instance of each. For each run, `setup_for` builds a `RunSetup` with the conversation's recorder, the server's `WorkshopBroker`, `has_user: true`, a streaming callback that publishes each live piece into the conversation, and the file system from `run_vfs`: an empty in-memory root, plus two read-only demo mounts whose switches are committed as off, the language guide and the `C:` drive at `/c`. `with_host_state` then copies the Model menu's selected model and the workspace's granted folders into the setup, and the prompt reads the model and the first folder through `ui()`. A grant or a revoke after that applies to the next conversation.
+`AgentSessions::new` builds the `Host` that every run shares, through `Host::builder`: a prompt finder over the agents folder, the server's resources, and its Plugins in the order written. The Host holds no timer. The server's resources offer the Gateway that the registry holds, through `provide_gateway_resources`, and every tool call of a library Plugin is lent them as the call starts. `with_plugins` first names one Rust Plugin, `plugin_mcp`, with the servers from the file that `[agents] mcp` names and the handle of the server's tokio runtime. It is compiled into the server and enters the registry through the Rust `install` API, and its move onto the C contract is planned work ([Tools and Packs](tools-and-packs.md)). `with_plugins` then names the directory that `[agents] plugins` names, so `build()` loads each dynamic library in it. The libraries that ship with Workshop are `plugin_std`, whose Pack `runvil/std` has the file tools, `plugin_bashkit`, whose Pack `runvil/bash` has the shell, and `plugin_web`, whose Pack `runvil/web` has the web tools, which send a search to the Gateway that their call is lent. The desktop app fills an unset `[agents] plugins` with the `plugins` directory of its own installation, and `runvil-workshop --plugins` lists the library Plugins that directory loads. The listing omits `mcp`, which is linked into the server. When the registry lacks `runvil/std`, `runvil/bash`, or `runvil/web`, the server emits a `tracing` warning for that Pack, and `Host::parse` refuses a prompt that requires it. The built-in chat prompt requires each of them ([Prompts that ship](shipped-prompts.md)). Each run holds every Pack of the registry, which also has the built-ins `subagents` and `user`, and makes its own instance of each. For each run, `setup_for` builds a `RunSetup` with the conversation's recorder, the server's `WorkshopBroker`, the stock `TokioTimer` of `harness-gateway-client` as the run's timer, `has_user: true`, a streaming callback that publishes each live piece into the conversation, and the file system from `run_vfs`: an empty in-memory root, plus two read-only demo mounts whose switches are committed as off, the language guide and the `C:` drive at `/c`. `with_host_state` then copies the Model menu's selected model into the setup.
 
 Workshop leaves the policy of a run's file system at the default, `AllowAll`, which admits every operation ([Files and the VFS](files-and-the-vfs.md)). The tools of `std` and the shell of `bash` create, change, and delete files of the in-memory root, whether a model or a prompt's `tools.call` makes the call. The step that asks the operator to approve a change is planned work ([Tools and Packs](tools-and-packs.md)). The files of that root end with the run. A read-only mount refuses each change under it with `VfsError::ReadOnly`.
 
-To a run, the granted folders are `ui()` data only, so a grant or a revoke leaves the run's file access unchanged. A `ui()` that changes during a run would need a new channel from the Host into the run.
+A run does not see the workspace's granted folders: its file access is the file system from `run_vfs` alone, so a grant or a revoke leaves it unchanged.
 
 ### Workshop's broker reads the Gateway binding and the selected model for every round
 
@@ -211,7 +207,7 @@ Every Gateway is a process of its own, so one code path calls a local Gateway an
 
 ### At boot the desktop app attaches to a running Gateway or launches the one beside it
 
-`ensure_gateway` calls `plan_gateway`, which returns one of four `GatewayPlan` values. `Attach`: the discovery file `gateway.json` in `<home>/.runvil/run` names a live Gateway. `Launch`: the file is absent or stale, and `runvil-gateway` exists beside the executable. `ConfigOnly`: both are absent, and `workshop.toml` has a `[gateway]` URL. `Fail`: boot ends with an error dialog. The launch is a detached `std::process::Command`. The Gateway is the one writer of the discovery file and of `gateway.toml`. The server then resolves the same endpoint in `resolve`: the discovery file first, the `[gateway]` table second.
+`ensure_gateway` calls `plan_gateway`, which returns one of the `GatewayPlan` values. `Attach`: the discovery file `gateway.json` in `<home>/.runvil/run` names a live Gateway. `Launch`: the file is absent or stale, and `runvil-gateway` exists beside the executable. `ConfigOnly`: both are absent, and `workshop.toml` has a `[gateway]` URL. `Fail`: boot ends with an error dialog. The launch is a detached `std::process::Command`. The Gateway is the one writer of the discovery file and of `gateway.toml`. The server then resolves the same endpoint in `resolve`: the discovery file first, the `[gateway]` table second.
 
 The launch is detached because the Gateway owns its lifecycle. The sidecar API of Tauri's shell plugin kills its children at exit, which is the opposite of this design.
 
@@ -241,7 +237,7 @@ The switch is a task of the server because a profile switch is global server sta
 
 ### The server proxies the Gateway's config UI and forwards admin routes by rule
 
-The Gateway's config UI runs in an iframe in a Workshop panel. The server sends the UI's files at `/gateway/config/` from Workshop's own origin, because a cross-origin iframe makes a console window flicker. `/gateway/api/{*path}` forwards the panel's calls to the Gateway with the key attached. `forward_allowed` forwards any method on a path under `/admin/`, except `GET /admin/progress`, plus two cache routes under `/v1/cache`, and it refuses every other path.
+The Gateway's config UI runs in an iframe in a Workshop panel. The server sends the UI's files at `/gateway/config/` from Workshop's own origin, because a cross-origin iframe makes a console window flicker. `/gateway/api/{*path}` forwards the panel's calls to the Gateway with the key attached. `forward_allowed` forwards any method on a path under `/admin/`, except `GET /admin/progress`, plus the cache routes under `/v1/cache`, and it refuses every other path.
 
 The proxy forwards by rule because a rule is less code than an exact list of routes, and an exact list has to change each time the Gateway's admin routes change.
 
@@ -256,11 +252,11 @@ The proxy forwards by rule because a rule is less code than an exact list of rou
 - `harness/runs.db`: the run log, written by `workshop-run-log`.
 - A `.rvwork` file: the workspace, at a path of the user's choice.
 
-The four files in the middle are in the state directory, `[server] state_dir`, which defaults to the config file's folder or to `<home>/.runvil`.
+The files in the middle are in the state directory, `[server] state_dir`, which defaults to the config file's folder or to `<home>/.runvil`.
 
 The program leaves `workshop.toml` to the person, because a program that rewrites a hand-edited file destroys its comments, turns every click into a git diff, and races the user's open editor.
 
-### The UI saves its state through the server, as opaque JSON in two buckets
+### The UI saves its state through the server, as opaque JSON in a user bucket and a workspace bucket
 
 `ui/src/services/ui-storage.ts` is the UI's one storage adapter. The user bucket is `GET /user/state` and `PUT /user/state/{key}`, stored in `ui-state.json`, with the keys `editor_settings`, `zoom`, `recent_files`, and `commands_history`. The workspace bucket is `GET /workspace/file/state` and `PUT /workspace/file/state/{key}`, stored in the open `.rvwork` file, with the keys `layout`, `tree`, and `closed_editors`. `StateBucketValue::new` checks each put: the key is on the bucket's list, and the body is JSON of at most 1 MiB. The server stores the text, and the UI owns each value's shape and version. A UI test fails when a source file names `localStorage`.
 
@@ -272,9 +268,9 @@ The user opens a workspace, saves it under a new name, and duplicates it from th
 
 The owner's rule: "Save As should just create the file. no directory ceremony." The design accepts the risk of shared siblings, and the code omits a check for it.
 
-### The `.rvwork` file is a Turso database with three tables, and one task owns its connection
+### The `.rvwork` file is a Turso database with `meta`, `grants`, and `kv` tables, and one task owns its connection
 
-`SCHEMA_V1` creates three tables. `meta` has the format name and the version, `grants` has each folder's path, its position, and the time of its grant, and `kv` has JSON values by key: `window` and the three keys of the workspace bucket. Open accepts a database whose `meta` format is `runvil-workspace` at version 1 and leaves any other file unchanged. One tokio task in `workspace/src/workspace_file/actor.rs` owns the one connection, and callers send it commands over a channel, so the order of commands is the order of writes. The root `Cargo.toml` pins `turso` to `=0.7.2`.
+`SCHEMA_V1` creates the file's tables. `meta` has the format name and the version, `grants` has each folder's path, its position, and the time of its grant, and `kv` has JSON values by key: `window` and the keys of the workspace bucket. Open accepts a database whose `meta` format is `runvil-workspace` at version 1 and leaves any other file unchanged. One tokio task in `workspace/src/workspace_file/actor.rs` owns the one connection, and callers send it commands over a channel, so the order of commands is the order of writes. The root `Cargo.toml` pins `turso` to `=0.7.2`.
 
 One task owns the connection so that Turso's async API is behind a single writer, and the code that confines file access to the granted folders is synchronous.
 
@@ -302,13 +298,13 @@ While a workspace file is open, a sidecar named `Name.rvwork-wal` may exist besi
 
 ## 8. The UI code: packages, layers, and registries
 
-### The UI is three npm packages: `ui`, `@workshop/platform`, and `@workshop/look`
+### The UI is the npm packages `ui`, `@workshop/platform`, and `@workshop/look`
 
-`crates/workshop` is one npm workspace with three members. `ui` is the app. `@workshop/platform`, in `platform/`, contains the mechanics that every feature uses: events, the `Disposable` lifecycle, the service, command, menu, keybinding, and panel registries, the context-key service, and `WorkshopPart`, the base class of panels. `@workshop/look`, in `look/`, contains visual code: tokens, icons, and views such as the dropdown and the modal ([Workshop: what the user sees](workshop-ui.md)). `ui` imports both, `look` imports its own files, and `platform` imports its own files plus types from `dockview`, the docking library. A `test/boundary.mjs` in each of the two enforces that.
+`crates/workshop` is one npm workspace. `ui` is the app. `@workshop/platform`, in `platform/`, contains the mechanics that every feature uses: events, the `Disposable` lifecycle, the service, command, menu, keybinding, and panel registries, the context-key service, and `WorkshopPart`, the base class of panels. `@workshop/look`, in `look/`, contains visual code: tokens, icons, and views such as the dropdown and the modal ([Workshop: what the user sees](workshop-ui.md)). `ui` imports both, `look` imports its own files, and `platform` imports its own files plus types from `dockview`, the docking library. A `test/boundary.mjs` in each of the two enforces that.
 
 `look` is Workshop's own package, and the Gateway's config UI uses a package of its own, `shared-ui`. The two are separate so that they evolve independently and a change in one leaves the other unbroken.
 
-### The app package has three layers, and `main.ts` connects the parts
+### The app package has `base`, `services`, and `parts` layers, and `main.ts` connects the parts
 
 `ui/src` has `base/` for path helpers, `services/` for the app's services and their tokens, and `parts/` with one folder for each feature. Parts import services, and services import `base`. `main.ts` is the composition root: it creates the workshop socket and the services, registers most services under a token with `registerService`, and connects socket events to the status bar. A part looks a service up by its token with `getService`. `main.ts` adds every top-level object to one `DisposableStore` and disposes it on `pagehide`.
 
@@ -352,26 +348,25 @@ Each item names code that the rest of the code leaves unused, two parts of the c
 
 **The Model menu state**
 
-1. `chat_ready` and `switch_in_flight`. The server computes both flags for each `workbench` frame, and the UI stores them unused. `main.ts` creates a `WorkbenchService` and passes each `workbench` frame to its `applySnapshot`, which copies the flags to `chatReady` and `switchInFlight`. A search of `ui/src` finds the service and the two names in three files: `main.ts`, `services/protocol.ts`, and the service's own file. The chat box offers Send from the session's own `started` flag and blocks it while the model selection is empty (`ui/src/parts/agent/agent-session-view.ts`).
-2. `switch_profile`. The server accepts the frame and runs the profile switch of section 6 for it, and the UI lacks a sender. Tests are the only callers of `WorkshopSocket.switchProfile`, and `main.ts` reads one of the six `workbench` fields, `selected`. The Gateway's config panel posts `/admin/switch-profile` through the proxy, a path that bypasses the restart of section 6.
+1. `chat_ready` and `switch_in_flight`. The server computes both flags for each `workbench` frame, and the UI stores them unused. `main.ts` creates a `WorkbenchService` and passes each `workbench` frame to its `applySnapshot`, which copies the flags to `chatReady` and `switchInFlight`. A search of `ui/src` finds the service and the two names in `main.ts`, `services/protocol.ts`, and the service's own file. The chat box offers Send from the session's own `started` flag and blocks it while the model selection is empty (`ui/src/parts/agent/agent-session-view.ts`).
+2. `switch_profile`. The server accepts the frame and runs the profile switch of section 6 for it, and the UI lacks a sender. Tests are the only callers of `WorkshopSocket.switchProfile`, and `main.ts` reads one of the `workbench` fields, `selected`. The Gateway's config panel posts `/admin/switch-profile` through the proxy, a path that bypasses the restart of section 6.
 
 **The server crates**
 
 3. A demo mount. `server/src/agents/language_guide.rs` mounts a directory read-only at `/_runvil/language-guide` in every run when its constant `ENABLED` is true. `ENABLED` is `false`, and `SOURCE` is an absolute path under one user's home folder. The module's own comment calls it a hack.
-4. Two public paths. The goal of section 3 is one public path for each item. `workshop-menu` declares `pub mod catalog` and `pub mod menu` and also re-exports `CatalogBus` and `MenuBus` at its root, and `workshop-status` does the same with `pub mod status` and `StatusBus`. The server uses both forms: `server/src/app.rs` imports `workshop_menu::catalog::CatalogBus`, and `server/src/workshop_socket.rs` imports `workshop_menu::CatalogBus`.
-5. A method that only tests call. Tests are the only callers of `WorkspaceRoots::subscribe` in `registry/src/traits.rs`.
+4. Two public paths. The goal of section 3 is one public path for each item. `workshop-menu` declares `pub mod catalog` and `pub mod menu` and also re-exports `CatalogBus` and `MenuBus` at its root, and `workshop-status` does the same with `pub mod status` and `StatusBus`. The server uses both forms: `server/src/app.rs` imports `workshop_menu::catalog::CatalogBus`, and `server/src/agents/broker.rs` imports `workshop_menu::CatalogBus`.
 
 **Guides, a rule file, a prompt's prose, and a doc comment**
 
-6. Registry wording. `.cursor/rules/workshop-architecture.mdc` says subsystems register into "proxy slots". `Registry` has four collections (section 3).
-7. The Workshop guide. `runvil-docs/src/workshop/01-stub.md`, a stub, is the guide's one Workshop page. The guide therefore omits the advice of section 7 to quit Workshop before copying a `.rvwork` file.
-8. The Gateway guide. Four of its pages describe a `[workshop]` section of `gateway.toml`. `RawConfig` in `runvil-gateway/crates/gateway/config/src/config.rs` refuses unknown tables, and `workshop` is unknown to it ([The Gateway](gateway.md)).
-9. The chat prompt's prose. `agents/chat.md` says a model selection "takes effect on the next run" and describes "one system message". `routed` in `server/src/agents/broker.rs` sends each round to the selected model, and the prompt's `messages:system` line is commented out ([Prompts that ship](shipped-prompts.md)).
-10. A doc comment on the deadline code. The comment on `DEADLINE_ELAPSED_CODE` in `support/src/deadline.rs` says "Both UIs" key on the string. The Gateway's config UI lacks the string. Workshop's UI names it as `ErrorCatalog.DeadlineElapsed` in `ui/src/services/error-catalog.ts`, and `httpFailure` in `ui/src/services/workspace-api.ts` sets that code when an answer's status is 408, whatever its body.
+5. Registry wording. `.cursor/rules/workshop-architecture.mdc` says subsystems register into "proxy slots". `Registry` has collections of routes, tasks, state handles, and sinks (section 3).
+6. The Workshop guide. `runvil-docs/src/workshop/01-stub.md`, a stub, is the guide's Workshop page. The guide therefore omits the advice of section 7 to quit Workshop before copying a `.rvwork` file.
+7. The Gateway guide. Some of its pages describe a `[workshop]` section of `gateway.toml`. `RawConfig` in `runvil-gateway/crates/gateway/config/src/config.rs` refuses unknown tables, and `workshop` is unknown to it ([The Gateway](gateway.md)).
+8. The chat prompt's prose. `agents/chat.md` says a model selection "takes effect on the next run" and describes "one system message". `routed` in `server/src/agents/broker.rs` sends each round to the selected model, and the prompt's `messages:system` line is commented out ([Prompts that ship](shipped-prompts.md)).
+9. A doc comment on the deadline code. The comment on `DEADLINE_ELAPSED_CODE` in `support/src/deadline.rs` says "Both UIs" key on the string. The Gateway's config UI lacks the string. Workshop's UI names it as `ErrorCatalog.DeadlineElapsed` in `ui/src/services/error-catalog.ts`, and `httpFailure` in `ui/src/services/workspace-api.ts` sets that code when an answer's status is 408, whatever its body.
 
 **The UI**
 
-11. A label for a missing tool. `ui/src/parts/agent/transcript/tool-labels.ts` has a case for `runvil/user-input/ask`, and the Packs lack a tool with that id.
+10. A label for a missing tool. `ui/src/parts/agent/transcript/tool-labels.ts` has a case for `runvil/user-input/ask`, and the Packs lack a tool with that id.
 
 ## 11. Questions for the owner
 
@@ -387,7 +382,7 @@ Each question asks for the reason behind a part of the design.
 3. Why does a conversation outlast its socket?
 4. Why do all runs share one `Host`?
 5. Why does the Harness hand a task's `models.loop` rounds to the streaming callback, so that Workshop publishes them into the conversation? Every chain's round has the origin `Chat`, and the wire's `agent_event` omits the task.
-6. Why does the server compute `chat_ready` and `switch_in_flight` and accept `switch_profile`, three things that the UI leaves unused?
+6. Why does the server compute `chat_ready` and `switch_in_flight` and accept `switch_profile`, all of which the UI leaves unused?
 
 **State and the workspace**
 
@@ -400,14 +395,7 @@ Each question asks for the reason behind a part of the design.
 
 ## 12. Method and limits
 
-- **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Update.** On 2026-11-11 the tiers of section 3, the `with_plugins` text of section 5, and the planned item on Plugins were brought to `runvil` at commit `b0693699d`. Between the two commits, `std` became a library Plugin that the server loads from a Plugin directory, and Workshop gained the crate `workshop-plugin-std`. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-12 the two entries of section 3 on tiers and on dependencies were brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness`, and pinned four of them by commit, and `df857f4b1` added the check `harness_pin`. Earlier commits added the crate `workshop-plugin-bashkit`. The text of section 5 on Plugins still describes `b0693699d`: at `48a4dbc08` the Plugin directory also has the library of the bashkit Plugin, and the server has a switch, committed as off, that mounts the `C:` drive read-only in every run.
-- **Update.** On 2026-11-13 the text of section 5 on Plugins and on a run's file system, the planned item on a real folder, and the Paths bullet were brought to `runvil-workshop` at commit `f386801b` and `runvil-harness` at `18361d02`. Workshop is in the `runvil-workshop` repository, and it pins `runvil-harness` at `7147e709`, `runvil-plugin-std` at `782ad23`, and `runvil-plugin-bashkit` at `0864f1f`. The update covers the entry on the one `Host` in section 5, one item of section 9, and the Paths bullet. It states that the Plugin directory has the libraries of the `std` Plugin and the bashkit Plugin, that the server warns for `runvil/std` and for `runvil/bash`, that a run can have two read-only demo mounts, and that `web` and `mcp` enter through the Rust `install` API. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-18 the planned item on a real folder was brought to `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f`, `runvil-plugin-api` at `52a4905`, `runvil-plugin-std` at `a806bf6`, and `runvil-plugin-bashkit` at `f348f7a`. At those commits the C contract is at version 0.5, the `std` tools Write, StrReplace, and Delete work, and the shell of `bash` changes files. The update covers that item and the second Update bullet at the top of the page. It states that the `std` file tools and the `bash` shell read and change the files of the in-memory root, and that those files end with the run. The text on file changes in [Tools and Packs](tools-and-packs.md) and [Files and the VFS](files-and-the-vfs.md) still describes contract 0.4, whose file functions read only. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-19 the text of section 5 on Plugins, the Plugin directory, a run's Packs, a run's file system, and a `prompts:` list was brought to `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f`, `runvil-plugin-api` at `52a4905`, `runvil-plugin-std` at `a806bf6`, and `runvil-plugin-bashkit` at `f348f7a`. The update covers four entries of section 5 and the second Update bullet at the top of the page: the entry on the one `Host`, and one new sentence each in the entries on the agents folder, on the recorder tee, and on the contract route. It states that a run holds every Pack of the registry, that Workshop leaves the policy of a run's file system at the default, `AllowAll`, which admits every operation, that a read-only mount refuses each change, that the run log has a record of each file operation of a tool, that an agent lists another agent of the folder under `prompts:` and runs it with `execute`, and that the contract route parses a prompt with a `prompts:` list from the posted text alone. The planned item on a real folder and gap 3 were checked against the same commit and are unchanged. The text on file changes in [Tools and Packs](tools-and-packs.md) and [Files and the VFS](files-and-the-vfs.md) describes contract 0.5 as of the same date. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-24 the text of section 5 on the inference broker and on streaming was brought to `runvil-workshop` at commit `1b33d9f8`, the head of pull request 38, which pins `runvil-harness` at `5d9c7bf8`, the head of pull request 76 there. The update covers the walk-through's paragraph on a model round, the entries on the one `Host` and on the broker in section 5, question 5 of section 11, and the third Update bullet at the top of the page. It states that a run's setup holds the server's `WorkshopBroker` and a streaming callback, that the callback publishes each live piece of a section's own round into the conversation under the round's id, and that `WorkshopBroker` hands each round's callback to the Gateway broker. At those commits the whole verification list of each repository passes. The rest of the page still describes the commits above.
 
 *2026-11-10 16:42 - Claude Fable 5.2*

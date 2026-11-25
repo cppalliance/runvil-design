@@ -1,20 +1,19 @@
 # Workshop: what the user sees: design decisions and their reasons
 
 - Scope: what a Workshop user sees and does: the window, its zones and panels, the menus and commands, the agent window, the chat box, and the look
-- Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4` for the Workshop guide
-- Paths: code paths start at the `crates/workshop/` folder of the `runvil` repository
+- Paths: code paths start at the `crates/workshop/` folder of the `runvil-workshop` repository
 
 ## Summary
 
-Workshop's UI is one page of plain TypeScript in one desktop window. A title bar shows eight menus, a dock arranges panels in three zones, and a status bar is fixed below the dock. The left zone shows the file tree, the main zone shows editors and Run windows, and the right zone shows agent windows, each a transcript above a chat box. The UI copies the Cursor IDE in look, layout, wording, and behavior. Sections 1 to 7 describe these parts.
+Workshop's UI is one page of plain TypeScript in one desktop window. A title bar shows the menus, a dock arranges panels in zones, and a status bar is fixed below the dock. The left zone shows the file tree, the main zone shows editors and Run windows, and the right zone shows agent windows, each a transcript above a chat box. The UI copies the Cursor IDE in look, layout, wording, and behavior. Sections 1 to 7 describe these parts.
 
-A check of this page against the code found eight gaps and left seven questions about reasons for the owner. Section 9 lists the gaps, and section 10 lists the questions. The largest gap is the server's `chat_ready` flag: the UI stores it and only tests read it, so the chat box can offer send and the microphone while the server reports chat as unavailable.
+Section 9 lists the gaps between this page and the code, and section 10 lists the questions about reasons for the owner. The largest gap is the server's `chat_ready` flag: the UI stores it and only tests read it, so the chat box can offer send and the microphone while the server reports chat as unavailable.
 
 Section 8 lists the planned work. Its largest item is running a prompt from the Run window, whose Run button has an empty click handler.
 
 ## From opening Workshop to reading a reply
 
-The desktop app opens one window and loads the UI's page from the Workshop server. `main.ts` preloads the saved UI state, and `setupWindowChrome` shows the title bar. `main.ts` then creates the dock with `createDockview`, and `applyLayoutOrDefault` restores the workspace's saved layout. For a new workspace, the layout policy opens the `tree` panel on the left and an `agent` panel on the right, with an empty editor group between them. Last, `setupWindowMenus` fills the title bar with eight menu buttons.
+The desktop app opens one window and loads the UI's page from the Workshop server. `main.ts` preloads the saved UI state, and `setupWindowChrome` shows the title bar. `main.ts` then creates the dock with `createDockview`, and `applyLayoutOrDefault` restores the workspace's saved layout. For a new workspace, the layout policy opens the `tree` panel on the left and an `agent` panel on the right, with an empty editor group between them. Last, `setupWindowMenus` fills the title bar with the menu buttons.
 
 `AgentPanel` creates an `AgentSocket`, an `AgentSessionService`, and an `AgentSessionView`. The socket connects, the server lists its agents, and the panel launches the agent named `chat`. An agent is a prompt file that the server runs. The view shows a `TranscriptView` above a `ChatBox`.
 
@@ -38,7 +37,7 @@ The UI has one theme, a dark one. The repository is public, so its code states f
 
 ### Workshop has one operating-system window, and each window the UI names is a dock panel
 
-An agent window, an editor tab, and a Run window are each one panel in the dock. The features register five panel types: `tree` for the file tree, `editor` for one file, `agent` for one agent window, `run` for one Run window, and `config` for the settings of the Gateway, the separate process that answers model requests ([The Gateway](gateway.md)). The dock's serialized layout lists every panel, and the UI saves it as one value of the workspace file, so one key restores the panels, the tabs, the zone sizes, and the place of each panel.
+An agent window, an editor tab, and a Run window are each one panel in the dock. The features register panel types: `tree` for the file tree, `editor` for one file, `agent` for one agent window, `run` for one Run window, and `config` for the settings of the Gateway, the separate process that answers model requests ([The Gateway](gateway.md)). The dock's serialized layout lists every panel, and the UI saves it as one value of the workspace file, so one key restores the panels, the tabs, the zone sizes, and the place of each panel.
 
 ### The UI draws its own title bar in the desktop app and in a browser
 
@@ -46,9 +45,9 @@ An agent window, an editor tab, and a Run window are each one panel in the dock.
 
 On Windows the desktop app removes the system frame. On macOS it overlays the native window buttons on the bar, and on Linux it leaves the native frame above the bar. The bar shows on macOS too, because one bar inside the window makes the menus identical in the desktop app and in a browser, and a test can check them in both.
 
-### The dock has three zones, and each panel type has a home zone
+### The dock has zones, and each panel type has a home zone
 
-`zones.ts` names three zones, each a tabbed dockview group: `left` for the file tree, `main` for editors and Run windows, and `right` for agent windows. `openInZone` places a new panel where the user last dropped that panel, and otherwise in its type's `defaultZone`. The owner's rule: "each zone is a bank of tabbed windows, and you can freely move windows from one place to another, but each zone has a preference".
+`zones.ts` names the zones, each a tabbed dockview group: `left` for the file tree, `main` for editors and Run windows, and `right` for agent windows. `openInZone` places a new panel where the user last dropped that panel, and otherwise in its type's `defaultZone`. The owner's rule: "each zone is a bank of tabbed windows, and you can freely move windows from one place to another, but each zone has a preference".
 
 The `tree` type registers with `closable: false`, so its tab omits the close button. `applyLayoutOrDefault` reopens `tree` or `agent` when a restored layout lacks one, so the UI starts with both panels even from a saved layout that is out of date.
 
@@ -70,11 +69,11 @@ The activity LED is amber while a model turn is processing and green during a bu
 
 ## 3. Menus, commands, and keys
 
-### The title bar shows the eight menus of Cursor
+### The title bar shows the menus of Cursor
 
 `menubar.contribution.ts` declares File, Edit, Selection, View, Go, Run, Terminal, and Help. File opens files, folders, workspaces, and agent windows. Edit and Selection act on the focused text. View toggles the side bars and the status bar, zooms, and opens the command palette. Go opens quick open, Run opens a Run window, and Help opens About. File > Preferences > Settings opens the Gateway's configuration panel.
 
-The menus are Cursor's eight because the goal is a window that behaves like VS Code, and almost every row of Cursor's menus has a VS Code command id.
+The menus are Cursor's because the goal is a window that behaves like VS Code, and almost every row of Cursor's menus has a VS Code command id.
 
 ### Every menu action is a command with the id that VS Code uses
 
@@ -82,7 +81,7 @@ A feature registers each action once, with `registerAction`, in its `*.contribut
 
 ### A row that Workshop has yet to implement shows disabled under its final command id
 
-`stubs.contribution.ts` is a table of 136 rows. Each row registers a command under its VS Code id with the precondition `false` and an empty `run` function, so the menu shows it disabled with its final name and shortcut. To implement a row, a developer deletes it from the table and calls `registerAction` in the owning feature. Every Terminal row is a stub, and so are the Run menu's debug rows.
+`stubs.contribution.ts` is a table of rows. Each row registers a command under its VS Code id with the precondition `false` and an empty `run` function, so the menu shows it disabled with its final name and shortcut. To implement a row, a developer deletes it from the table and calls `registerAction` in the owning feature. Every Terminal row is a stub, and so are the Run menu's debug rows.
 
 The stubs exist so that the menus show their final shape and tell the truth about which rows work. A stub has its final id, so implementing the row leaves every menu, test, and keybinding unchanged.
 
@@ -106,13 +105,13 @@ The title bar's folder-name button and Ctrl+P open the quick open box. An empty 
 
 The owner's rule: "The Agent window should come up with the chat control already there".
 
-### The transcript has five kinds of row
+### The transcript is built from rows, and each row has a kind
 
 `buildTranscript` builds turns of rows from the session's items. A user message becomes a `human` row and starts a turn, and a reply becomes a `markdown` row. The function collects reasoning and tool calls into a group until a reply, a user message, or an error closes it. A group of one tool call becomes a `tool` row, a group of only reasoning becomes a `thought` row, and any other mix becomes a collapsible `group` row. `TranscriptView` updates rows by key, so a row that the user opened remains open. A thought row is closed until the user opens it.
 
 ### A tool call shows as one line, worded by its vendor-qualified name
 
-`tool-labels.ts` joins a call's `vendor` ([Tools and Packs](tools-and-packs.md)) and tool id, and `toolKind` compares the result with three fixed names. A call of `runvil/web/search` or `runvil/web/fetch` shows a line that opens a hover card of results, and a call of any other tool shows a generic line that expands to its arguments and result. The third name, `runvil/user-input/ask`, matches a tool that the shipped Packs lack.
+`tool-labels.ts` joins a call's `vendor` ([Tools and Packs](tools-and-packs.md)) and tool id, and `toolKind` compares the result with fixed names. A call of `runvil/web/search` or `runvil/web/fetch` shows a line that opens a hover card of results, and a call of any other tool shows a generic line that expands to its arguments and result. The name `runvil/user-input/ask` matches a tool that the shipped Packs lack.
 
 The match includes the vendor because another vendor's Pack can use the same tool id, and a match on the last segment of the id would also catch a tool named `ask` that a prompt defines in Lua.
 
@@ -132,7 +131,7 @@ The agent feature binds the command `composer.cancelComposerStep` to `ctrlcmd+sh
 
 ### The toolbar's model picker works, and its mode chip and token ring lack a backend
 
-In `AgentToolbar`, `ModelPickerTrigger` lists the catalog from `ModelService` and sends the server a select command. `ModeChip` offers five modes, fires an `agent-mode-changed` event, and changes the round button's color. `TokenRing` reads a stub that returns `null`, which hides the ring. The toolbar copies the controls that Cursor shows, and the UI connects a control only where a backend exists.
+In `AgentToolbar`, `ModelPickerTrigger` lists the catalog from `ModelService` and sends the server a select command. `ModeChip` offers modes, fires an `agent-mode-changed` event, and changes the round button's color. `TokenRing` reads a stub that returns `null`, which hides the ring. The toolbar copies the controls that Cursor shows, and the UI connects a control only where a backend exists.
 
 ### The chat box accepts a message while the agent works
 
@@ -162,15 +161,15 @@ A `ChipRef` describes a mention pill, a typeahead row, or an attachment. It has 
 
 The box emits one `send` event with `text`, `mentions`, and `attachments`. The text is exactly what the user typed, untrimmed. The box shows its content until the embedding part calls `clear()`, so the text survives a failed send. The payload is text and chips, because the editor's raw document JSON would couple the message format on the socket to the editor's schema. `AgentSessionView` sends the text and drops the two chip lists.
 
-### The `@` typeahead copies Cursor's flat menu and lists a three-item stub
+### The `@` typeahead copies Cursor's flat menu and lists canned stub items
 
-Typing `@` at the start of a word opens one flat list, and the `mentionSource` prop supplies its items. `AgentSessionView` omits that prop, so the default `stubMentionSource` answers with three canned file names: `README.md`, `src/main.ts`, and `Cargo.toml`. The stub has items because a test of the popup needs rows to render.
+Typing `@` at the start of a word opens one flat list, and the `mentionSource` prop supplies its items. `AgentSessionView` omits that prop, so the default `stubMentionSource` answers with canned file names: `README.md`, `src/main.ts`, and `Cargo.toml`. The stub has items because a test of the popup needs rows to render.
 
 ## 6. The editor and the Run window
 
 ### The editor is CodeMirror 6 behind the `EditorSurface` interface
 
-`editor-surface.ts` defines `EditorSurface` and implements it with CodeMirror 6. Panels, zones, and the save flow call the interface, and the four files that import CodeMirror are all in `ui/src/parts/editor/`. The editor uses the defaults of Cursor's editor.
+`editor-surface.ts` defines `EditorSurface` and implements it with CodeMirror 6. Panels, zones, and the save flow call the interface, and the files that import CodeMirror are all in `ui/src/parts/editor/`. The editor uses the defaults of Cursor's editor.
 
 CodeMirror is a ready-made editor, and the interface isolates it from the rest of the UI. The owner's rule: "I want each piece of code to be very well isolated... I don't want AI code bloat."
 
@@ -184,11 +183,11 @@ The Run button exists so that the window has its final shape. Its click handler 
 
 ### The `look` package defines the look of the whole Workshop family
 
-`@workshop/look`, in `look/`, exports the color palette, the size and semantic tokens, the icons, and five visual components: modal, dropdown, toast stack, status bar view, and progress bar. The owner's reason: "we have a product family of executable processes which share a look and feel". The Gateway's config UI has its own copy, `shared-ui`, and `ui/test/no-shared-ui.mjs` fails on any mention of that name.
+`@workshop/look`, in `look/`, exports the color palette, the size and semantic tokens, the icons, and visual components: modal, dropdown, toast stack, status bar view, and progress bar. The owner's reason: "we have a product family of executable processes which share a look and feel". The Gateway's config UI has its own copy, `shared-ui`, and `ui/test/no-shared-ui.mjs` fails on any mention of that name.
 
 ### Component CSS takes each value from a token, and each class starts with `ws-`
 
-The repository's root `AGENTS.md` requires Workshop's component CSS to use custom properties for every color, size, and spacing value. The tokens are in three tiers in `look/`: the palette in `tokens.css`, the size scale in `sizes.css`, and intent-named aliases in `semantic.css`. Each feature's CSS file is beside its TypeScript file.
+The repository's root `AGENTS.md` requires Workshop's component CSS to use custom properties for every color, size, and spacing value. The tokens are in tiers in `look/`: the palette in `tokens.css`, the size scale in `sizes.css`, and intent-named aliases in `semantic.css`. Each feature's CSS file is beside its TypeScript file.
 
 The class prefix separates Workshop's CSS from other CSS, a job that Shadow DOM could also do. Shadow DOM duplicates CSS across shadow roots, and the prefix provides most of its benefit at a small part of its cost.
 
@@ -197,7 +196,7 @@ The class prefix separates Workshop's CSS from other CSS, a job that Shadow DOM 
 Each of these items is still to be built.
 
 - **Running a prompt from the Run window.** A click on the Run button that starts a run of the prompt, with storage for runs and remembered inputs. The Run menu's debug rows need a debug session that the server owns. The button's click handler is empty, and the debug rows are stubs.
-- **A real `@` source.** A source for the `@` typeahead that lists open and recent files and, once a workspace file index exists, searches the workspace. The typeahead lists the three file names of `stubMentionSource`.
+- **A real `@` source.** A source for the `@` typeahead that lists open and recent files and, once a workspace file index exists, searches the workspace. The typeahead lists the file names of `stubMentionSource`.
 - **Slash commands.** A command chip at the start of the text, which the box reports through its `command` event. `types.ts` declares the event and `commandSource`, and both are unused.
 - **Attachments and paste.** Pasted files and images, shown as chips in a strip above the text. `types.ts` declares `onPasteFiles`, which the box leaves unused, and `AgentSessionView` drops the `attachments` list of each `send` event.
 - **Editing an older turn.** A way to edit an earlier message. A send from the edited turn opens a new agent window, because cutting the first window's history at that turn would discard a whole branch of it. The transcript shows each user message as a `human` row.
@@ -220,10 +219,10 @@ Each item names a value that only tests read, a path that closes editors and ski
 **Comments, rule files, and the guide**
 
 4. Theming. The header of `look/semantic.css` says that theming the app is an edit of that file. The rule file `workshop-spa.mdc` says that colors are themed in `look/tokens.css`.
-5. CodeMirror imports. The header of `editor-surface.ts` says that it is the only file that imports `@codemirror`. Three more files in its folder import it.
+5. CodeMirror imports. The header of `editor-surface.ts` says that it is the only file that imports `@codemirror`. Other files in its folder import it.
 6. Two more comments. `main.ts` says the title bar is hidden in a browser, where `setupWindowChrome` shows it. The header of `workbench-service.ts` names a Model menu and a chat-gating hook as its readers, and the UI lacks both.
 7. Ctrl+Q. A doc comment in `desktop/src/menu.rs` says that Ctrl+Q opens View on Windows and Linux. Open View is a row of the stub table, so the dispatcher stops the key and the window ignores it. File > Exit quits.
-8. The Workshop guide. The Workshop guide in `runvil-docs` is one stub file ([Guides and docs](guides-and-docs.md)).
+8. The Workshop guide. The Workshop guide in `runvil-docs` is a stub file ([Guides and docs](guides-and-docs.md)).
 
 ## 10. Questions for the owner
 
@@ -247,8 +246,7 @@ Each question asks for the reason behind a part of the design.
 
 ## 11. Method and limits
 
-- **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
 
 *2026-11-10 16:50 - Claude Fable 5.2*

@@ -1,23 +1,19 @@
 # Tasks and fanout: design decisions and their reasons
 
 - Scope: concurrent work inside a run: tasks, fanout, the scheduler's order, limits, determinism, and a task's inbox
-- Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 10)
-- Update: the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 10)
-- Update: the text on the inputs of a replay, on conflicts in a store and on the Host's files, on the calls of one model reply that change files, and on the value 8 of three limits describes `runvil-harness` at commit `ee199e3a` (section 10)
-- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
+- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness
 
 ## Summary
 
 A chain is one walk through a prompt's sections. A run has a chain for the main walk, one for each `call`, one for each `execute`, and one for each task, and a task is a chain that runs beside the chain that spawned it. The Engine's scheduler runs the chains in turns on one thread. `tasks.spawn` starts a task, `tasks.join_any` waits for one, and `tasks.fanout` is a Lua function that spawns one task for each member of a table. Sections 1 to 6 describe this design.
 
-A check of this page against the code found one gap and left four questions about reasons for the owner. Section 8 describes the gap, and section 9 lists the questions. The gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
+Section 8 lists the gaps between this page and the code, and section 9 lists the questions about reasons for the owner. A gap is a doc comment in `ids.rs`, which calls the depth of a run unbounded, while the code caps it at 8.
 
 Section 7 lists the planned work. Its largest item is replay: the Harness driver that runs a recorded run again from its seed, start time, answers, messages, and file requests is still to be built.
 
 ## From a `tasks.fanout` call to its results
 
-A section's Lua calls `tasks.fanout('### Worker', items)`, a Lua function in `__impl_fanout.lua` that the code's comments call the `fanout` shim. The shim calls `collection_members` to list the members of `items`, copies the caller's `var`, and yields one `spawn` request for each member.
+A section's Lua calls `tasks.fanout('Worker', items)`, a Lua function in `__impl_fanout.lua` that the code's comments call the `fanout` shim. The shim calls `collection_members` to list the members of `items`, copies the caller's `var`, and yields one `spawn` request for each member.
 
 For each request, the scheduler's `dispatch_spawn` checks the depth cap, forks a file identity from the caller's (section 5), and assigns the next child id, such as `0.0`. It adds a `TaskEntry` to the `TaskArena`, queues the new chain in `Admission`, and resumes the shim.
 
@@ -43,7 +39,7 @@ They are methods of `Scheduler` because the owners depend on each other through 
 
 ### `tasks.spawn` starts a chain over a section and returns a handle at once
 
-`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. `opts.args` gives the chain its own arguments, a table of named fields or a string, by the rule of the second argument of `call` ([The prompt language](prompt-language.md)), and a chain that gets none reads its spawner's `args`. `opts` takes the keys `args`, `item`, and `index`, and any other key raises an error that names it, so a misspelled option fails at the call. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has thirteen functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
+`tasks.spawn(target, opts)` queues a new chain that starts at the target section, and returns before that chain runs. `opts.args` gives the chain its own arguments, a table of named fields or a string, by the rule of the second argument of `call` ([The prompt language](prompt-language.md)), and a chain that gets none reads its spawner's `args`. `opts` takes the keys `args`, `item`, and `index`, and any other key raises an error that names it, so a misspelled option fails at the call. The handle is a plain table, `{ task = id }`, and every `tasks` function that names a task takes the handle or the id string. The `tasks` table has these functions: `spawn`, `join_any`, `join`, `ready`, `status`, `pending`, `note`, `cancel`, `concurrency`, `receive`, `send`, `reply`, and `fanout`.
 
 ### The chain that spawns a task owns it
 
@@ -77,9 +73,9 @@ When a run ends as a whole, by a cancel or a fatal answer, `Scheduler::end` firs
 
 ### The collection is a Lua table, and the shim lists its members in a fixed order
 
-`collection_members` lists the array part in index order and then the keyed part sorted by key. It reads a view through to its data, so a list from `args` or from `var` is a collection like any table. A keyed member becomes a pair table that the arm reads as `item.key` and `item.value`. Any other value in place of the table raises an error that points to `prompt.list(heading)`.
+`collection_members` lists the array part in index order and then the keyed part sorted by key. It reads a view through to its data, so a list from `args` or from `var` is a collection like any table. A keyed member becomes a pair table that the arm reads as `item.key` and `item.value`. Any other value in place of the table raises an error that points to `prompt.section(path, "list").items`.
 
-A heading in place of the table is one of the refused values. `prompt.list(heading)` returns the items of a list section, so a heading as the argument would be a second way to do one thing, and a bare string is ambiguous against a section name. The sort of the keyed part makes every process spawn the arms in the same order.
+A section path in place of the table is one of the refused values. `prompt.section(path, "list").items` returns the items of a list, so a path as the argument would be a second way to do one thing, and a bare string is ambiguous against a section name. The sort of the keyed part makes every process spawn the arms in the same order.
 
 ### Each arm is a task that runs the worker section with `item` and `sys.index`
 
@@ -93,9 +89,9 @@ The shim yields a `spawn` request for every member before its first `join_any`.
 
 Under the join rule of section 5, an arm spawned after a join would be ordered after the arm that the join returned and could read that arm's store files, so its result would depend on timing. With every arm spawned before the first join, the arms are unordered among themselves.
 
-### Results return in collection order as objects with four fields
+### Results return in collection order as objects with named fields
 
-`tasks.fanout` returns an array with one result at each member's position. `text` is the arm's final text, `ok` says whether the arm completed, `item` is the member, and `exhausted` says whether the arm ran out of model rounds. Each result is a read-only view: `pairs` walks its four fields as it walks a plain table, and an assignment to a result raises an error that reads "tasks.fanout results are read-only".
+`tasks.fanout` returns an array with one result at each member's position. `text` is the arm's final text, `ok` says whether the arm completed, `item` is the member, and `exhausted` says whether the arm ran out of model rounds. Each result is a read-only view: `pairs` walks its fields as it walks a plain table, and an assignment to a result raises an error that reads "tasks.fanout results are read-only".
 
 The caller combines the results itself. `item` lets the caller match each result with its member when the member is a rich value, such as a record.
 
@@ -149,7 +145,7 @@ The cap is 8 because that is more depth than the owner expects a prompt to need 
 
 ### The same seed, start time, and answers produce the same run
 
-For each run the Harness generates a random seed, reads the clock, and passes both to the Engine in `RunParams`. With the same two values, and the same answers, messages, and file requests delivered in the same order at the same steps, and with no cancel, the Engine emits the same effects, events, and ids. The order of answers is an input. So is the order of the file requests that the Harness reports for open tool calls with `Run::request_file`, each of which the Engine issues as an effect at its next step ([The Engine](engine.md)). So is each message that a Host sends the run, with its place among the answers and the steps ([The Harness and the Host API](harness-and-host.md)). Among waiting tool calls, the Harness starts the one with the lowest effect id ([Tools and Packs](tools-and-packs.md)), and `Run` lacks a call that reports a start. That choice therefore affects the Engine only through the order of answers and of file requests, so a replay (section 7) that repeats the answers, the messages, and the file requests in their order and at their steps is independent of the Harness's start order. Three results depend on the order of answers: which task `tasks.join_any` returns, whether a timed wait runs out, and how far a canceled task got. The guide adds a fourth: where a `tasks.send` message applies in a task's work.
+For each run the Harness generates a random seed, reads the clock, and passes both to the Engine in `RunParams`. With the same two values, and the same answers, messages, and file requests delivered in the same order at the same steps, and with no cancel, the Engine emits the same effects, events, and ids. The order of answers is an input. So is the order of the file requests that the Harness reports for open tool calls with `Run::request_file`, each of which the Engine issues as an effect at its next step ([The Engine](engine.md)). So is each message that a Host sends the run, with its place among the answers and the steps ([The Harness and the Host API](harness-and-host.md)). Among waiting tool calls, the Harness starts the one with the lowest effect id ([Tools and Packs](tools-and-packs.md)), and `Run` lacks a call that reports a start. That choice therefore affects the Engine only through the order of answers and of file requests, so a replay (section 7) that repeats the answers, the messages, and the file requests in their order and at their steps is independent of the Harness's start order. These results depend on the order of answers: which task `tasks.join_any` returns, whether a timed wait runs out, and how far a canceled task got. The guide adds another: where a `tasks.send` message applies in a task's work.
 
 Because of this rule, replay is a job for the Harness: the Engine is deterministic, so the Harness can match a recorded run exactly. The rule covers Lua's table walks too. The Engine's `pairs` and `next` walk a table in sorted order, where the order of stock Lua's walk depends on a hash seed.
 
@@ -213,7 +209,7 @@ Each question asks for the reason behind a part of the design.
 **Fanout**
 
 1. Why does the first failing arm cancel the others?
-2. Why does a result have these four fields, and why is `exhausted` separate from `ok`?
+2. Why does a result have these fields, and why is `exhausted` separate from `ok`?
 
 **Tasks**
 
@@ -222,11 +218,7 @@ Each question asks for the reason behind a part of the design.
 
 ## 10. Method and limits
 
-- **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The text of the page still describes the code at the commits above, when those crates were in `runvil`.
-- **Every heading is a section.** On 2026-11-13 the entries on task ownership in section 2, on ids in section 5, and on inboxes in section 6 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass, which handed its tasks to the main walk and shared the main chain's inbox with it. The pass had entry `0.0`, so the first section of the main walk read `0.1`. That session ran the build and its tests.
-- **Update.** On 2026-11-19 the text on determinism and on file access was brought to `runvil-harness` at commit `ee199e3a`. At that commit a tool asks its caller for each file operation, the Harness reports the request to the run with `Run::request_file`, and the conflict check applies in a store only. The update covers two sentences of the summary, the entry on spawning every arm in section 3, the entries on the limit of 8, on admission, and on the depth cap in section 4, the entries on the same run and on fork and join in section 5, the entry on idle tasks in section 6, the item on replay in section 7, and the third Update bullet at the top of the page. It states that a Host's messages and the file requests of tool calls are inputs of a replay beside the answers, that the same inputs give the same run when no cancel is raised, that a store checks conflicts and the Host's files have no such check, and that the calls of one model reply that change files run one at a time, in the order the model listed them. It adds the owner's reasons for the value 8 of `max_concurrency`, of `max_idle_tasks`, and of the depth cap, as the decision pages of `runvil-harness` give them, and it removes question 5 of section 9, which those reasons answer. That session read the code and left the build and the tests unrun. The update leaves the rest of the page as it was.
 
 *2026-11-10 16:38 - Claude Fable 5.2*

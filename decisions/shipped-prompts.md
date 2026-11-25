@@ -1,17 +1,13 @@
 # Prompts that ship: design decisions and their reasons
 
 - Scope: the sample prompts in `prompts` and Workshop's built-in chat prompt
-- Code: `runvil` at commit `fa9936f64`, and `runvil-docs` at commit `cfd69a4`
-- Update: the place of the sample prompts and the Paths bullet describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 7)
-- Update: the sentence on where the chat prompt makes its offers, in section 2, names the preamble, and gap 1 of section 5 names the paragraph before the chat prompt's first heading, as of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 7)
-- Update: the text on the Packs of the chat prompt, in the walk-through and in section 2, and the Paths bullet describe `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f` (section 7)
 - Paths: code paths start at the root of the `runvil-workshop` repository, except the `prompts` folder and the Engine and Harness crates, which are in the `runvil-harness` repository at the same paths
 
 ## Summary
 
-Runvil ships six prompts. Five are sample files in the `prompts` folder of `runvil-harness`, the repository of the Engine and the Harness: four small examples and `research-person.md`, which researches a person on the web. The sixth is `chat.md`, the built-in chat agent, which Workshop compiles into its binary and launches when an agent panel opens. Its one section is a loop: it reads the operator's next message, runs model rounds and tool calls until the model answers, and summarizes older turns when a turn overflows the model's context window. Section 1 describes the samples, and sections 2 and 3 describe the chat prompt.
+Runvil ships sample prompts and a built-in chat prompt. The samples are files in the `prompts` folder of `runvil-harness`, the repository of the Engine and the Harness: small examples and `research-person.md`, which researches a person on the web. The built-in chat prompt is `chat.md`, the chat agent, which Workshop compiles into its binary and launches when an agent panel opens. Its `## Conversation` section is a loop: it reads the operator's next message, runs model rounds and tool calls until the model answers, and summarizes older turns when a turn overflows the model's context window. Section 1 describes the samples, and sections 2 and 3 describe the chat prompt.
 
-A check of this page against the code found two gaps and left four questions about reasons for the owner. Section 5 lists the gaps, and section 6 lists the questions. In the larger gap, the prose of `chat.md` describes a system message about a mounted language guide, while the Lua line that adds that message is a comment and the mount is switched off.
+Section 5 lists the gaps between this page and the code, and section 6 lists the questions about reasons for the owner. In the largest gap, the prose of `chat.md` describes a system message about a mounted language guide, while the Lua line that adds that message is a comment and the mount is switched off.
 
 Section 4 lists the planned work. Its largest item is a Pack ([Tools and Packs](tools-and-packs.md)) that turns a folder of prompts into tools.
 
@@ -19,13 +15,13 @@ Section 4 lists the planned work. Its largest item is a Pack ([Tools and Packs](
 
 The built-in chat prompt is the file `crates/workshop/agents/agents/chat.md`. The `workshop-agents` crate compiles the file's text into Workshop as the constant `BUILTIN_CHAT_SOURCE`, and `discover_agents` lists the `.md` files of the agents folder plus the name `chat`.
 
-When an agent panel opens, the UI launches `chat`. The server opens a `Conversation` and builds a `RunSetup` with `has_user` set to true. `Conversation::run` calls `Host::parse`, which reads the text through `load_agent` and checks the four Packs under `uses:`. `Conversation::run` then creates a `Harness` and calls its `run` method ([The Harness and the Host API](harness-and-host.md)).
+When an agent panel opens, the UI launches `chat`. The server opens a `Conversation` and builds a `RunSetup` with `has_user` set to true. `Conversation::run` calls `Host::parse`, which reads the text through `load_agent` and checks the Packs under `uses:`. `Conversation::run` then creates a `Harness` and calls its `run` method ([The Harness and the Host API](harness-and-host.md)).
 
-The run enters the prompt's one section, `## Conversation`. Its Lua block offers tools, defines the function `compact`, and waits in `tasks.receive()`. When the operator sends a message, `Conversation::send_input` calls `RunControl::send`, and `tasks.receive()` returns the text. The block appends the text with `messages:user`, and `models.loop` runs model rounds and tool calls until the model answers in text. The block then waits again. `Conversation::close` cancels the run.
+The run enters the prompt's `## Conversation` section. Its Lua block offers tools, defines the function `compact`, and waits in `tasks.receive()`. When the operator sends a message, `Conversation::send_input` calls `RunControl::send`, and `tasks.receive()` returns the text. The block appends the text with `messages:user`, and `models.loop` runs model rounds and tool calls until the model answers in text. The block then waits again. `Conversation::close` cancels the run.
 
 ## 1. The sample prompts
 
-### Five sample prompts ship under `prompts`, and a test parses each one
+### The sample prompts ship under `prompts`, and a test parses each one
 
 The samples are `hello.md`, `echo.md`, `greet.md`, `analyst-example.md`, and `research-person.md`, and the language guide's first chapter says what each one shows.
 
@@ -45,9 +41,9 @@ The round limit is in the front matter because the budget belongs with the promp
 
 The chat gate tests in `workshop-server` launch the embedded text, and the Engine test file `models_loop-author-shapes.rs` contains a copy of the prompt's `compact` function (section 3). A change to one copy requires the same change to the other, and the two copies are in two repositories: the prompt in `runvil-workshop`, and the test in `runvil-harness`. [Workshop: how the app is built](workshop-app.md) covers discovery and launch.
 
-### The chat prompt offers `std`, `bash`, `web`, and the extras in its one section
+### The chat prompt offers `std`, `bash`, `web`, and the extras in its `## Conversation` section
 
-The front matter declares `user`, `std`, `bash`, and `web`. The Lua block in `## Conversation` offers `std`, then `bash`, then `web`, then `tools.packs.extras()`, the run's Packs that the prompt leaves undeclared. In Workshop those are `mcp` and `subagents`. The tool list of `subagents` is empty, so the fourth offer adds the two tools of the `mcp` Pack to the chat model's tool list. The offers of `std` and `bash` include four tools that change the files of the run: `Write`, `StrReplace`, and `Delete` of `std`, and `Shell` of `bash`. In Workshop those files are in memory and end with the run. `std` and `bash` come from the two library Plugins in Workshop's Plugin directory, and `Host::parse` refuses the chat prompt when the directory lacks either one ([Workshop: how the app is built](workshop-app.md)).
+The front matter declares `user`, `std`, `bash`, and `web`. The Lua block in `## Conversation` offers `std`, then `bash`, then `web`, then `tools.packs.extras()`, the run's Packs that the prompt leaves undeclared. In Workshop those are `mcp` and `subagents`. The tool list of `subagents` is empty, so the fourth offer adds the tools of the `mcp` Pack to the chat model's tool list. The offers of `std` and `bash` include the tools that change the files of the run: `Write`, `StrReplace`, and `Delete` of `std`, and `Shell` of `bash`. In Workshop those files are in memory and end with the run. `std`, `bash`, and `web` come from the library Plugins in Workshop's Plugin directory, and `Host::parse` refuses the chat prompt when the directory lacks any of them ([Workshop: how the app is built](workshop-app.md)).
 
 The model loop runs in that section, so the block makes the offers there: an offer in the preamble, the Lua before a prompt's first heading, would leave the loop's tool list unchanged. The fourth offer exists so that the tools of a new Pack among the extras appear in the chat model's tool list without a change to the prompt.
 
@@ -82,7 +78,7 @@ Each of these items is still to be built.
 
 ## 5. Known gaps
 
-The prose of `chat.md` differs from the code in two places.
+The prose of `chat.md` differs from the code in these places.
 
 1. The system message. The paragraph before the prompt's first heading, commentary that the run ignores, says the agent's "one system message says where the Runvil prompting language documentation is mounted". The line that adds the message is a Lua comment, and `ENABLED` in `language_guide.rs`, the switch that mounts the guide in each run, is `false`. The mount's `SOURCE` is a folder on one developer's machine.
 2. The model switch. The same paragraph says "a selection change takes effect on the next run". `WorkshopBroker::routed` in `broker.rs` sends each round to the model that the menu names, and the gate test `gate_a_model_picked_between_turns_serves_the_next_round` checks it.
@@ -93,7 +89,7 @@ Each question asks for the reason behind a part of the design.
 
 **The sample prompts**
 
-1. Why does Runvil ship `research-person.md`, and what are the four small samples for?
+1. Why does Runvil ship `research-person.md`, and what are the small samples for?
 
 **The chat prompt**
 
@@ -103,12 +99,7 @@ Each question asks for the reason behind a part of the design.
 
 ## 7. Method and limits
 
-- **Code.** The page describes `runvil` at commit `fa9936f64` and `runvil-docs` at commit `cfd69a4`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Update.** On 2026-11-12 the Paths bullet and the text on where the sample prompts are were brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the `prompts` folder and the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths. The update covers one sentence each in the summary, the entry on the five samples, the entry on the embedded chat prompt, and the first planned item. The rest of the page still describes the commits above. At `runvil` commit `5bc561c14`, the chat prompt also requires and offers the `bash` Pack, and the text on the chat prompt's Packs is still to be brought to that commit.
-- **Preamble.** On 2026-11-13 the sentence on where the chat prompt makes its offers, in the entry on the chat prompt's Packs, was brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, a prompt had exactly one H1 as its title, and the Lua blocks under it ran once before the first section. The five sample prompts have no title line at that change, and the text on them names no title, so it is unchanged. Gap 1 of section 5 named the paragraph under the title of `chat.md`. It names the paragraph before the file's first heading, because Workshop pins that change at `7147e709` and the file has no title line. That session ran the build and its tests.
-- **Update.** On 2026-11-13 the text on the chat prompt's Packs was brought to `runvil-workshop` at commit `f386801b` and `runvil-harness` at `18361d02`. The chat prompt is in the `runvil-workshop` repository, and it declares and offers the `bash` Pack beside `std` and `web`. The update covers one sentence of the walk-through, the entry on the chat prompt's Packs and one sentence of the entry on the embedded prompt in section 2, and the Paths bullet. It settles the last sentence of the Update note of 2026-11-12. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
-- **Update.** On 2026-11-19 the text on the chat prompt's Packs was brought to `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f`, `runvil-plugin-std` at `a806bf6`, and `runvil-plugin-bashkit` at `f348f7a`. The chat prompt is the same file as at `f386801b`. At the pinned commits the `std` tools Write, StrReplace, and Delete work, and the shell of `bash` changes files. The update adds two sentences to the entry on the chat prompt's Packs: the offers of `std` and `bash` include four tools that change the files of the run, and in Workshop those files are in memory. The other sentences of that text were checked against the same commits and are unchanged. The update covers that entry and the third Update bullet at the top of the page. That session read the code and left the build and the tests unrun. The rest of the page still describes the commits above.
 
 *2026-11-10 16:41 - Claude Fable 5.2*

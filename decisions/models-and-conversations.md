@@ -1,19 +1,15 @@
 # Model calls and conversations: design decisions and their reasons
 
 - Scope: how a prompt calls a model and what a conversation is: the `models` API, model roles, the model loop, replies, limits on a round, messages, compaction, and the client that sends a model request
-- Code: `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`
-- Update: the Paths bullet names the repositories as of `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, after the Engine and the Harness moved (section 11)
-- Update: the two entries on a chain's current model in section 2, the entry on a section entry's conversation in section 5, and gap 1 of section 9 state the rules of the second change that follows `8de43c2f` in `runvil-harness`: every heading starts a section, and the code before the first heading is the preamble (section 11)
-- Update: the entry on the Gateway client's stream and on live text in section 7 describes `runvil-harness` at commit `5d9c7bf8` (section 11)
-- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil`
+- Paths: code paths start at the `crates/` folder of `runvil-harness`, the repository of the Engine and the Harness, and a path that begins with `workshop/` starts at the `crates/` folder of `runvil-workshop`, the repository of Workshop
 
 ## Summary
 
-A prompt names one of five model roles, and the Host decides which model fills each role. Lua starts every model request: `models.infer` sends one prompt, and `models.loop` runs rounds of model replies and tool calls over `messages`, the one conversation of a section entry. A compactor, a Lua function, shortens the conversation when it exceeds the model's context window. The Engine asks for each round as an effect, and the Host's broker sends it. The standard broker uses the Gateway client. Sections 1 to 7 describe this design.
+A prompt names one of the model roles, and the Host decides which model fills each role. Lua starts every model request: `models.infer` sends one prompt, and `models.loop` runs rounds of model replies and tool calls over `messages`, the one conversation of a section entry. A compactor, a Lua function, shortens the conversation when it exceeds the model's context window. The Engine asks for each round as an effect, and the Host's broker sends it. The standard broker uses the Gateway client. Sections 1 to 7 describe this design.
 
-A check of this page against the code found five gaps and left ten questions about reasons for the owner. Section 9 lists the gaps, and section 10 lists the questions. The largest gap is in the built-in chat prompt: its text says that a model change in Workshop takes effect on the next run, and Workshop's broker sends the next round to the new model.
+Section 9 lists the gaps between this page and the code, and section 10 lists the questions about reasons for the owner. The largest gap is in the built-in chat prompt: its text says that a model change in Workshop takes effect on the next run, and Workshop's broker sends the next round to the new model.
 
-Section 8 lists the planned work. Its largest item is a model for each role: the Engine accepts a map with five models, and the Harness passes one.
+Section 8 lists the planned work. Its largest item is a model for each role: the Engine accepts a map with a model for each role, and the Harness passes one.
 
 ## From a `models.loop` call to the reply in `messages`
 
@@ -27,21 +23,21 @@ The Harness answers the effect with the completion, and `accept_chat` answers th
 
 ## 1. Model roles and the models that fill them
 
-### Every prompt has five fixed model roles, and the Host maps each role to a model
+### Every prompt has fixed model roles, and the Host maps each role to a model
 
-The roles are `default`, `strong`, `small`, `fast`, and `creative`, the five variants of the enum `ModelRole`. A prompt names a role, and the Host decides which model fills it, so one prompt file runs on any Host's models.
+The roles are `default`, `strong`, `small`, `fast`, and `creative`, the variants of the enum `ModelRole`. A prompt names a role, and the Host decides which model fills it, so one prompt file runs on any Host's models.
 
 The names are fixed because a label that a prompt declared for itself would be an empty formality: the Host would bind every such label to the same model.
 
 ### The `models:` key is optional and states requirements
 
-Under `models:` in the front matter, a prompt maps a role name to two optional requirements: `min_context`, a token count, and `thinking`, true or false. A prompt that omits the key runs on the Host's `default` model. The parser refuses a role outside the five, a third field, a repeated role, and `min_context: 0`.
+Under `models:` in the front matter, a prompt maps a role name to optional requirements: `min_context`, a token count, and `thinking`, true or false. A prompt that omits the key runs on the Host's `default` model. The parser refuses an unknown role, an unknown field, a repeated role, and `min_context: 0`.
 
 The key is optional so that a typical prompt leaves it out, and a prompt with a requirement can still state it. `thinking` is a requirement on a role's model. The owner's reason: thinking "is a property of a model not a model role".
 
 ### The Engine's caller passes one map from role to model, and `default` fills each role that the map omits
 
-The caller passes a `BTreeMap<ModelRole, ModelInfo>` to `RunParams::with_models`. When `Run::new` builds the run, before any Lua runs, `fill_model_set` builds a `ModelBinding`, one model with its request settings, for each of the five roles and uses the `default` entry for a role that the map omits. An empty map tells the Engine that the Host lacks a model. Every role is then empty, and `models.infer` and `models.loop` raise an error of kind `model_required`.
+The caller passes a `BTreeMap<ModelRole, ModelInfo>` to `RunParams::with_models`. When `Run::new` builds the run, before any Lua runs, `fill_model_set` builds a `ModelBinding`, one model with its request settings, for each role and uses the `default` entry for a role that the map omits. An empty map tells the Engine that the Host lacks a model. Every role is then empty, and `models.infer` and `models.loop` raise an error of kind `model_required`.
 
 ### The run's first step checks each declared requirement against the model that fills the role
 
@@ -51,7 +47,7 @@ A `Switchable` model passes `thinking: false` because it can honor the requireme
 
 ### The Harness passes one model for a run, as the `default` entry
 
-`current_model` asks the Host's broker for its model list ([The Harness and the Host API](harness-and-host.md)) and takes the model that `RunSetup.selected_model` names, or the first one listed. The Harness passes that model as the map's one entry, so one model fills all five roles. A model id has a namespace and a name, as in `gateway/fast`, and a request names the model by the name part.
+`current_model` asks the Host's broker for its model list ([The Harness and the Host API](harness-and-host.md)) and takes the model that `RunSetup.selected_model` names, or the first one listed. The Harness passes that model as the map's one entry, so one model fills every role. A model id has a namespace and a name, as in `gateway/fast`, and a request names the model by the name part.
 
 The Harness passes only `default` because `RunSetup` has one `selected_model`. Section 8 lists a model for each role as planned work.
 
@@ -69,13 +65,13 @@ A `call` child, a `tasks.spawn` task, and each fanout arm copy the parent chain'
 
 The Engine copies at dispatch because a spawned task can wait in a queue before it starts, and a copy taken at the task's start would include a later switch in the parent. [Tasks and fanout](tasks-and-fanout.md) describes the model-first form of `tasks.fanout`.
 
-### `models.use` takes a role name or a handle, and two sampling options
+### `models.use` takes a role name or a handle, and sampling options
 
 `models.use('strong', { temperature = 0, max_tokens = 4096 })` selects the role and sets both options on the selection. `temperature` is a number from 0.0 to 2.0, `max_tokens` is a positive integer, and any other key raises an error. A handle saved from `models.current()` restores an earlier selection with its options.
 
 The options are arguments of `models.use` because a prompt needs to set `max_tokens` section by section. The value is also arguably outside the prompt's contract, which the front matter states. A second call with a role name replaces the options, because a merge across calls would make a section's settings depend on its call history. The client sends a temperature as declared, and a provider's refusal of the value fails that round.
 
-### A model handle is a value with nine fields, and a `models` function takes it as its first argument
+### A model handle is a value with named fields, and a `models` function takes it as its first argument
 
 `models.use`, `models.get`, and `models.current` return a handle, a userdata over a frozen `ModelBinding`. Lua reads `name`, `label`, `model_id`, `description`, `context`, `provider`, `thinking`, `temperature`, and `max_tokens`. `provider` is the provider id that the Host's catalog names, or nil. A prompt writes a call on a handle as `models.infer(model, prompt)` or `models.loop(model, compactor?)`.
 
@@ -83,7 +79,7 @@ A handle has only its fields, so the `models` functions are the one way to run a
 
 ### `models.get` returns a role's handle and leaves the current model as it is
 
-`models.get('fast')` returns the handle of the `fast` role. A role name is a string that Lua passes as an argument. When the Engine's caller passes a state snapshot to `RunParams::with_ui`, as the Harness does for every run, `models.get` also takes a raw Gateway model id, and that handle has a fixed context window of 8192 tokens.
+`models.get('fast')` returns the handle of the `fast` role. A role name is a string that Lua passes as an argument. A name that is not a role raises an error that lists the roles. A prompt names a model by its role, and the Host chooses the model that fills each role ([The Harness and the Host API](harness-and-host.md)).
 
 ## 3. `models.infer` and `models.loop`
 
@@ -183,13 +179,13 @@ The owner's reason: "Because of prefix cache invalidation, changes to the prefix
 
 ### The list checks a record when Lua adds it, and the projection checks the whole list before each request
 
-`parse_record` checks one record's role, content, and tool fields at the builder call, and drops any field outside the five that a record has. Before each request, `project_messages` checks the rules that span records: every tool call id is unique, and one result for each call follows an assistant record's tool calls directly. It then builds the wire messages and joins consecutive user records into one message.
+`parse_record` checks one record's role, content, and tool fields at the builder call, and drops any field that a record does not define. Before each request, `project_messages` checks the rules that span records: every tool call id is unique, and one result for each call follows an assistant record's tool calls directly. It then builds the wire messages and joins consecutive user records into one message.
 
 The first check runs at the builder call so that a malformed record fails there, before `models.loop` runs. The projection enforces the pairing because OpenAI-shaped models reject unanswered tool calls.
 
 ### A record can have `meta`, which Lua reads and the projection omits
 
-`meta` is any JSON value of at most 8192 bytes as compact JSON. Lua sets it as the last argument of a builder or as a field of an appended record, and reads it from a view. The projection sends four fields to the model: `role`, `content`, `tool_call_id`, and `tool_calls`. The records that the loop appends have plain text content and omit `meta`.
+`meta` is any JSON value of at most 8192 bytes as compact JSON. Lua sets it as the last argument of a builder or as a field of an appended record, and reads it from a view. The projection sends `role`, `content`, `tool_call_id`, and `tool_calls` to the model. The records that the loop appends have plain text content and omit `meta`.
 
 The field exists because a compactor needs hints that survive in the list, and a view lacks a stable identity.
 
@@ -267,7 +263,7 @@ The client is a crate of its own for two reasons. Inference is a Host service an
 
 ### One function normalizes every reply, and reasoning text is separate from the answer
 
-`normalize` in the client's `wire/parse.rs` reads the assembled reply and returns three things: text or tool calls, the finish reason, and reasoning text. It reads reasoning from the first non-empty field among `reasoning_content`, `reasoning`, and `thinking`.
+`normalize` in the client's `wire/parse.rs` reads the assembled reply and returns text or tool calls, the finish reason, and reasoning text. It reads reasoning from the first non-empty field among `reasoning_content`, `reasoning`, and `thinking`.
 
 The module concentrates the wire quirks so that the rest of Runvil works the same across models. A new special case belongs in this module. Its growth is acceptable, and scattered special cases are the risk.
 
@@ -277,7 +273,7 @@ The module concentrates the wire quirks so that the rest of Runvil works the sam
 
 The checks that are independent of the wire format are in the Engine so that they run for every broker. The client fails a cut-off batch so that only calls with complete JSON arguments run.
 
-### The receive timeout restarts with each chunk, and the client owns both request limits
+### The receive timeout restarts with each chunk, and the client owns the request limits
 
 `GatewayChat` waits at most 120 seconds for the response headers and then for each next chunk, and it accepts at most 16 MiB for one reply. A stream that continues to send data completes, and a silent stream fails with the code `Timeout`. `GatewayChat::with_request_limits` sets both values, and `GatewayBroker::new` uses the defaults.
 
@@ -287,7 +283,7 @@ The timeout restarts with each chunk because a cap of 120 seconds on the whole r
 
 A failed round is an `Error` with a model code such as `Overloaded`, `Timeout`, or `ContextOverflow` ([The Engine](engine.md)). Its `prose` field, the text that a model reads, is the code's fixed phrase, with ` (status N)` appended for an HTTP status. The client appends the provider's escaped text to the error's message, and Lua receives the prose. In Lua a caught failure has the kind `model_failure`, and a round on a chain that lacks a model has `model_required`.
 
-Lua has these two kinds because a single kind, `internal`, would cover three unrelated conditions, and a model that reads a caught 503 would see `internal`.
+Lua has these two kinds because a single kind, `internal`, would cover unrelated conditions, and a model that reads a caught 503 would see `internal`.
 
 ### The client redacts its key and builds a keyless client for a loopback Gateway
 
@@ -299,10 +295,10 @@ The client has the Gateway's key, and the Gateway has the model provider's key. 
 
 Each of these items is still to be built.
 
-- **A model for each role.** A model that the Host selects for each of the five roles. `RunSetup` has one `selected_model`, and the Harness passes that model as `default`, so it fills all five roles.
+- **A model for each role.** A model that the Host selects for each role. `RunSetup` has one `selected_model`, and the Harness passes that model as `default`, so it fills every role.
 - **A model swap that the Engine knows about.** A swap that also changes the Engine's binding for the role. After a swap by the broker, the Engine's precheck, `sys.model`, and the request's thinking switch and token cap describe the first model.
 - **A scoped model switch.** A Lua form that switches the model for one block of work and restores it afterward. `models.use` switches the model for the rest of the chain, and a prompt restores the earlier model with a handle saved from `models.current()`.
-- **A role for compaction.** A role beside the five that names the model for compaction. A compactor calls `models.infer` on the chain's current model or on a handle, and the item waits for evidence of what compaction needs.
+- **A role for compaction.** A role beside the others that names the model for compaction. A compactor calls `models.infer` on the chain's current model or on a handle, and the item waits for evidence of what compaction needs.
 - **The thinking switch for remote providers.** A per-model Gateway setting that translates the switch for a remote provider. The Gateway forwards `chat_template_kwargs.enable_thinking` to a remote provider as written, and a provider that ignores the field uses its own default ([The Gateway](gateway.md)).
 - **Tool schemas and images in the precheck.** A token count for tool schemas and image parts. The estimate omits both, and the item waits until retries overflow at the provider or image summaries fail the shrink rule.
 - **Tool ids in records.** A record whose tool call names the tool by its id, such as `web/fetch`, as Lua does. The record has the wire name, such as `web_fetch`.
@@ -316,12 +312,12 @@ Each item names a text that differs from the code: the shipped chat prompt, a gu
 
 1. Model changes in Workshop. The paragraph before the first heading of `workshop/agents/agents/chat.md` says of the model that "a selection change takes effect on the next run". `WorkshopBroker::routed` in `workshop/server/src/agents/broker.rs` sends each round to the dropdown's current pick, and the Workshop test `gate_a_model_picked_between_turns_serves_the_next_round` pins that.
 2. The ceiling on rounds. Guide chapter 16 says "A prompt's own `max_tool_iterations` value replaces the run's round cap". `max_tool_iterations` in `runvil-internal/runtime/src/execute/context.rs` also applies `RunLimits::tool_iterations_ceiling`, which the guide omits.
-3. Who sets the request limits. A table in chapter 16 names the Harness as the part that changes the response cap and the receive timeout. `GatewayChat::with_request_limits` is the one setter, `GatewayBroker::new` uses the defaults, and `RunSetup` lacks both values.
+3. Who sets the request limits. A table in chapter 16 names the Harness as the part that changes the response cap and the receive timeout. `GatewayChat::with_request_limits` is the setter, `GatewayBroker::new` uses the defaults, and `RunSetup` lacks both values.
 
 **An error text and doc comments**
 
 4. The text of the missing-model error. The prose of `ErrorCode::ModelRequired` in `runvil-internal/types/src/error.rs` tells the author to select a model or "bind a default model". The `models` API lacks a call that binds a default model: the `default` model is an entry of the map that the Engine's caller passes. Guide chapter 10 repeats the text.
-5. Who owns the model selection. The module docs of `runvil-internal/model-client/src/model.rs` say "a section that never calls it runs on the `default` role", where "it" is `models.use`. The module docs of `runvil-internal/lua/src/models.rs` and a field doc in `runvil-internal/runtime/src/execute/section_vm.rs` also call the selection the section's, wording that at least twelve other comments in `runvil-lua` and `runvil-runtime` share. The chain owns the selection, and such a section runs on the chain's current model.
+5. Who owns the model selection. The module docs of `runvil-internal/model-client/src/model.rs` say "a section that never calls it runs on the `default` role", where "it" is `models.use`. The module docs of `runvil-internal/lua/src/models.rs` and a field doc in `runvil-internal/runtime/src/execute/section_vm.rs` also call the selection the section's, wording that other comments in `runvil-lua` and `runvil-runtime` share. The chain owns the selection, and such a section runs on the chain's current model.
 
 ## 10. Questions for the owner
 
@@ -329,30 +325,25 @@ Each question asks for the reason behind a part of the design.
 
 **Roles and models**
 
-1. Why five roles, and why these names?
+1. Why this set of roles, and why these names?
 2. Why is a requirement on a role checked against the `default` model when the Host's map omits that role? The check can surprise a Host author.
-3. Why does `models.get` take a raw Gateway model id when the Engine's caller passes a state snapshot, and refuse it otherwise?
-4. Why does the client send the thinking switch as `chat_template_kwargs.enable_thinking`?
+3. Why does the client send the thinking switch as `chat_template_kwargs.enable_thinking`?
 
 **The loop and the conversation**
 
-5. Why does `models.infer` send an empty tool list?
-6. Why is the default cap 24 rounds? The Tools and Packs page asks the same question.
-7. Why does the count of answered tool calls, which permits an empty final reply, restart with each `models.loop` call?
-8. Why may a list start with several system records?
+4. Why does `models.infer` send an empty tool list?
+5. Why is the default cap 24 rounds? The Tools and Packs page asks the same question.
+6. Why does the count of answered tool calls, which permits an empty final reply, restart with each `models.loop` call?
+7. Why may a list start with several system records?
 
 **The client**
 
-9. Why does the client send tools in the OpenAI function-calling format?
-10. Why does the client cut a backend's error body at 2000 characters, and why does `GatewayChat::keyless` accept an endpoint on any host?
+8. Why does the client send tools in the OpenAI function-calling format?
+9. Why does the client cut a backend's error body at 2000 characters, and why does `GatewayChat::keyless` accept an endpoint on any host?
 
 ## 11. Method and limits
 
-- **Code.** The page describes `runvil` at commit `fa9936f64`, `runvil-docs` at `cfd69a4`, and `runvil-gateway` at `9369a7d`.
-- **Checks.** The facts on this page were read in the code at those commits. A second session checked the gaps, the values, and the walk-through against the code.
+- **Checks.** The facts on this page were read in the code. A second session checked the gaps, the values, and the walk-through against the code.
 - **Limits.** The sessions read the code and its tests, and left the build and the tests unrun.
-- **Move.** On 2026-11-12 the Paths bullet was brought to `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`. Commit `adca9db10` of `runvil` removed the Engine, Harness, and Plugin crates, which are in `runvil-harness` with their history and at the same paths under `crates/`. The Workshop crates stay in `runvil`. The text of the page still describes the code at the commits above, when all of these crates were in `runvil`.
-- **Every heading is a section.** On 2026-11-13 the two entries on a chain's current model in section 2 and the entry on a section entry's conversation in section 5 were brought to the second change that follows `8de43c2f` in `runvil-harness`, whose plan is `plan/2026-11-13-2-every-heading-is-a-section.plan.md` there. Before it, the Lua blocks under a prompt's one H1 ran once in a chain of their own, the H1 pass. The pass started on the `default` role, and the main walk started on the model that the pass ended on. Gap 1 of section 9 named the H1 prose of Workshop's `chat.md`. It names the paragraph before the file's first heading, because Workshop pins that change at `7147e709` and the file has no title line. That session ran the build and its tests.
-- **Streaming.** On 2026-11-24 the entry of section 7 on the Gateway client's stream and on live text was brought to `runvil-harness` at commit `5d9c7bf8`, the head of pull request 76. The update covers that entry and the third Update bullet at the top of the page. It states that the standard broker hands each piece to the callback the Harness gives the round, and that a Host that sets `RunSetup::streaming` receives each piece of a section's own round. The Harness's whole verification list passes at that commit. The rest of the page still describes the commits above.
 
 *2026-11-10 16:39 - Claude Fable 5.2*
