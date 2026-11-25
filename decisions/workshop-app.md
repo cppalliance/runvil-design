@@ -4,7 +4,7 @@
 - Code: `runvil` at commit `fa9936f64`, `runvil-gateway` at commit `9369a7d`, and `runvil-docs` at commit `cfd69a4`
 - Update: the tiers and the dependency checks of section 3 describe `runvil` at commit `48a4dbc08` and `runvil-harness` at `5bca6f9`, and the text on Plugins describes `runvil` at `b0693699d` (section 12)
 - Update: the text of section 5 on Plugins, the Plugin directory, a run's Packs, a run's file system, and a `prompts:` list, and the planned item on a real folder describe `runvil-workshop` at commit `956e7800`, which pins `runvil-harness` at `4afed45f` (section 12)
-- Update: the text of section 5 on the inference broker and on streaming describes `runvil-workshop` at commit `1b33d9f8`, which pins `runvil-harness` at `5d9c7bf8`, and question 5 of section 11 names the Harness's callback (section 12)
+- Update: the walk-through's paragraph on a model round, the text of section 5 on the inference broker and on streaming, and question 5 of section 11 describe `runvil-workshop` at commit `1b33d9f8`, which pins `runvil-harness` at `5d9c7bf8` (section 12)
 - Paths: code paths start at the `crates/workshop/` folder of `runvil-workshop` unless they begin with `crates/`, `.cursor/`, or a repository name
 
 ## Summary
@@ -23,7 +23,7 @@ When the agent socket connects, the server's `run_socket` loop sends an `agents`
 
 The user types a message and presses Enter. `AgentSocket.respond` sends `{"type":"input_response","text":"..."}`. The loop calls `Conversation::send_input`, which calls `RunControl::send`. The Harness appends the text to the inbox of the main chain, which is the run's root task. `tasks.receive()` returns the text, and the prompt calls `models.loop`.
 
-The Harness asks the server's `WorkshopBroker` for the model round and hands it the run's callback for live pieces. The broker reads the current Gateway binding and the selected model and calls the Gateway. For each streamed piece the callback calls `Conversation::publish_delta`, and the loop sends an `agent_delta` frame with the round's `reply` id. When the round ends, the Harness passes the `AssistantReply` event to `ConversationRecorder`, which writes it to the run log and then calls `Conversation::observe`. The loop sends the event as an `agent_event` of kind `agent_message` with an `index` and the same `reply` id, and the UI replaces the streamed chunks with the finished reply. The prompt calls `tasks.receive()` again, and the next `awaiting_input` event ends the working state.
+The Harness asks the server's `WorkshopBroker` for the model round and hands it a callback for the round's live pieces, which passes each piece, with the round, to the run's streaming callback. The broker reads the current Gateway binding and the selected model and calls the Gateway. For each streamed piece the run's streaming callback calls `Conversation::publish_delta`, and the loop sends an `agent_delta` frame with the round's `reply` id. When the round ends, the Harness passes the `AssistantReply` event to `ConversationRecorder`, which writes it to the run log and then calls `Conversation::observe`. The loop sends the event as an `agent_event` of kind `agent_message` with an `index` and the same `reply` id, and the UI replaces the streamed chunks with the finished reply. The prompt calls `tasks.receive()` again, and the next `awaiting_input` event ends the working state.
 
 ## 1. The desktop app and its window
 
