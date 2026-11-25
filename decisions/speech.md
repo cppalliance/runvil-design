@@ -5,7 +5,7 @@
 
 ## Summary
 
-The Gateway turns speech into text with whisper.cpp. A realtime client streams audio over the WebSocket `/v1/realtime` and receives text while the person speaks, and a batch client uploads a file to `POST /v1/audio/transcriptions`. Whisper models share each recording: a fast one decodes every half second and shows its words, and an accurate one decodes each finished segment and replaces them. Another model, Silero, decides which audio is speech. `POST /v1/audio/speech` forwards a synthesis request to a remote provider and relays the audio. Workshop's voice feature is dictation: its server relays microphone audio to the Gateway, and the text appears in the chat box. Sections 1 to 8 describe these parts.
+The Gateway turns speech into text with whisper.cpp. A realtime client streams audio over the WebSocket `/v1/realtime` and receives text while the person speaks, and a batch client uploads a file to `POST /v1/audio/transcriptions`. In a realtime session, Whisper models share each recording: a fast one decodes every half second and shows its words, and an accurate one decodes each finished segment and replaces them. Another model, Silero, decides which audio is speech. `POST /v1/audio/speech` forwards a synthesis request to a remote provider and relays the audio. Workshop's voice feature is dictation: its server relays microphone audio to the Gateway, and the text appears in the chat box. Sections 1 to 8 describe these parts.
 
 Section 10 lists the gaps between this page and the code, and section 11 lists the questions about reasons for the owner. Every gap is in guide chapter 05, and the largest is speech detection: the chapter describes a loudness threshold, and the code classifies every frame with Silero.
 
